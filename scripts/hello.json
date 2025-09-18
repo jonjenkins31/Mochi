@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "fps": 60,
+  "timeline": [
+    {"at": 0.0,  "cmd": "mode",   "args": {"name": "idle"}},
+    {"at": 0.2,  "cmd": "event",  "args": {"name": "blink"}},
+    {"at": 1.0,  "cmd": "mode",   "args": {"name": "bars", "fg": [255,120,40]}},
+    {"at": 3.5,  "cmd": "mode",   "args": {"name": "rainbow"}},
+    {"at": 6.0,  "cmd": "stop" }
+  ]
+}

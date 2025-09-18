@@ -2,7 +2,7 @@
 # Sends control commands to mochi_node.py on topic "ctrl".
 #
 # Commands supported by mochi_node.py:
-#   idle | bars | rainbow
+#   mode <name>        (e.g., mode face | mode face_2 | mode bars | mode rainbow)
 #   color R G B
 #   size WxH
 #   quit
@@ -45,9 +45,13 @@ class MochiGUI:
         # Row 1: animation presets
         presets = ttk.LabelFrame(outer, text="Animations")
         presets.grid(row=1, column=0, sticky="ew", pady=4)
-        for i, (label, cmd) in enumerate([("Idle", "idle"),
-                                          ("Bars", "bars"),
-                                          ("Rainbow", "rainbow")]):
+        buttons = [
+            ("Face",    "mode face"),
+            ("Face 2",  "mode face_2"),
+            ("Bars",    "mode bars"),
+            ("Rainbow", "mode rainbow"),
+        ]
+        for i, (label, cmd) in enumerate(buttons):
             ttk.Button(presets, text=label, command=lambda c=cmd: self.send(c)).grid(
                 row=0, column=i, padx=6, pady=6, sticky="ew"
             )
@@ -91,12 +95,9 @@ class MochiGUI:
         ttk.Button(footer, text="Quit Node", command=lambda: self.send("quit")).pack(side=tk.RIGHT)
         ttk.Button(footer, text="Close GUI", command=self.on_close).pack(side=tk.RIGHT, padx=6)
 
-        # Keyboard shortcuts
+        # Keyboard shortcuts (only close)
         root.bind("<Escape>", lambda e: self.on_close())
         root.bind("q", lambda e: self.on_close())
-        root.bind("i", lambda e: self.send("idle"))
-        root.bind("b", lambda e: self.send("bars"))
-        root.bind("r", lambda e: self.send("rainbow"))
 
         # Initialize color preview
         self._set_preview_color(255, 120, 40)
