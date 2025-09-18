@@ -1,0 +1,8 @@
+# requirements.txt — Mochi Tk project
+# How to use. pip install -r requirements.txt
+# Core messaging
+pyzmq>=25.1.1
+
+# (Optional) Development helpers
+# pillow>=10.4.0   # if you later want to add image-to-LED conversions
+# numpy>=2.1.0     # if you add numerical animations or DSP
