@@ -1,4 +1,4 @@
-from .base_example import Animation
+from .base import Animation
 import math
 
 class Idle(Animation):
