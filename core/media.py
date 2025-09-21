@@ -1,147 +1,95 @@
-# utils/media.py
+# core/media.py
 from __future__ import annotations
-from typing import List, Tuple, Optional, Union
-from dataclasses import dataclass
-from PIL import Image, ImageOps
-import io
-import os
+from typing import Optional, List, Tuple
+from PIL import Image
+import logging
 
-try:
-    import cairosvg  # optional for SVG
-    _HAS_CAIROSVG = True
-except Exception:
-    _HAS_CAIROSVG = False
+# --- Logging Setup ---
+logger = logging.getLogger(__name__)
 
-@dataclass
 class MediaFrames:
-    frames: List[Image.Image]        # RGB frames
-    durations_ms: List[int]          # per-frame durations (ms), same length as frames
+    """A container for decoded media frames and their timings."""
+    def __init__(self, frames: List[Image.Image], durations_ms: List[int]):
+        self.frames: List[Image.Image] = frames
+        self.durations_ms: List[int] = durations_ms
+        self.total_duration: int = sum(d if d > 0 else 100 for d in self.durations_ms)
 
-def _ensure_rgb(im: Image.Image) -> Image.Image:
-    if im.mode == "RGB":
-        return im
-    if im.mode in ("RGBA", "LA"):
-        return im.convert("RGBA").convert("RGB")
-    return im.convert("RGB")
+    @property
+    def frame_count(self) -> int:
+        return len(self.frames)
 
-def _resize(im: Image.Image, target: Optional[Tuple[int,int]], fit_mode: str, letterbox_color=(0,0,0)) -> Image.Image:
+def decode_image(path: str, target_size: Tuple[int, int], fit_mode: str = 'fit', letterbox_color: Tuple[int, int, int] = (0, 0, 0)) -> Optional[MediaFrames]:
     """
-    fit_mode: 'fit' (letterbox to fit within), 'fill' (cover + center-crop), or 'stretch'
+    Opens a media file (static image, GIF, APNG) and decodes it into a standardized format.
+
+    Args:
+        path: Path to the media file.
+        target_size: The (width, height) of the output display.
+        fit_mode: How to resize the image ('fit', 'fill', 'stretch').
+        letterbox_color: RGB color for the letterbox background if using 'fit' mode.
+
+    Returns:
+        A MediaFrames object containing the processed frames, or None if decoding fails.
     """
-    if not target:
-        return im
-    tw, th = target
-    if fit_mode == "stretch":
-        return im.resize((tw, th), Image.NEAREST)
-    # keep aspect
-    src_w, src_h = im.size
-    if fit_mode == "fit":
-        out = Image.new("RGB", (tw, th), letterbox_color)
-        im2 = ImageOps.contain(im, (tw, th), method=Image.NEAREST)
-        x = (tw - im2.width)//2
-        y = (th - im2.height)//2
-        out.paste(im2, (x, y))
-        return out
-    elif fit_mode == "fill":
-        # scale to cover then center-crop
-        scale = max(tw/src_w, th/src_h) if src_w and src_h else 1.0
-        new_w = max(1, int(src_w*scale))
-        new_h = max(1, int(src_h*scale))
-        im2 = im.resize((new_w, new_h), Image.NEAREST)
-        x = (new_w - tw)//2
-        y = (new_h - th)//2
-        return im2.crop((x, y, x+tw, y+th))
-    return im
-
-def _decode_svg(data: bytes, css_px_size: Optional[Tuple[int,int]]) -> Image.Image:
-    if not _HAS_CAIROSVG:
-        raise RuntimeError("SVG support requires 'cairosvg' (pip install cairosvg)")
-    png_bytes = cairosvg.svg2png(bytestring=data,
-                                 output_width=css_px_size[0] if css_px_size else None,
-                                 output_height=css_px_size[1] if css_px_size else None)
-    return Image.open(io.BytesIO(png_bytes)).convert("RGB")
-
-def _is_svg(path_or_bytes: Union[str, bytes]) -> bool:
-    if isinstance(path_or_bytes, str):
-        return os.path.splitext(path_or_bytes)[1].lower() == ".svg"
-    # crude sniff
-    head = path_or_bytes[:200].lstrip() if isinstance(path_or_bytes, (bytes, bytearray)) else b""
-    return head.startswith(b"<svg") or b"<svg" in head
-
-def decode_image(
-    src: Union[str, bytes, bytearray],
-    target_size: Optional[Tuple[int,int]] = None,
-    fit_mode: str = "fit",              # 'fit' | 'fill' | 'stretch'
-    letterbox_color=(0,0,0),
-) -> MediaFrames:
-    """
-    Generic image loader → RGB frames (+ durations). Handles still images and GIF/APNG.
-    """
-    if isinstance(src, (bytes, bytearray)):
-        buf = io.BytesIO(src)
-        is_svg = _is_svg(src)
-    else:
-        is_svg = src.lower().endswith(".svg")
-        buf = None
-
-    if is_svg:
-        if isinstance(src, (bytes, bytearray)):
-            im = _decode_svg(bytes(src), css_px_size=target_size)
-        else:
-            with open(src, "rb") as f:
-                im = _decode_svg(f.read(), css_px_size=target_size)
-        im = _ensure_rgb(im)
-        im = _resize(im, target_size, fit_mode, letterbox_color)
-        return MediaFrames([im], [0])
-
-    # Raster formats (Pillow)
-    im = Image.open(buf if buf is not None else src)
-    # animated?
-    frames: List[Image.Image] = []
-    durations: List[int] = []
     try:
-        im.seek(0)
+        img = Image.open(path)
+    except Exception as e:
+        logger.error(f"Failed to open image file: {path} ({e})")
+        return None
+
+    frames = []
+    durations = []
+    w_target, h_target = target_size
+
+    try:
+        for i in range(img.n_frames):
+            img.seek(i)
+            frame = img.copy()
+
+            # --- Convert to standard RGB ---
+            if frame.mode != 'RGB':
+                frame = frame.convert('RGB')
+
+            # --- Resize and Fit ---
+            if frame.size != target_size:
+                # Use NEAREST filter for sharp, pixel-perfect scaling of low-res assets
+                resample_filter = Image.NEAREST
+
+                if fit_mode == 'stretch':
+                    frame = frame.resize(target_size, resample=resample_filter)
+                else: # 'fit' (letterbox) or 'fill' (crop)
+                    img_ratio = frame.width / frame.height
+                    target_ratio = w_target / h_target
+                    
+                    if (fit_mode == 'fit' and img_ratio > target_ratio) or \
+                       (fit_mode == 'fill' and img_ratio < target_ratio):
+                        # Fit to width
+                        scale_h = int(w_target / img_ratio)
+                        scaled_img = frame.resize((w_target, scale_h), resample=resample_filter)
+                    else:
+                        # Fit to height
+                        scale_w = int(h_target * img_ratio)
+                        scaled_img = frame.resize((scale_w, h_target), resample=resample_filter)
+
+                    # Create background and paste the scaled image
+                    new_frame = Image.new('RGB', target_size, letterbox_color)
+                    paste_x = (w_target - scaled_img.width) // 2
+                    paste_y = (h_target - scaled_img.height) // 2
+                    new_frame.paste(scaled_img, (paste_x, paste_y))
+                    frame = new_frame
+
+            frames.append(frame)
+            durations.append(img.info.get('duration', 100))
+
     except EOFError:
         pass
-    idx = 0
-    while True:
-        frm = _ensure_rgb(im.copy())
-        frm = _resize(frm, target_size, fit_mode, letterbox_color)
-        dur = im.info.get("duration", 0)  # GIF/APNG ms
-        frames.append(frm)
-        durations.append(int(dur))
-        idx += 1
-        try:
-            im.seek(idx)
-        except EOFError:
-            break
+    except Exception as e:
+        logger.error(f"Error processing frames for {path}: {e}")
+        return None
+
     if not frames:
-        frm = _ensure_rgb(im)
-        frm = _resize(frm, target_size, fit_mode, letterbox_color)
-        frames = [frm]; durations = [0]
+        logger.warning(f"No frames could be decoded from {path}")
+        return None
+
+    logger.info(f"Successfully decoded {len(frames)} frames from {path}")
     return MediaFrames(frames, durations)
-
-# --- 1-bit packed bitmap (row-major, MSB-first), like Arduino PROGMEM ---
-
-def decode_packed_1bit(
-    bitmap_bytes: bytes,
-    width: int,
-    height: int,
-    on=(255,255,255),
-    off=(0,0,0),
-    target_size: Optional[Tuple[int,int]] = None,
-    fit_mode: str = "fit",
-    letterbox_color=(0,0,0),
-) -> MediaFrames:
-    bytes_per_row = (width + 7) // 8
-    im = Image.new("RGB", (width, height), off)
-    px = im.load()
-    for y in range(height):
-        row_off = y * bytes_per_row
-        for x in range(width):
-            bi = row_off + (x // 8)
-            bit = 7 - (x % 8)
-            onbit = ((bitmap_bytes[bi] >> bit) & 1) != 0
-            px[x, y] = on if onbit else off
-    im = _resize(im, target_size, fit_mode, letterbox_color)
-    return MediaFrames([im], [0])

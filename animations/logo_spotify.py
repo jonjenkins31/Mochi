@@ -1,6 +1,7 @@
 # animations/logo_spotify.py
 # Render a 1-bit monochrome Spotify logo bitmap on the RGB matrix, scaled to fit.
 
+import numpy as np
 from .base import Animation
 from typing import Tuple
 
@@ -76,19 +77,6 @@ BITMAP = bytes([
 ])
 
 
-# Packed 1-bit bitmap: row-major, MSB-first
-_BYTES_PER_ROW = (WIDTH + 7) // 8
-
-def _bit_on(x: int, y: int) -> bool:
-    if not (0 <= x < WIDTH and 0 <= y < HEIGHT):
-        return False
-    bi = y * _BYTES_PER_ROW + (x // 8)
-    if bi >= len(BITMAP):
-        return False
-    bit = 7 - (x % 8)
-    return ((BITMAP[bi] >> bit) & 1) != 0
-
-
 class LogoSpotifyNoScale(Animation):
     name = "logo_spotify_noscale"
 
@@ -96,9 +84,16 @@ class LogoSpotifyNoScale(Animation):
         super().__init__(w, h)
         self.logo_col = (30, 215, 96)  # Spotify green
         self.bg_col   = (5, 5, 8)
-        # Placement: center by default
-        self.offset_x = None  # None → auto center
+        self.offset_x = None
         self.offset_y = None
+        self._logo_mask = None
+        self._unpack_logo()
+
+    def _unpack_logo(self):
+        # Unpack the 1-bit bitmap into a 2D NumPy boolean array.
+        # This is done once, not per frame.
+        unpacked = np.unpackbits(BITMAP)
+        self._logo_mask = unpacked.reshape((HEIGHT, WIDTH)).astype(bool)
 
     def on_enter(self, **kwargs):
         super().on_enter(**kwargs)
@@ -107,30 +102,32 @@ class LogoSpotifyNoScale(Animation):
         if "ox" in kwargs:       self.offset_x = int(kwargs["ox"])
         if "oy" in kwargs:       self.offset_y = int(kwargs["oy"])
 
-    def frame(self, t: float) -> bytes:
-        w, h = self.w, self.h
-        bg = self.bg_col
-        buf = bytearray([bg[0], bg[1], bg[2]] * (w * h))
+    def render_into(self, t: float, pixel_buf: bytearray):
+        frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))
+        frame[:, :] = self.bg_col
 
         # Compute top-left placement (center if offsets not given)
-        ox = self.offset_x if self.offset_x is not None else (w - WIDTH) // 2
-        oy = self.offset_y if self.offset_y is not None else (h - HEIGHT) // 2
+        ox = self.offset_x if self.offset_x is not None else (self.w - WIDTH) // 2
+        oy = self.offset_y if self.offset_y is not None else (self.h - HEIGHT) // 2
 
-        lr, lg, lb = self.logo_col
+        # Calculate the source and destination slices to handle clipping
+        src_y_start = max(0, -oy)
+        src_y_end = min(HEIGHT, self.h - oy)
+        src_x_start = max(0, -ox)
+        src_x_end = min(WIDTH, self.w - ox)
 
-        # Iterate the source bitmap 1:1 and draw only overlapping region
-        x0 = max(0, -ox)
-        y0 = max(0, -oy)
-        x1 = min(WIDTH,  w - ox)
-        y1 = min(HEIGHT, h - oy)
+        dst_y_start = max(0, oy)
+        dst_y_end = min(self.h, oy + HEIGHT)
+        dst_x_start = max(0, ox)
+        dst_x_end = min(self.w, ox + WIDTH)
 
-        for sy in range(y0, y1):
-            dy = sy + oy
-            row = dy * w * 3
-            for sx in range(x0, x1):
-                if _bit_on(sx, sy):
-                    dx = sx + ox
-                    i = row + dx * 3
-                    buf[i:i+3] = bytes((lr, lg, lb))
+        # If there's nothing to draw, exit early
+        if src_y_start >= src_y_end or src_x_start >= src_x_end:
+            return
 
-        return bytes(buf)
+        # Get the slices of the frame and the mask
+        frame_slice = frame[dst_y_start:dst_y_end, dst_x_start:dst_x_end]
+        mask_slice = self._logo_mask[src_y_start:src_y_end, src_x_start:src_x_end]
+
+        # Use the boolean mask to set the color in the frame slice
+        frame_slice[mask_slice] = self.logo_col

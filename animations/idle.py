@@ -1,14 +1,23 @@
-from .base import Animation
+# animations/idle.py
+# A simple, low-CPU idle animation with a gentle pulsing background.
+
 import math
+import numpy as np
+from .base import Animation
+
 
 class Idle(Animation):
     name = "idle"
-    def frame(self, t):
-        w, h = self.w, self.h
-        buf = bytearray(w*h*3)
-        breath = (math.sin(t*0.8)*0.5+0.5)*0.12
-        tint = int(15 + breath*80)
-        for i in range(0, len(buf), 3):
-            buf[i:i+3] = (8, 8, min(255, 12 + tint))
-        # (you can draw eyes here too)
-        return bytes(buf)
+
+    def render_into(self, t: float, pixel_buf: bytearray):
+        # Create a NumPy array that shares memory with the pixel buffer (no copy)
+        frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))
+
+        # Calculate the pulsing brightness for the blue channel
+        breath = (math.sin(t * 0.8) * 0.5 + 0.5) * 0.12
+        tint = int(15 + breath * 80)
+        blue_channel = min(255, 12 + tint)
+
+        # Set the entire frame to the calculated color at once.
+        # NumPy automatically broadcasts the single color across the whole array.
+        frame[:, :] = (8, 8, blue_channel)
