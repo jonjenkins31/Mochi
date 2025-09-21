@@ -10,17 +10,24 @@ import logging
 import sys
 import os
 import animations  # Import the animations package
+import subprocess
+import threading
+import json
+from queue import Queue, Empty
 
 # --- Constants ---
 CTRL_TOPIC = b"ctrl"
+HEALTH_TOPIC = b"health"
 SCRIPTS_DIR = "scripts"
 
 class MochiGUI:
-    def __init__(self, root, pub_addr: str, logger):
+    def __init__(self, root, pub_addr: str, health_sub_addr: str, logger):
         self.root = root
         self.logger = logger
         self.root.title("Mochi Manual Control — Tk")
         self.pub_addr = pub_addr
+        self.health_sub_addr = health_sub_addr
+        self._processes = []
 
         # --- ZMQ publisher ---
         self.ctx = zmq.Context.instance()
@@ -40,12 +47,22 @@ class MochiGUI:
         outer = ttk.Frame(root, padding=12)
         outer.pack(fill=tk.BOTH, expand=True)
 
-        # Row 0: connection info
-        conn = ttk.Frame(outer)
-        conn.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        ttk.Label(conn, text="Publisher bound →").pack(side=tk.LEFT)
-        self.addr_var = tk.StringVar(value=self.pub_addr)
-        ttk.Label(conn, textvariable=self.addr_var, font=("Menlo", 10)).pack(side=tk.LEFT, padx=6)
+        # Row 0: Node Status
+        status_frame = ttk.LabelFrame(outer, text="Node Status")
+        status_frame.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        self.status_metrics = {
+            "Mode": tk.StringVar(value="--"),
+            "Size": tk.StringVar(value="--"),
+            "FPS": tk.StringVar(value="--"),
+            "Mem (MB)": tk.StringVar(value="--"),
+            "Tx (MB/s)": tk.StringVar(value="--"),
+        }
+        col = 0
+        for name, var in self.status_metrics.items():
+            ttk.Label(status_frame, text=f"{name}:").grid(row=0, column=col, sticky="w", padx=(10, 2))
+            ttk.Label(status_frame, textvariable=var, font=("Menlo", 10)).grid(row=0, column=col + 1, sticky="w")
+            col += 2
+        status_frame.grid_columnconfigure(11, weight=1) # Push to left
 
         # Row 1: Dynamic animation selection
         anim_frame = ttk.LabelFrame(outer, text="Animation Control")
@@ -81,6 +98,7 @@ class MochiGUI:
         
         self.script_combo.grid(row=0, column=0, padx=6, pady=6, sticky="ew")
         ttk.Button(script_frame, text="Run", command=self.send_script_from_combobox).grid(row=0, column=1, padx=6, pady=6)
+        ttk.Button(script_frame, text="Stop", command=self.stop_script).grid(row=0, column=2, padx=6, pady=6)
         script_frame.grid_columnconfigure(0, weight=1)
 
         # Row 3: color for Bars
@@ -113,9 +131,15 @@ class MochiGUI:
         )
         raw.grid_columnconfigure(0, weight=1)
 
-        # Row 6: footer
+        # Row 6: Launchers
+        launch_frame = ttk.LabelFrame(outer, text="Launch Tools")
+        launch_frame.grid(row=6, column=0, sticky="ew", pady=4)
+        ttk.Button(launch_frame, text="Launch Virtual Display", command=self.launch_vdisplay).pack(side=tk.LEFT, padx=6, pady=6)
+        ttk.Button(launch_frame, text="Launch Performance Monitor", command=self.launch_perf_monitor).pack(side=tk.LEFT, padx=6, pady=6)
+
+        # Row 7: footer
         footer = ttk.Frame(outer)
-        footer.grid(row=6, column=0, sticky="ew", pady=(8, 0))
+        footer.grid(row=7, column=0, sticky="ew", pady=(8, 0))
         self.status = tk.StringVar(value="Ready")
         ttk.Label(footer, textvariable=self.status).pack(side=tk.LEFT)
         ttk.Button(footer, text="Quit Node", command=lambda: self.send("quit")).pack(side=tk.RIGHT)
@@ -128,6 +152,13 @@ class MochiGUI:
         # Initialize color preview
         self._set_preview_color(255, 120, 40)
 
+        # Health subscriber
+        self.health_queue = Queue()
+        self.health_stop_event = threading.Event()
+        self.health_thread = threading.Thread(target=self._health_poll_loop, daemon=True)
+        self.health_thread.start()
+        self.root.after(100, self._process_health_queue)
+
     def send_mode_from_combobox(self):
         anim_name = self.anim_var.get()
         if anim_name:
@@ -137,6 +168,9 @@ class MochiGUI:
         script_name = self.script_var.get()
         if script_name:
             self.send(f"play {os.path.join(SCRIPTS_DIR, script_name)}")
+
+    def stop_script(self):
+        self.send("stop")
 
     def send(self, msg: str):
         msg = msg.strip()
@@ -190,7 +224,63 @@ class MochiGUI:
             return
         self.send(f"size {w_i}x{h_i}")
 
+    def launch_vdisplay(self):
+        self.logger.info("Launching mochi_vdisplay.py")
+        try:
+            p = subprocess.Popen([sys.executable, "mochi_vdisplay.py"])
+            self._processes.append(p)
+        except Exception as e:
+            self.logger.error(f"Failed to launch vdisplay: {e}")
+            messagebox.showerror("Launch Error", f"Could not start mochi_vdisplay.py:\n{e}")
+
+    def launch_perf_monitor(self):
+        self.logger.info("Launching mochi_perf.py")
+        try:
+            p = subprocess.Popen([sys.executable, "mochi_perf.py"])
+            self._processes.append(p)
+        except Exception as e:
+            self.logger.error(f"Failed to launch perf monitor: {e}")
+            messagebox.showerror("Launch Error", f"Could not start mochi_perf.py:\n{e}")
+
+    def _health_poll_loop(self):
+        sub = self.ctx.socket(zmq.SUB)
+        sub.setsockopt(zmq.RCVHWM, 1)
+        sub.connect(self.health_sub_addr)
+        sub.setsockopt(zmq.SUBSCRIBE, HEALTH_TOPIC)
+        self.logger.info(f"Health subscriber connected to {self.health_sub_addr}")
+
+        while not self.health_stop_event.is_set():
+            try:
+                _, payload = sub.recv_multipart(flags=zmq.NOBLOCK)
+                data = json.loads(payload.decode("utf-8"))
+                self.health_queue.put(data)
+            except zmq.Again:
+                time.sleep(0.1)
+            except Exception as e:
+                self.logger.warning(f"Error in health poller: {e}")
+        
+        sub.close()
+
+    def _process_health_queue(self):
+        try:
+            while not self.health_queue.empty():
+                data = self.health_queue.get_nowait()
+                self.status_metrics["Mode"].set(data.get('mode', '?'))
+                self.status_metrics["Size"].set(f"{data.get('w','?')}x{data.get('h','?')}")
+                self.status_metrics["FPS"].set(f"{data.get('fps', 0)}")
+                self.status_metrics["Mem (MB)"].set(f"{data.get('mem_mb', 0):.2f}")
+                self.status_metrics["Tx (MB/s)"].set(f"{data.get('tx_rate_mbps', 0):.3f}")
+        except Empty:
+            pass
+        finally:
+            if self.root.winfo_exists():
+                self.root.after(100, self._process_health_queue)
+
     def on_close(self):
+        self.health_stop_event.set()
+        for p in self._processes:
+            if p.poll() is None:
+                p.terminate()
         try:
             self.pub.close(0)
         finally:
@@ -227,6 +317,9 @@ def main():
 
     gui_config = config.get("gui", {})
     pub_addr = gui_config.get("pub_address", "tcp://127.0.0.1:5556")
+    
+    node_config = config.get("node", {})
+    health_sub_addr = node_config.get("pub_address", "tcp://127.0.0.1:5555")
 
     # --- Run App ---
     root = tk.Tk()
@@ -237,7 +330,7 @@ def main():
     except Exception:
         pass
     
-    app = MochiGUI(root, pub_addr=pub_addr, logger=logger)
+    app = MochiGUI(root, pub_addr=pub_addr, health_sub_addr=health_sub_addr, logger=logger)
     if not root.winfo_exists(): # Check if window was destroyed due to error
         return
         
