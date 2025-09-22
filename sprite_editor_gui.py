@@ -39,6 +39,7 @@ class SpriteEditor:
         top_controls.pack(fill=tk.X, pady=(0, 10))
         ttk.Button(top_controls, text="Load Script...", command=self.load_script).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Button(top_controls, text="Save Script...", command=self.save_script).pack(side=tk.LEFT)
+        ttk.Button(top_controls, text="Load Asset...", command=self.load_image).pack(side=tk.LEFT, padx=(10, 0))
 
         # --- Right Panel ---
         right_panel = ttk.Frame(main_frame, width=300)
