@@ -140,7 +140,7 @@ def main():
     logger.addHandler(info_handler); logger.addHandler(err_handler)
 
     try:
-        with open("config.yaml", "r") as f: config = yaml.safe_load(f)
+        with open("../config.yaml", "r") as f: config = yaml.safe_load(f)
     except Exception as e: logger.error(f"Cannot load config.yaml: {e}"); return
 
     display_config = config.get("display", {})

@@ -6,7 +6,7 @@ import os
 import logging
 from typing import Dict, Type, List
 
-from .base import Animation
+from core.mochi_animations import Animation
 
 # --- Logging ---
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def _discover_python_plugins() -> None:
 
     # Use os.listdir for more robust discovery than pkgutil
     for filename in os.listdir(_ANIMATIONS_DIR):
-        if filename.endswith(".py") and not filename.startswith("__") and filename != "base.py":
+        if filename.endswith(".py") and not filename.startswith("__") and filename != "mochi_animations.py":
             module_name = filename[:-3] # remove .py
             try:
                 mod_path = f"{__name__}.{module_name}"

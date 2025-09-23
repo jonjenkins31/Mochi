@@ -1,9 +1,8 @@
 
 import json
-import time
 from typing import List, Tuple
 import numpy as np
-from .base import Animation
+from core.mochi_animations import Animation
 from PIL import Image
 
 class Sprite(Animation):

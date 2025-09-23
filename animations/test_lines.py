@@ -2,7 +2,7 @@
 # A Python/NumPy recreation of the testLines pattern from Adafruit GFX.
 
 import numpy as np
-from .base import Animation
+from core.mochi_animations import Animation
 from core.gfx import draw_line, parse_color
 
 class TestLines(Animation):

@@ -100,7 +100,7 @@ def main():
     logger.addHandler(handler)
 
     try:
-        with open("config.yaml", "r") as f: config = yaml.safe_load(f)
+        with open("../config.yaml", "r") as f: config = yaml.safe_load(f)
     except Exception as e: logger.error(f"Cannot load config.yaml: {e}"); return
 
     # The performance monitor connects to the node's PUB address

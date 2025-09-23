@@ -3,7 +3,7 @@
 
 import math
 import numpy as np
-from .base import Animation
+from core.mochi_animations import Animation
 
 
 class Idle(Animation):

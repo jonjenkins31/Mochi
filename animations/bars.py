@@ -1,9 +1,8 @@
 # animations/bars.py
 # Vertical sweeping bars using a sinusoidal profile.
 
-import math
 import numpy as np
-from .base import Animation
+from core.mochi_animations import Animation
 
 
 class Bars(Animation):

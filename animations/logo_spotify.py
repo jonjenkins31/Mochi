@@ -2,8 +2,7 @@
 # Render a 1-bit monochrome Spotify logo bitmap on the RGB matrix, scaled to fit.
 
 import numpy as np
-from .base import Animation
-from typing import Tuple
+from core.mochi_animations import Animation
 
 # ---- Source bitmap: 1-bit, assumed WIDTH x HEIGHT in row-major (XBM-style) MSB-first ----
 WIDTH = 128

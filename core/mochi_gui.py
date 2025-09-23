@@ -18,7 +18,7 @@ from queue import Queue, Empty
 # --- Constants ---
 CTRL_TOPIC = b"ctrl"
 HEALTH_TOPIC = b"health"
-SCRIPTS_DIR = "scripts"
+SCRIPTS_DIR = "../scripts"
 
 class MochiGUI:
     def __init__(self, root, pub_addr: str, health_sub_addr: str, logger):
@@ -168,7 +168,9 @@ class MochiGUI:
     def send_script_from_combobox(self):
         script_name = self.script_var.get()
         if script_name:
-            self.send(f"play {os.path.join(SCRIPTS_DIR, script_name)}")
+            script_path = os.path.join(SCRIPTS_DIR, script_name)
+            abs_script_path = os.path.abspath(script_path)
+            self.send(f"play {abs_script_path}")
 
     def stop_script(self):
         self.send("stop")
@@ -316,7 +318,7 @@ def main():
 
     # --- Load Config ---
     try:
-        with open("config.yaml", "r") as f:
+        with open("../config.yaml", "r") as f:
             config = yaml.safe_load(f)
     except FileNotFoundError:
         logger.error("config.yaml not found. Please create it.")

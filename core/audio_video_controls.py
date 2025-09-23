@@ -154,7 +154,7 @@ class AudioVideoManager(QWidget):
 
     def send_selected_icon_to_matrix(self):
         icon_name = self.icon_dropdown.currentText()
-        icon_path = os.path.join("assets/icons", f"{icon_name}.png")
+        icon_path = os.path.join("../assets/icons", f"{icon_name}.png")
         if not os.path.exists(icon_path):
             print(f"[!] Icon '{icon_name}.png' not found.")
             return

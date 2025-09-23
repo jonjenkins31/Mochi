@@ -2,8 +2,7 @@
 # A Python/NumPy recreation of the testTriangles pattern from Adafruit GFX.
 
 import numpy as np
-import math
-from .base import Animation, clamp8
+from core.mochi_animations import Animation, clamp8
 from core.gfx import draw_triangle, parse_color
 
 class TestTriangles(Animation):

@@ -1,8 +1,8 @@
 # animations/media_player.py
 from __future__ import annotations
-from typing import Optional, List, Tuple
+from typing import Optional
 import numpy as np
-from .base import Animation
+from core.mochi_animations import Animation
 from core.media import MediaFrames, decode_image
 
 class MediaPlayer(Animation):

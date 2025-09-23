@@ -2,8 +2,7 @@
 # A Python/NumPy recreation of the testRects pattern from Adafruit GFX.
 
 import numpy as np
-import math
-from .base import Animation
+from core.mochi_animations import Animation
 from core.gfx import parse_color
 
 class TestRects(Animation):
