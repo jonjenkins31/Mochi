@@ -14,10 +14,12 @@ class SpriteEditor:
         self.root.title("Sprite Script Editor")
 
         self.image_path = None
+        self.current_script_path = None
         self.image = None
         self.tk_image = None
         self.sprites = []
         self.timeline = []
+        self.timeline_clipboard = []
         
         self.selected_sprite_index = None
         self.selected_timeline_index = None
@@ -37,25 +39,18 @@ class SpriteEditor:
         # --- Top Controls ---
         top_controls = ttk.Frame(main_frame)
         top_controls.pack(fill=tk.X, pady=(0, 10))
-        ttk.Button(top_controls, text="Load Script...", command=self.load_script).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(top_controls, text="Save Script...", command=self.save_script).pack(side=tk.LEFT)
+        ttk.Button(top_controls, text="Load Script...", command=self.load_script).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(top_controls, text="Save", command=self.save_script).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(top_controls, text="Save As...", command=self.save_script_as).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Button(top_controls, text="Load Asset...", command=self.load_image).pack(side=tk.LEFT, padx=(10, 0))
 
-        # --- Right Panel ---
-        right_panel = ttk.Frame(main_frame, width=300)
-        right_panel.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
-        right_panel.pack_propagate(False)
-
-        # --- Preview Panel ---
-        preview_frame = ttk.LabelFrame(right_panel, text="Animation Preview")
-        preview_frame.pack(fill=tk.X, pady=(0, 10))
-        self.preview_canvas = tk.Canvas(preview_frame, width=PREVIEW_SIZE[0], height=PREVIEW_SIZE[1], bg="#000")
-        self.preview_canvas.pack(pady=5)
-        self.preview_button = ttk.Button(preview_frame, text="Play", command=self.toggle_preview)
-        self.preview_button.pack(fill=tk.X, padx=5, pady=5)
+        # --- Asset Panel (Left) ---
+        asset_panel = ttk.Frame(main_frame, width=250)
+        asset_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        asset_panel.pack_propagate(False)
 
         # --- New Sprite Panel ---
-        new_sprite_frame = ttk.LabelFrame(right_panel, text="New Sprite")
+        new_sprite_frame = ttk.LabelFrame(asset_panel, text="New Sprite")
         new_sprite_frame.pack(fill=tk.X, pady=(0, 10))
         size_entries_frame = ttk.Frame(new_sprite_frame)
         size_entries_frame.pack(fill=tk.X, padx=5, pady=5)
@@ -70,39 +65,57 @@ class SpriteEditor:
         ttk.Checkbutton(new_sprite_frame, text="Lock Aspect Ratio on Resize", variable=self.lock_aspect_var).pack(anchor="w", padx=5)
 
         # --- Sprite List ---
-        sprite_list_frame = ttk.LabelFrame(right_panel, text="Sprites")
-        sprite_list_frame.pack(fill=tk.X, pady=(0, 10))
+        sprite_list_frame = ttk.LabelFrame(asset_panel, text="Assets")
+        sprite_list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         self.sprite_listbox = tk.Listbox(sprite_list_frame, height=6, exportselection=False)
-        self.sprite_listbox.pack(fill=tk.X, expand=True, padx=5, pady=5)
+        self.sprite_listbox.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.sprite_listbox.bind("<<ListboxSelect>>", self.on_sprite_select)
         sprite_buttons_frame = ttk.Frame(sprite_list_frame)
         sprite_buttons_frame.pack(fill=tk.X, padx=5, pady=(0,5))
-        ttk.Button(sprite_buttons_frame, text="Duplicate Selected", command=self.duplicate_sprite).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0,2))
-        ttk.Button(sprite_buttons_frame, text="Delete Selected", command=self.delete_sprite).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(2,0))
+        ttk.Button(sprite_buttons_frame, text="Duplicate", command=self.duplicate_sprite).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0,2))
+        ttk.Button(sprite_buttons_frame, text="Delete", command=self.delete_sprite).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(2,0))
+
+        # --- Animation Panel (Right) ---
+        animation_panel = ttk.Frame(main_frame, width=300)
+        animation_panel.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
+        animation_panel.pack_propagate(False)
+
+        # --- Preview Panel ---
+        preview_frame = ttk.LabelFrame(animation_panel, text="Animation Preview")
+        preview_frame.pack(fill=tk.X, pady=(0, 10))
+        self.preview_canvas = tk.Canvas(preview_frame, width=PREVIEW_SIZE[0], height=PREVIEW_SIZE[1], bg="#000")
+        self.preview_canvas.pack(pady=5)
+        self.preview_button = ttk.Button(preview_frame, text="Play", command=self.toggle_preview)
+        self.preview_button.pack(fill=tk.X, padx=5, pady=5)
 
         # --- Timeline ---
-        timeline_frame = ttk.LabelFrame(right_panel, text="Timeline")
+        timeline_frame = ttk.LabelFrame(animation_panel, text="Animation Script")
         timeline_frame.pack(fill=tk.BOTH, expand=True)
         self.timeline_listbox = tk.Listbox(timeline_frame, height=8, exportselection=False)
         self.timeline_listbox.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.timeline_listbox.bind("<<ListboxSelect>>", self.on_timeline_select)
         
-        timeline_controls = ttk.Frame(timeline_frame)
-        timeline_controls.pack(fill=tk.X, pady=5)
-        ttk.Button(timeline_controls, text="Add Sprite Frame", command=self.add_sprite_to_timeline).pack(fill=tk.X, padx=5, pady=2)
-        
-        delay_frame = ttk.Frame(timeline_controls)
-        delay_frame.pack(fill=tk.X, padx=5, pady=2)
+        # --- Timeline Toolbar ---
+        timeline_toolbar = ttk.Frame(timeline_frame)
+        timeline_toolbar.pack(fill=tk.X, pady=5)
+        ttk.Button(timeline_toolbar, text="Add Sprite", command=self.add_sprite_to_timeline).pack(side=tk.LEFT, padx=2)
         self.duration_var = tk.StringVar(value="0.5")
-        self.duration_entry = ttk.Entry(delay_frame, textvariable=self.duration_var, width=5)
-        self.duration_entry.pack(side=tk.LEFT)
-        ttk.Button(delay_frame, text="Add Delay", command=self.add_delay_to_timeline).pack(side=tk.LEFT, padx=5)
-        self.delay_update_button = ttk.Button(delay_frame, text="Update Delay", command=self.update_selected_delay, state=tk.DISABLED)
-        self.delay_update_button.pack(side=tk.LEFT, padx=5)
-        
-        ttk.Button(timeline_controls, text="Remove Selected", command=self.remove_from_timeline).pack(fill=tk.X, padx=5, pady=2)
+        self.duration_entry = ttk.Entry(timeline_toolbar, textvariable=self.duration_var, width=5)
+        self.duration_entry.pack(side=tk.LEFT, padx=2)
+        ttk.Button(timeline_toolbar, text="Add Delay", command=self.add_delay_to_timeline).pack(side=tk.LEFT, padx=2)
 
-        # --- Canvas ---
+        # --- Timeline Edit Controls ---
+        edit_controls = ttk.Frame(timeline_frame)
+        edit_controls.pack(fill=tk.X, padx=5, pady=(0,5))
+        ttk.Button(edit_controls, text="Cut", command=self.cut_timeline_item).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        ttk.Button(edit_controls, text="Copy", command=self.copy_timeline_item).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        self.paste_button = ttk.Button(edit_controls, text="Paste", command=self.paste_timeline_item, state=tk.DISABLED)
+        self.paste_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        ttk.Button(edit_controls, text="Del", command=self.remove_from_timeline).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        ttk.Button(edit_controls, text="Up", command=lambda: self.move_timeline_item(-1)).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        ttk.Button(edit_controls, text="Down", command=lambda: self.move_timeline_item(1)).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+
+        # --- Canvas (Center) ---
         self.canvas = tk.Canvas(main_frame, background="#333", cursor="crosshair")
         self.canvas.pack(fill=tk.BOTH, expand=True)
         self.canvas.bind("<Motion>", self.on_canvas_motion)
@@ -226,23 +239,12 @@ class SpriteEditor:
         except ValueError as e: messagebox.showerror("Error", f"Invalid sprite size: {e}")
 
     def duplicate_sprite(self):
-        if self.selected_sprite_index is None:
-            messagebox.showerror("Error", "Select a sprite to duplicate.")
-            return
-
+        if self.selected_sprite_index is None: messagebox.showerror("Error", "Select a sprite to duplicate."); return
         x, y, w, h = self.sprites[self.selected_sprite_index]
-        new_x, new_y = x + 10, y + 10
-        
-        self.sprites.append([int(new_x), int(new_y), w, h])
-        
-        new_sprite_index = len(self.sprites) - 1
-        
-        self.update_sprite_list()
-
+        self.sprites.append([int(x + 10), int(y + 10), w, h])
         self.sprite_listbox.selection_clear(0, tk.END)
-        self.sprite_listbox.selection_set(new_sprite_index)
-        
-        self.on_sprite_select(None)
+        self.sprite_listbox.selection_set(len(self.sprites) - 1)
+        self.update_all_views()
 
     def _load_image_from_path(self, path):
         self.image_path = os.path.abspath(path)
@@ -256,25 +258,53 @@ class SpriteEditor:
         script_path = filedialog.askopenfilename(title="Select Sprite Script", filetypes=[("JSON files", "*.json")], initialdir="scripts")
         if not script_path: return
         try:
-            with open(script_path, 'r') as f: script_data = json.load(f)
-            config_path = next((item["args"]["config_path"] for item in script_data.get("timeline", []) if item.get("cmd") == "mode" and item.get("args", {}).get("name") == "sprite"), None)
-            if not config_path: raise ValueError("Sprite animation not found in script")
-            with open(config_path, 'r') as f: config_data = json.load(f)
+            with open(script_path, 'r') as f: 
+                script_data = json.load(f)
 
-            self._load_image_from_path(config_data["image_path"])
-            self.sprites = config_data.get("sprites", [])
-
+            self.sprites = []
             self.timeline = []
-            events = sorted([item for item in script_data["timeline"] if item.get("cmd") == "event"], key=lambda x: x["at"])
+            timeline_to_parse = []
+
+            # New single-file format has "image_path" at the top level
+            if "image_path" in script_data:
+                self._load_image_from_path(script_data["image_path"])
+                self.sprites = script_data.get("sprites", [])
+                timeline_to_parse = script_data.get("timeline", [])
+            # Old two-file format
+            else:
+                config_path_rel = next((item["args"]["config_path"] for item in script_data.get("timeline", []) if item.get("cmd") == "mode" and "config_path" in item.get("args", {})), None)
+                if not config_path_rel:
+                    raise ValueError("Cannot find 'config_path' in sprite mode command.")
+                
+                config_path = config_path_rel if os.path.isabs(config_path_rel) else os.path.join(os.path.dirname(script_path), config_path_rel)
+                
+                with open(config_path, 'r') as f:
+                    config_data = json.load(f)
+                
+                self._load_image_from_path(config_data["image_path"])
+                self.sprites = config_data.get("sprites", [])
+                timeline_to_parse = script_data.get("timeline", [])
+
+            # Convert `at` format timeline to internal GUI format
+            events = sorted([item for item in timeline_to_parse if item.get("cmd") == "event"], key=lambda x: x["at"])
             last_time = 0.0
             for event in events:
                 delay = event["at"] - last_time
-                if delay > 0.01: self.timeline.append({"cmd": "delay", "duration": round(delay, 2)})
-                if event.get("args", {}).get("name") == "show_sprite": self.timeline.append({"cmd": "show_sprite", "index": event["args"]["index"]})
+                if delay > 0.01: 
+                    self.timeline.append({"cmd": "delay", "duration": round(delay, 2)})
+                
+                event_args = event.get("args", {})
+                if event_args.get("name") == "show_sprite":
+                    self.timeline.append({"cmd": "show_sprite", "index": event_args["index"]})
+                
                 last_time = event["at"]
 
+            self.current_script_path = script_path
+            self.root.title(f"Sprite Script Editor - {os.path.basename(script_path)}")
             self.update_all_views()
-        except Exception as e: messagebox.showerror("Error", f"Failed to load script: {e}")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load script: {e}")
 
     def load_image(self):
         path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png *.bmp"), ("All files", "*.*")] )
@@ -282,24 +312,28 @@ class SpriteEditor:
         try:
             self._load_image_from_path(path)
             self.sprites, self.timeline, self.selected_sprite_index = [], [], None
+            self.current_script_path = None # New image means new script
+            self.root.title("Sprite Script Editor")
             self.update_all_views()
         except Exception as e: messagebox.showerror("Error", f"Failed to load image: {e}")
 
     def update_all_views(self):
-        sel = self.sprite_listbox.curselection()
+        sprite_sel = self.sprite_listbox.curselection()
+        timeline_sel = self.timeline_listbox.curselection()
         self.update_sprite_list()
-        if sel: self.sprite_listbox.selection_set(sel[0])
         self.update_timeline_list()
+        if sprite_sel: self.sprite_listbox.selection_set(sprite_sel[0])
+        if timeline_sel: self.timeline_listbox.selection_set(timeline_sel[0])
         self.draw_sprite_rects()
 
     def update_sprite_list(self):
         sel = self.sprite_listbox.curselection()
         self.sprite_listbox.delete(0, tk.END)
         for i, (x, y, w, h) in enumerate(self.sprites):
-            self.sprite_listbox.insert(tk.END, f"Sprite {i}: [{x}, {y}, {w}, {h}]")
+            self.sprite_listbox.insert(tk.END, f"Asset {i}: [{x}, {y}, {w}, {h}]")
         if sel: self.sprite_listbox.selection_set(sel[0])
 
-    def on_sprite_select(self, event):
+    def on_sprite_select(self, event=None):
         indices = self.sprite_listbox.curselection()
         self.selected_sprite_index = indices[0] if indices else None
         self.draw_sprite_rects()
@@ -307,6 +341,7 @@ class SpriteEditor:
     def delete_sprite(self):
         if self.selected_sprite_index is None: return
         del self.sprites[self.selected_sprite_index]
+        # Remap timeline indices
         self.timeline = [t for t in self.timeline if t.get('index') != self.selected_sprite_index]
         for t in self.timeline:
             if t.get('index', -1) > self.selected_sprite_index: t['index'] -= 1
@@ -328,9 +363,10 @@ class SpriteEditor:
                 self.canvas.create_rectangle(x+w-s, y+h-s, x+w+s, y+h+s, fill=color, outline="black", tags="sprite_rect")
 
     def add_sprite_to_timeline(self):
-        if self.selected_sprite_index is None: messagebox.showerror("Error", "Select a sprite first."); return
+        if self.selected_sprite_index is None: messagebox.showerror("Error", "Select an asset first."); return
         self.timeline.append({"cmd": "show_sprite", "index": self.selected_sprite_index})
         self.update_timeline_list()
+        self.timeline_listbox.selection_set(len(self.timeline) - 1)
 
     def add_delay_to_timeline(self):
         try:
@@ -338,6 +374,7 @@ class SpriteEditor:
             if duration <= 0: raise ValueError("Duration must be positive")
             self.timeline.append({"cmd": "delay", "duration": duration})
             self.update_timeline_list()
+            self.timeline_listbox.selection_set(len(self.timeline) - 1)
         except ValueError as e: messagebox.showerror("Error", f"Invalid duration: {e}")
 
     def remove_from_timeline(self):
@@ -348,68 +385,108 @@ class SpriteEditor:
         self.update_timeline_list()
         self.on_timeline_select(None)
 
-    def on_timeline_select(self, event):
+    def on_timeline_select(self, event=None):
         indices = self.timeline_listbox.curselection()
-        if not indices:
-            self.selected_timeline_index = None
-            self.duration_entry.config(state=tk.NORMAL)
-            self.delay_update_button.config(state=tk.DISABLED)
-            return
-
-        self.selected_timeline_index = indices[0]
-        item = self.timeline[self.selected_timeline_index]
-
-        if item["cmd"] == "delay":
-            self.duration_var.set(str(item["duration"]))
-            self.duration_entry.config(state=tk.NORMAL)
-            self.delay_update_button.config(state=tk.NORMAL)
-        else:
-            self.duration_entry.config(state=tk.DISABLED)
-            self.delay_update_button.config(state=tk.DISABLED)
-
-    def update_selected_delay(self):
-        if self.selected_timeline_index is None: return
-        item = self.timeline[self.selected_timeline_index]
-        if item["cmd"] != "delay": return
-        try:
-            duration = float(self.duration_var.get())
-            if duration <= 0: raise ValueError("Duration must be positive")
-            item["duration"] = duration
-            self.update_timeline_list()
-            self.timeline_listbox.selection_set(self.selected_timeline_index)
-        except ValueError as e: messagebox.showerror("Error", f"Invalid duration: {e}")
+        self.selected_timeline_index = indices[0] if indices else None
 
     def update_timeline_list(self):
         sel = self.timeline_listbox.curselection()
         self.timeline_listbox.delete(0, tk.END)
         for i, item in enumerate(self.timeline):
-            if item["cmd"] == "show_sprite": self.timeline_listbox.insert(tk.END, f"{i}: SHOW Sprite {item['index']}")
+            if item["cmd"] == "show_sprite": self.timeline_listbox.insert(tk.END, f"{i}: SHOW Asset {item['index']}")
             elif item["cmd"] == "delay": self.timeline_listbox.insert(tk.END, f"{i}: DELAY {item['duration']}s")
         if sel: self.timeline_listbox.selection_set(sel[0])
 
-    def save_script(self):
-        if not all([self.image_path, self.sprites]): messagebox.showerror("Error", "Please load an image and define sprites."); return
-        script_path = filedialog.asksaveasfilename(title="Save Sprite Script", defaultextension=".json", filetypes=[("JSON files", "*.json")], initialdir="scripts")
-        if not script_path: return
+    def cut_timeline_item(self):
+        self.copy_timeline_item()
+        self.remove_from_timeline()
 
-        base_name, dir_name = os.path.splitext(os.path.basename(script_path))[0], os.path.dirname(script_path)
-        config_filename, config_path = f"{base_name}_config.json", os.path.join(dir_name, f"{base_name}_config.json")
+    def copy_timeline_item(self):
+        if self.selected_timeline_index is None: return
+        self.timeline_clipboard = [self.timeline[self.selected_timeline_index]]
+        self.paste_button.config(state=tk.NORMAL)
+
+    def paste_timeline_item(self):
+        if not self.timeline_clipboard: return
         
-        config_data = {"image_path": self.image_path, "sprites": self.sprites}
-        script_data = {"timeline": [{"at": 0.0, "cmd": "mode", "args": {"name": "sprite", "config_path": os.path.abspath(config_path)}}]}
+        paste_item = self.timeline_clipboard[0].copy()
+
+        if self.selected_timeline_index is None:
+            insert_at = len(self.timeline)
+        else:
+            insert_at = self.selected_timeline_index + 1
+
+        self.timeline.insert(insert_at, paste_item)
+        self.update_timeline_list()
+        self.timeline_listbox.selection_clear(0, tk.END)
+        self.timeline_listbox.selection_set(insert_at)
+        self.on_timeline_select()
+
+    def move_timeline_item(self, direction):
+        if self.selected_timeline_index is None: return
+        
+        idx = self.selected_timeline_index
+        new_idx = idx + direction
+
+        if 0 <= new_idx < len(self.timeline):
+            self.timeline.insert(new_idx, self.timeline.pop(idx))
+            self.update_timeline_list()
+            self.timeline_listbox.selection_set(new_idx)
+            self.on_timeline_select()
+
+    def save_script(self):
+        if self.current_script_path:
+            self._write_script_to_file(self.current_script_path)
+        else:
+            self.save_script_as()
+
+    def save_script_as(self):
+        script_path = filedialog.asksaveasfilename(
+            title="Save Sprite Script As",
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json")],
+            initialdir="scripts"
+        )
+        if not script_path: return
+        self.current_script_path = script_path
+        self.root.title(f"Sprite Script Editor - {os.path.basename(script_path)}")
+        self._write_script_to_file(script_path)
+
+    def _write_script_to_file(self, script_path):
+        if not self.image_path:
+            messagebox.showerror("Error", "Please load an asset image first.")
+            return
+
+        mochi_timeline = []
+        mochi_timeline.append({
+            "at": 0.0,
+            "cmd": "mode",
+            "args": {"name": "sprite"}
+        })
 
         current_time = 0.0
         for item in self.timeline:
             if item["cmd"] == "show_sprite":
-                script_data["timeline"].append({"at": current_time, "cmd": "event", "args": {"name": "show_sprite", "index": item["index"]}})
+                mochi_timeline.append({
+                    "at": round(current_time, 2),
+                    "cmd": "event",
+                    "args": {"name": "show_sprite", "index": item["index"]}
+                })
             elif item["cmd"] == "delay":
                 current_time += item["duration"]
+        
+        script_data = {
+            "image_path": self.image_path,
+            "sprites": self.sprites,
+            "timeline": mochi_timeline
+        }
 
         try:
-            with open(config_path, 'w') as f: json.dump(config_data, f, indent=2)
-            with open(script_path, 'w') as f: json.dump(script_data, f, indent=2)
-            messagebox.showinfo("Success", f"Script and config saved to:\n{script_path}\n{config_path}")
-        except Exception as e: messagebox.showerror("Error", f"Failed to save files: {e}")
+            with open(script_path, 'w') as f:
+                json.dump(script_data, f, indent=2)
+            messagebox.showinfo("Success", f"Script saved to:\n{script_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save file: {e}")
 
     def toggle_preview(self):
         if self.is_playing_preview:
@@ -417,6 +494,7 @@ class SpriteEditor:
             if self.preview_job: self.root.after_cancel(self.preview_job); self.preview_job = None
             self.preview_button.config(text="Play")
             self.timeline_listbox.selection_clear(0, tk.END)
+            self.on_timeline_select()
         else:
             if not self.timeline: messagebox.showinfo("Info", "Timeline is empty."); return
             self.is_playing_preview = True
@@ -432,6 +510,7 @@ class SpriteEditor:
 
         self.timeline_listbox.selection_clear(0, tk.END)
         self.timeline_listbox.selection_set(self.preview_timeline_index)
+        self.on_timeline_select()
 
         item = self.timeline[self.preview_timeline_index]
         delay_ms = 1 # Default delay for show commands
