@@ -35,7 +35,18 @@ class Sprite(Animation):
         super().on_enter(**kwargs)
         
         config_path = kwargs.get("config_path")
-        if config_path:
+        image_path = kwargs.get("image_path")
+        sprites = kwargs.get("sprites")
+
+        if image_path and sprites is not None:
+            try:
+                self.sprite_sheet = Image.open(image_path).convert("RGB")
+                self.sprites = sprites
+            except FileNotFoundError as e:
+                print(f"Error loading sprite image: {e}")
+                self.sprite_sheet = None
+                self.sprites = []
+        elif config_path:
             self._load_config(config_path)
         
         # Default to showing the first sprite

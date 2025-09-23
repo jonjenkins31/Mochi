@@ -261,21 +261,24 @@ class SpriteEditor:
             with open(script_path, 'r') as f: 
                 script_data = json.load(f)
 
+            if "timeline" not in script_data:
+                raise ValueError("Script file must contain a 'timeline' list.")
+
             self.sprites = []
             self.timeline = []
-            timeline_to_parse = []
+            timeline_to_parse = script_data["timeline"]
 
-            # New single-file format has "image_path" at the top level
-            if "image_path" in script_data:
-                self._load_image_from_path(script_data["image_path"])
-                self.sprites = script_data.get("sprites", [])
-                timeline_to_parse = script_data.get("timeline", [])
-            # Old two-file format
-            else:
-                config_path_rel = next((item["args"]["config_path"] for item in script_data.get("timeline", []) if item.get("cmd") == "mode" and "config_path" in item.get("args", {})), None)
-                if not config_path_rel:
-                    raise ValueError("Cannot find 'config_path' in sprite mode command.")
-                
+            sprite_mode_cmd = next((item for item in timeline_to_parse if item.get("cmd") == "mode" and item.get("args", {}).get("name") == "sprite"), None)
+            if not sprite_mode_cmd:
+                raise ValueError("Script does not contain a sprite mode command.")
+
+            sprite_mode_args = sprite_mode_cmd.get("args", {})
+
+            if "image_path" in sprite_mode_args and "sprites" in sprite_mode_args:
+                self._load_image_from_path(sprite_mode_args["image_path"])
+                self.sprites = sprite_mode_args["sprites"]
+            elif "config_path" in sprite_mode_args:
+                config_path_rel = sprite_mode_args["config_path"]
                 config_path = config_path_rel if os.path.isabs(config_path_rel) else os.path.join(os.path.dirname(script_path), config_path_rel)
                 
                 with open(config_path, 'r') as f:
@@ -283,9 +286,9 @@ class SpriteEditor:
                 
                 self._load_image_from_path(config_data["image_path"])
                 self.sprites = config_data.get("sprites", [])
-                timeline_to_parse = script_data.get("timeline", [])
+            else:
+                raise ValueError("Could not find sprite configuration in the script.")
 
-            # Convert `at` format timeline to internal GUI format
             events = sorted([item for item in timeline_to_parse if item.get("cmd") == "event"], key=lambda x: x["at"])
             last_time = 0.0
             for event in events:
@@ -461,7 +464,11 @@ class SpriteEditor:
         mochi_timeline.append({
             "at": 0.0,
             "cmd": "mode",
-            "args": {"name": "sprite"}
+            "args": {
+                "name": "sprite",
+                "image_path": self.image_path,
+                "sprites": self.sprites
+            }
         })
 
         current_time = 0.0
@@ -476,8 +483,6 @@ class SpriteEditor:
                 current_time += item["duration"]
         
         script_data = {
-            "image_path": self.image_path,
-            "sprites": self.sprites,
             "timeline": mochi_timeline
         }
 

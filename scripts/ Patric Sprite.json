@@ -1,37 +1,25 @@
 {
-  "image_path": "/Users/jonathanjenkins/Library/Mobile Documents/com~apple~CloudDocs/Jenkins Robotics/GITHUB/Mochi/assets/bmps/patric_emotes.bmp",
-  "sprites": [
-    [
-      474,
-      285,
-      64,
-      64
-    ],
-    [
-      356,
-      285,
-      64,
-      64
-    ],
-    [
-      242,
-      287,
-      64,
-      64
-    ],
-    [
-      134,
-      287,
-      64,
-      64
-    ]
-  ],
   "timeline": [
     {
       "at": 0.0,
       "cmd": "mode",
       "args": {
-        "name": "sprite"
+        "name": "sprite",
+        "image_path": "/Users/jonathanjenkins/Library/Mobile Documents/com~apple~CloudDocs/Jenkins Robotics/GITHUB/Mochi/assets/bmps/patric_emotes.bmp",
+        "sprites": [
+          [
+            469,
+            285,
+            64,
+            64
+          ],
+          [
+            582,
+            285,
+            64,
+            64
+          ]
+        ]
       }
     },
     {
@@ -48,22 +36,6 @@
       "args": {
         "name": "show_sprite",
         "index": 1
-      }
-    },
-    {
-      "at": 1.0,
-      "cmd": "event",
-      "args": {
-        "name": "show_sprite",
-        "index": 2
-      }
-    },
-    {
-      "at": 1.5,
-      "cmd": "event",
-      "args": {
-        "name": "show_sprite",
-        "index": 3
       }
     }
   ]
