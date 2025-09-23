@@ -85,21 +85,28 @@ def run_script_if_due(now: float, logger):
         cmd, args = step["cmd"].lower(), step.get("args", {})
         try:
             if cmd == "mode":
-                name = args.get("name")
-                if not name: logger.warning("Script: mode step missing 'name'"); continue
-                kwargs = {k: v for k, v in args.items() if k != "name"}
-                new = create_anim(name, node_state.w, node_state.h, **kwargs)
+                name = args.pop("name", None)
+                if not name: 
+                    logger.warning("Script: mode step missing 'name'")
+                    continue
+                new = create_anim(name, node_state.w, node_state.h, **args)
                 node_state.anim, node_state.current_mode = new, name
-                logger.info(f"Script: mode -> {name} with args {kwargs}")
+                logger.info(f"Script: mode -> {name} with args {args}")
             elif cmd == "event":
-                ev_name = args.get("name")
-                if not ev_name: logger.warning("Script: event step missing 'name'"); continue
-                kwargs = {k: v for k, v in args.items() if k != "name"}
-                if node_state.anim: node_state.anim.on_event(ev_name, **kwargs)
-                logger.info(f"Script: event -> {ev_name} {kwargs if kwargs else ''}")
-            elif cmd == "stop": stop_script(logger); break
-            else: logger.warning(f"Script: unknown cmd '{cmd}'")
-        except Exception as e: logger.error(f"Script error processing step {step}: {e}")
+                ev_name = args.pop("name", None)
+                if not ev_name: 
+                    logger.warning("Script: event step missing 'name'")
+                    continue
+                if node_state.anim: 
+                    node_state.anim.on_event(ev_name, **args)
+                logger.info(f"Script: event -> {ev_name} {args if args else ''}")
+            elif cmd == "stop": 
+                stop_script(logger)
+                break
+            else: 
+                logger.warning(f"Script: unknown cmd '{cmd}'")
+        except Exception as e: 
+            logger.error(f"Script error processing step {step}: {e}")
 
 def control_loop(ctrl_addr, logger):
     sub = ctx.socket(zmq.SUB)

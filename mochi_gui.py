@@ -136,6 +136,7 @@ class MochiGUI:
         launch_frame.grid(row=6, column=0, sticky="ew", pady=4)
         ttk.Button(launch_frame, text="Launch Virtual Display", command=self.launch_vdisplay).pack(side=tk.LEFT, padx=6, pady=6)
         ttk.Button(launch_frame, text="Launch Performance Monitor", command=self.launch_perf_monitor).pack(side=tk.LEFT, padx=6, pady=6)
+        ttk.Button(launch_frame, text="Launch Sprite Editor", command=self.launch_sprite_editor).pack(side=tk.LEFT, padx=6, pady=6)
 
         # Row 7: footer
         footer = ttk.Frame(outer)
@@ -241,6 +242,15 @@ class MochiGUI:
         except Exception as e:
             self.logger.error(f"Failed to launch perf monitor: {e}")
             messagebox.showerror("Launch Error", f"Could not start mochi_perf.py:\n{e}")
+
+    def launch_sprite_editor(self):
+        self.logger.info("Launching sprite_editor_gui.py")
+        try:
+            p = subprocess.Popen([sys.executable, "sprite_editor_gui.py"])
+            self._processes.append(p)
+        except Exception as e:
+            self.logger.error(f"Failed to launch sprite editor: {e}")
+            messagebox.showerror("Launch Error", f"Could not start sprite_editor_gui.py:\n{e}")
 
     def _health_poll_loop(self):
         sub = self.ctx.socket(zmq.SUB)

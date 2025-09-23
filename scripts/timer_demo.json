@@ -1,0 +1,6 @@
+{
+  "timeline": [
+    { "at": 0.0, "cmd": "mode", "args": { "name": "timer", "fg": "0 255 0" } },
+    { "at": 1.0, "cmd": "event", "args": { "name": "start", "duration_mins": 1 } }
+  ]
+}
