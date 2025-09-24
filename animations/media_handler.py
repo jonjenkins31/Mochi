@@ -1,16 +1,16 @@
-# animations/media_player.py
+# animations/media_handler.py
 from __future__ import annotations
 from typing import Optional
 import numpy as np
 from core.mochi_animations import Animation
 from core.media import MediaFrames, decode_image
 
-class MediaPlayer(Animation):
+class MediaHandler(Animation):
     """
     Plays a raster image, GIF/APNG (animated), or SVG (requires cairosvg).
     By default uses GIF/APNG per-frame durations; can override with fps.
     """
-    name = "media_player"
+    name = "media_handler"
 
     def __init__(self, w:int, h:int, frames: Optional[MediaFrames] = None):
         super().__init__(w, h)

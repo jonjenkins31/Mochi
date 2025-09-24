@@ -15,6 +15,10 @@ import threading
 import json
 from queue import Queue, Empty
 
+# Add project root to path to allow importing core modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from core.logging_utils import setup_logger
+
 # --- Constants ---
 CTRL_TOPIC = b"ctrl"
 HEALTH_TOPIC = b"health"
@@ -300,21 +304,7 @@ class MochiGUI:
 
 def main():
     # --- Logger Setup ---
-    logger = logging.getLogger("MochiGUI")
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    # Handler for stdout (INFO)
-    info_handler = logging.StreamHandler(sys.stdout)
-    info_handler.setLevel(logging.INFO)
-    info_handler.addFilter(lambda record: record.levelno == logging.INFO)
-    info_handler.setFormatter(formatter)
-    # Handler for stderr (WARNING, ERROR, CRITICAL)
-    err_handler = logging.StreamHandler(sys.stderr)
-    err_handler.setLevel(logging.WARNING)
-    err_handler.setFormatter(formatter)
-    logger.addHandler(info_handler)
-    logger.addHandler(err_handler)
+    logger = setup_logger("MochiGUI")
 
     # --- Load Config ---
     try:

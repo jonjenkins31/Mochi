@@ -4,8 +4,8 @@
       "at": 0.0,
       "cmd": "mode",
       "args": {
-        "name": "sprite",
-        "config_path": "/Users/jonathanjenkins/Library/Mobile Documents/com~apple~CloudDocs/Jenkins Robotics/GITHUB/Mochi/scripts/sprite_test_config.json"
+        "name": "sprite_handler",
+        "config_path": "sprite_test_config.json"
       }
     },
     {

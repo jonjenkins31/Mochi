@@ -12,9 +12,7 @@ from core.mochi_animations import Animation
 logger = logging.getLogger(__name__)
 
 # --- Paths ---
-# Get the absolute path to the directory of this file (__init__.py)
 _ANIMATIONS_DIR = os.path.dirname(os.path.abspath(__file__))
-# Get the project root directory (one level up)
 _PROJECT_ROOT = os.path.dirname(_ANIMATIONS_DIR)
 
 # --- Plugin Registry ---
@@ -24,13 +22,14 @@ _loaded = False
 # --- Asset Discovery ---
 _asset_paths: Dict[str, str] = {}
 _assets_loaded = False
-# ADDED 'assets/gifs' to the list of directories to scan
 ASSET_DIRS = [
     os.path.join(_PROJECT_ROOT, "assets/images"), 
     os.path.join(_PROJECT_ROOT, "assets/icons"),
-    os.path.join(_PROJECT_ROOT, "assets/gifs")
+    os.path.join(_PROJECT_ROOT, "assets/gifs"),
+    os.path.join(_PROJECT_ROOT, "assets/bitmaps") # Added bitmaps directory
 ]
-SUPPORTED_EXTS = [".gif", ".png", ".jpg", ".jpeg", ".bmp"]
+# Added .json for bitmap assets
+SUPPORTED_EXTS = [".gif", ".png", ".jpg", ".jpeg", ".bmp", ".json"]
 
 def _discover_python_plugins() -> None:
     """Import all submodules in this package and register Animation subclasses."""
@@ -39,10 +38,9 @@ def _discover_python_plugins() -> None:
         return
     _registry.clear()
 
-    # Use os.listdir for more robust discovery than pkgutil
     for filename in os.listdir(_ANIMATIONS_DIR):
         if filename.endswith(".py") and not filename.startswith("__") and filename != "mochi_animations.py":
-            module_name = filename[:-3] # remove .py
+            module_name = filename[:-3]
             try:
                 mod_path = f"{__name__}.{module_name}"
                 mod = importlib.import_module(mod_path)
@@ -85,10 +83,9 @@ def list_names() -> List[str]:
 
 def create(name: str, w: int, h: int, **kwargs) -> Animation:
     """
-    Instantiate an animation by name.
-    If the name matches a Python animation class, it's created.
-    If not, it searches for a matching media file in the assets directories
-    and uses MediaPlayer to play it.
+    Instantiate an animation by name. It checks for Python plugins first,
+    then for discovered assets, using the appropriate handler based on
+    the asset's file extension.
     """
     _discover_python_plugins()
     
@@ -102,21 +99,33 @@ def create(name: str, w: int, h: int, **kwargs) -> Animation:
     asset_path = _asset_paths.get(name)
     if asset_path:
         logger.info(f"Found asset '{name}' at path: {asset_path}")
-        try:
-            from .media_player import MediaPlayer
-            from core.media import decode_image
+        kwargs['resolve_dir'] = os.path.dirname(asset_path)
+        _, ext = os.path.splitext(asset_path)
 
-            media_frames = decode_image(asset_path, target_size=(w, h), fit_mode='fit')
-            
-            if not media_frames:
-                raise ValueError(f"Failed to decode media file: {asset_path}")
+        # --- Bitmap Asset Handling ---
+        if ext.lower() == '.json':
+            try:
+                from .bitmap_handler import BitmapHandler
+                inst = BitmapHandler(w, h)
+                kwargs['path'] = asset_path
+                inst.on_enter(**kwargs)
+                return inst
+            except Exception as e:
+                logger.error(f"Error creating BitmapHandler for asset '{name}': {e}")
 
-            inst = MediaPlayer(w, h, frames=media_frames)
-            inst.on_enter(**kwargs)
-            return inst
-
-        except Exception as e:
-            logger.error(f"Error creating MediaPlayer for asset '{name}': {e}")
+        # --- Image/GIF Asset Handling ---
+        else:
+            try:
+                from .media_handler import MediaHandler
+                from core.media import decode_image
+                media_frames = decode_image(asset_path, target_size=(w, h), fit_mode='fit')
+                if not media_frames:
+                    raise ValueError(f"Failed to decode media file: {asset_path}")
+                inst = MediaHandler(w, h, frames=media_frames)
+                inst.on_enter(**kwargs)
+                return inst
+            except Exception as e:
+                logger.error(f"Error creating MediaHandler for asset '{name}': {e}")
     
     raise KeyError(f"Unknown animation or asset '{name}'. Available: {', '.join(list_names())}")
 

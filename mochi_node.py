@@ -1,6 +1,11 @@
 # mochi_node.py
-import time, math, random, struct, threading, signal, logging, json, zmq, yaml, sys, os
+import time, struct, threading, signal, logging, json, zmq, yaml, sys, os
 import psutil
+
+# --- Core components ---
+from animations import create as create_anim
+from core.mochi_script_engine import load_script, Command
+from core.logging_utils import setup_logger
 
 # --- Protocol & topics ---
 HEADER_FMT = ">HHQI"  # w,h,uint64 ts_ms,uint32 seq
@@ -13,9 +18,6 @@ shutdown_evt = threading.Event()
 
 ctx = zmq.Context.instance()
 
-# Animation plugin system
-from animations import create as create_anim, list_names as list_anims
-
 # --- Node State ---
 class NodeState:
     def __init__(self, w, h):
@@ -23,6 +25,7 @@ class NodeState:
         self.h = h
         self.anim = None
         self.current_mode = None
+        self.script = None # Holds the active script object
 
 node_state = NodeState(64, 64) # Default, will be overwritten by config
 
@@ -46,68 +49,44 @@ def pack_frame_into(buf: bytearray, w: int, h: int, seq: int, pixels_rgb_bytes: 
     buf[HEADER_SIZE:HEADER_SIZE+len(mv)] = mv
     return buf
 
-# --- Script Engine ---
-current_script = None
-script_start_t = None
-script_idx = 0
-
-def _load_script(path: str):
-    with open(path, "r") as f: data = json.load(f)
-    if "timeline" not in data: raise ValueError("script missing 'timeline' list")
-    tl = sorted(data["timeline"], key=lambda s: float(s.get("at", 0.0)))
-    data["timeline"] = tl
-    return data
-
-def start_script(path: str, logger):
-    global current_script, script_start_t, script_idx
+# --- Command Processing ---
+def process_command(cmd: Command, logger, resolve_dir: str | None = None):
+    """Executes a command received from a script."""
+    global node_state
     try:
-        current_script = _load_script(path)
-        script_start_t = time.time()
-        script_idx = 0
-        logger.info(f"Started script '{path}' with {len(current_script['timeline'])} steps")
+        if cmd.name == "mode":
+            args = cmd.args.copy()
+            name = args.pop("name", None)
+            if not name:
+                logger.warning("Script: mode step missing 'name'")
+                return
+            
+            # Inject the script's directory to resolve relative paths
+            if resolve_dir:
+                args['resolve_dir'] = resolve_dir
+
+            new = create_anim(name, node_state.w, node_state.h, **args)
+            node_state.anim, node_state.current_mode = new, name
+            logger.info(f"Script: mode -> {name} with args {args}")
+
+        elif cmd.name == "event":
+            ev_name = cmd.args.pop("name", None)
+            if not ev_name:
+                logger.warning("Script: event step missing 'name'")
+                return
+            if node_state.anim:
+                node_state.anim.on_event(ev_name, **cmd.args)
+            logger.info(f"Script: event -> {ev_name} {cmd.args if cmd.args else ''}")
+        elif cmd.name == "stop_script":
+            if node_state.script:
+                logger.info("Script finished")
+                node_state.script = None
+        else:
+            logger.warning(f"Script: unknown cmd '{cmd.name}'")
     except Exception as e:
-        logger.error(f"Failed to start script '{path}': {e}")
-        current_script = None
+        logger.error(f"Script error processing step {cmd}: {e}")
 
-def stop_script(logger):
-    global current_script
-    if current_script is not None: logger.info("Script stopped")
-    current_script = None
-
-def run_script_if_due(now: float, logger):
-    global script_idx, current_script
-    if not current_script: return
-    elapsed = now - script_start_t
-    tl = current_script["timeline"]
-    while script_idx < len(tl) and elapsed >= tl[script_idx]["at"]:
-        step = tl[script_idx]
-        script_idx += 1
-        cmd, args = step["cmd"].lower(), step.get("args", {})
-        try:
-            if cmd == "mode":
-                name = args.pop("name", None)
-                if not name: 
-                    logger.warning("Script: mode step missing 'name'")
-                    continue
-                new = create_anim(name, node_state.w, node_state.h, **args)
-                node_state.anim, node_state.current_mode = new, name
-                logger.info(f"Script: mode -> {name} with args {args}")
-            elif cmd == "event":
-                ev_name = args.pop("name", None)
-                if not ev_name: 
-                    logger.warning("Script: event step missing 'name'")
-                    continue
-                if node_state.anim: 
-                    node_state.anim.on_event(ev_name, **args)
-                logger.info(f"Script: event -> {ev_name} {args if args else ''}")
-            elif cmd == "stop": 
-                stop_script(logger)
-                break
-            else: 
-                logger.warning(f"Script: unknown cmd '{cmd}'")
-        except Exception as e: 
-            logger.error(f"Script error processing step {step}: {e}")
-
+# --- Control Loop (handles commands from GUI) ---
 def control_loop(ctrl_addr, logger):
     sub = ctx.socket(zmq.SUB)
     sub.connect(ctrl_addr)
@@ -129,7 +108,6 @@ def control_loop(ctrl_addr, logger):
                 new_w, new_h = int(w_str), int(h_str)
                 node_state.w, node_state.h = new_w, new_h
                 logger.info(f"Ctrl: resized to {new_w}x{new_h}")
-                # Re-create the current animation with the new size to apply it
                 if node_state.current_mode:
                     try:
                         new_anim = create_anim(node_state.current_mode, new_w, new_h)
@@ -141,20 +119,27 @@ def control_loop(ctrl_addr, logger):
                 r, g, b = map(int, parts[1:])
                 node_state.anim.set_color((r,g,b))
             elif cmd == "play" and len(parts) >= 2:
-                start_script(" ".join(parts[1:]), logger)
-            elif cmd == "stop": stop_script(logger)
-            elif cmd == "quit": logger.info("Ctrl: quit received"); shutdown_evt.set()
-            else: logger.warning(f"Ctrl: unknown command: {msg.decode()}")
-        except Exception as e: logger.error(f"CTRL parse error: {e}")
+                path = " ".join(parts[1:])
+                try:
+                    node_state.script = load_script(path)
+                    logger.info(f"Ctrl: Started script '{path}'")
+                except Exception as e:
+                    logger.error(f"Failed to start script '{path}': {e}")
+                    node_state.script = None
+            elif cmd == "stop":
+                if node_state.script:
+                    logger.info("Ctrl: Script stopped by command")
+                    node_state.script = None
+            elif cmd == "quit":
+                logger.info("Ctrl: quit received"); shutdown_evt.set()
+            else:
+                logger.warning(f"Ctrl: unknown command: {msg.decode()}")
+        except Exception as e:
+            logger.error(f"CTRL parse error: {e}")
 
+# --- Main Loop ---
 def main():
-    logger = logging.getLogger("MochiNode")
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    info_handler = logging.StreamHandler(sys.stdout); info_handler.setLevel(logging.INFO); info_handler.addFilter(lambda r: r.levelno == logging.INFO); info_handler.setFormatter(formatter)
-    err_handler = logging.StreamHandler(sys.stderr); err_handler.setLevel(logging.WARNING); err_handler.setFormatter(formatter)
-    logger.addHandler(info_handler); logger.addHandler(err_handler)
+    logger = setup_logger("MochiNode")
 
     try:
         with open("config.yaml", "r") as f: config = yaml.safe_load(f)
@@ -195,7 +180,12 @@ def main():
             now = clock()
             if now < next_frame: time.sleep(max(0.0, next_frame - now))
             
-            run_script_if_due(time.time(), logger)
+            # --- Run script if active ---
+            if node_state.script:
+                script_dir = os.path.dirname(node_state.script.path)
+                due_commands = node_state.script.update(time.time())
+                for command in due_commands:
+                    process_command(command, logger, resolve_dir=script_dir)
 
             if node_state.anim is None: continue
 

@@ -268,9 +268,9 @@ class SpriteEditor:
             self.timeline = []
             timeline_to_parse = script_data["timeline"]
 
-            sprite_mode_cmd = next((item for item in timeline_to_parse if item.get("cmd") == "mode" and item.get("args", {}).get("name") == "sprite"), None)
+            sprite_mode_cmd = next((item for item in timeline_to_parse if item.get("cmd") == "mode" and item.get("args", {}).get("name") == "sprite_handler"), None)
             if not sprite_mode_cmd:
-                raise ValueError("Script does not contain a sprite mode command.")
+                raise ValueError("Script does not contain a sprite_handler mode command.")
 
             sprite_mode_args = sprite_mode_cmd.get("args", {})
 
@@ -465,7 +465,7 @@ class SpriteEditor:
             "at": 0.0,
             "cmd": "mode",
             "args": {
-                "name": "sprite",
+                "name": "sprite_handler",
                 "image_path": self.image_path,
                 "sprites": self.sprites
             }

@@ -4,7 +4,7 @@
       "at": 0.0,
       "cmd": "mode",
       "args": {
-        "name": "sprite",
+        "name": "sprite_handler",
         "image_path": "/Users/jonathanjenkins/Library/Mobile Documents/com~apple~CloudDocs/Jenkins Robotics/GITHUB/Mochi/assets/bmps/patric_emotes.bmp",
         "sprites": [
           [
@@ -16,6 +16,12 @@
           [
             582,
             285,
+            64,
+            64
+          ],
+          [
+            135,
+            104,
             64,
             64
           ]
@@ -36,6 +42,14 @@
       "args": {
         "name": "show_sprite",
         "index": 1
+      }
+    },
+    {
+      "at": 1.0,
+      "cmd": "event",
+      "args": {
+        "name": "show_sprite",
+        "index": 2
       }
     }
   ]
