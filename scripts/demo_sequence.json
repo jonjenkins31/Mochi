@@ -1,0 +1,55 @@
+{
+  "timeline": [
+    {
+      "at": 0.0,
+      "cmd": "mode",
+      "args": {
+        "name": "bitmap_handler",
+        "path": "../assets/bitmaps/wink_open.json"
+      }
+    },
+    {
+      "at": 3.0,
+      "cmd": "mode gears",
+      "args": {
+        "name": "gif_handler",
+        "path": "../assets/gifs/gears.gif"
+      }
+    },
+    {
+      "at": 8.0,
+      "cmd": "mode",
+      "args": {
+        "name": "sprite_handler",
+        "image_path": "../assets/bmps/patric_emotes.bmp",
+        "sprites": [
+          [469, 285, 64, 64]
+        ]
+      }
+    },
+    {
+      "at": 8.0,
+      "cmd": "event",
+      "args": {
+        "name": "show_sprite",
+        "index": 0
+      }
+    },
+    {
+      "at": 10.0,
+      "cmd": "mode",
+      "args": {
+        "name": "timer",
+        "fg": "0 255 255"
+      }
+    },
+    {
+      "at": 10.1,
+      "cmd": "event",
+      "args": {
+        "name": "start",
+        "duration_mins": 1
+      }
+    }
+  ]
+}

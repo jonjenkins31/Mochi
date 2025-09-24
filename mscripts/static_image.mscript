@@ -1,0 +1,27 @@
+[Header start]
+! ----------------------------------------------------
+! SCRIPT: static_image
+! DESC: Displays a single static image.
+! AUTHOR: Mochi AI
+! VERSION: 2.0
+! ----------------------------------------------------
+[Header end]
+
+[Main start]
+! === Main Program =================
+IMAGE K[1:logo] D[5.0]
+JMP LBL[9999:End]
+
+LBL[9999:End]
+! --- End of Program ---
+[Main end]
+
+[Keyframes start]
+! === Keyframe Definitions ===========================
+! This section is reserved for keyframe data.
+[Keyframes end]
+
+[Resources start]
+! === Resource Definitions ===========================
+K[1:logo]: '../assets/images/mochi_logo.png'
+[Resources end]

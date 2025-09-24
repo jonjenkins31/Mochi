@@ -1,0 +1,25 @@
+[Header start]
+! ----------------------------------------------------
+! SCRIPT: cloud_sprite
+! DESC: Displays a single sprite from a spritesheet.
+! AUTHOR: Conversion Tool
+! VERSION: 2.0
+! ----------------------------------------------------
+[Header end]
+
+[Main start]
+LBL[1:Start]
+    SPRITE K[1:cloud] SRC[0,0,32,32] D[1.0]
+    JMP LBL[1:Start]
+
+LBL[9999:End]
+[Main end]
+
+[Keyframes start]
+! === Keyframe Definitions ===========================
+! This section is reserved for keyframe data.
+[Keyframes end]
+
+[Resources start]
+K[1:cloud]: '../assets/png/cloud-network.png'
+[Resources end]

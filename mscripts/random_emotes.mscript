@@ -1,0 +1,24 @@
+[Header start]
+! ----------------------------------------------------
+! SCRIPT: random_emotes
+! DESC: Displays random emotes using a config file.
+! AUTHOR: Conversion Tool
+! VERSION: 2.0
+! ----------------------------------------------------
+[Header end]
+
+[Main start]
+LBL[1:Start]
+    MATH NAME[sprite] CONFIG_PATH['random_emotes_config.mscript'] D[0.0]
+LBL[9999:End]
+[Main end]
+
+[Keyframes start]
+! === Keyframe Definitions ===========================
+! This section is reserved for keyframe data.
+[Keyframes end]
+
+[Resources start]
+! === Resource Definitions ===========================
+! All assets used in the script must be defined here.
+[Resources end]

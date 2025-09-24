@@ -1,0 +1,25 @@
+[Header start]
+! ----------------------------------------------------
+! SCRIPT: timer_demo
+! DESC: A demonstration of a timer function.
+! AUTHOR: Conversion Tool
+! VERSION: 2.0
+! ----------------------------------------------------
+[Header end]
+
+[Main start]
+LBL[1:Start]
+    MATH NAME[timer] FG[0,255,0] D[1.0]
+    MATH NAME[start] DURATION_MINS[1] D[0.1]
+LBL[9999:End]
+[Main end]
+
+[Keyframes start]
+! === Keyframe Definitions ===========================
+! This section is reserved for keyframe data.
+[Keyframes end]
+
+[Resources start]
+! === Resource Definitions ===========================
+! All assets used in the script must be defined here.
+[Resources end]

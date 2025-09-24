@@ -1,0 +1,27 @@
+[Header start]
+! ----------------------------------------------------
+! SCRIPT: patric_sprite
+! DESC: A simple sprite animation of Patric.
+! AUTHOR: Conversion Tool
+! VERSION: 2.0
+! ----------------------------------------------------
+[Header end]
+
+[Main start]
+LBL[1:Start]
+    SPRITE K[1:patric] SRC[469,285,64,64] D[0.5]
+    SPRITE K[1:patric] SRC[582,285,64,64] D[0.5]
+    SPRITE K[1:patric] SRC[23,286,64,64] D[1.0]
+    JMP LBL[1:Start]
+
+LBL[9999:End]
+[Main end]
+
+[Keyframes start]
+! === Keyframe Definitions ===========================
+! This section is reserved for keyframe data.
+[Keyframes end]
+
+[Resources start]
+K[1:patric]: '../assets/bmps/patric_emotes.bmp'
+[Resources end]

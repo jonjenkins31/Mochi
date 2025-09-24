@@ -1,0 +1,29 @@
+[Header start]
+! ----------------------------------------------------
+! SCRIPT: sprite_test
+! DESC: A test script for sprite animations.
+! AUTHOR: Conversion Tool
+! VERSION: 2.0
+! NOTE: This script was converted from a legacy format and requires you to fill in the resource path and sprite coordinates.
+! ----------------------------------------------------
+[Header end]
+
+[Main start]
+LBL[1:Start]
+    ! TODO: Replace SRC values with the correct coordinates from your sprite sheet.
+    SPRITE K[1:spritesheet] SRC[0,0,0,0] D[0.5]  ! Originally INDEX[0]
+    SPRITE K[1:spritesheet] SRC[0,0,0,0] D[0.5]  ! Originally INDEX[1]
+    SPRITE K[1:spritesheet] SRC[0,0,0,0] D[0.5]  ! Originally INDEX[2]
+    JMP LBL[1:Start]
+LBL[9999:End]
+[Main end]
+
+[Keyframes start]
+! === Keyframe Definitions ===========================
+! This section is reserved for keyframe data.
+[Keyframes end]
+
+[Resources start]
+! TODO: Replace with the correct path to the sprite sheet asset.
+K[1:spritesheet]: 'path/to/your/spritesheet.png'
+[Resources end]

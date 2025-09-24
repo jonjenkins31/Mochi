@@ -1,0 +1,27 @@
+[Header start]
+! ----------------------------------------------------
+! SCRIPT: hello
+! DESC: A simple animation sequence.
+! AUTHOR: Conversion Tool
+! VERSION: 2.0
+! ----------------------------------------------------
+[Header end]
+
+[Main start]
+LBL[1:Start]
+    MATH NAME[face] D[1.0]
+    MATH NAME[blink] D[1.0]
+    MATH NAME[bars] FG[255,120,40] D[2.0]
+    MATH NAME[rainbow] D[2.0]
+LBL[9999:End]
+[Main end]
+
+[Keyframes start]
+! === Keyframe Definitions ===========================
+! This section is reserved for keyframe data.
+[Keyframes end]
+
+[Resources start]
+! === Resource Definitions ===========================
+! All assets used in the script must be defined here.
+[Resources end]
