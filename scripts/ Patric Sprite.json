@@ -2,29 +2,13 @@
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "mode",
+      "cmd": "sprite_handler",
       "args": {
-        "name": "sprite_handler",
-        "image_path": "/Users/jonathanjenkins/Library/Mobile Documents/com~apple~CloudDocs/Jenkins Robotics/GITHUB/Mochi/assets/bmps/patric_emotes.bmp",
+        "image_path": "../assets/bmps/patric_emotes.bmp",
         "sprites": [
-          [
-            469,
-            285,
-            64,
-            64
-          ],
-          [
-            582,
-            285,
-            64,
-            64
-          ],
-          [
-            135,
-            104,
-            64,
-            64
-          ]
+          [ 469, 285, 64, 64 ],
+          [ 582, 285, 64, 64 ],
+          [ 135, 104, 64, 64 ]
         ]
       }
     },

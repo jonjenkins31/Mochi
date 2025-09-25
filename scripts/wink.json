@@ -2,9 +2,8 @@
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "mode",
+      "cmd": "bitmap_handler",
       "args": {
-        "name": "bitmap_handler",
         "path": "../assets/bitmaps/wink_open.json"
       }
     },

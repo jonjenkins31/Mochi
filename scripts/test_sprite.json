@@ -1,26 +1,17 @@
 {
-  "image_path": "assets/bmps/random_emotes.bmp",
-  "sprites": [
-    [
-      160,
-      103,
-      64,
-      64
-    ],
-    [
-      838,
-      197,
-      64,
-      64
-    ],
-    [
-      711,
-      193,
-      64,
-      64
-    ]
-  ],
   "timeline": [
+    {
+      "at": 0.0,
+      "cmd": "sprite_handler",
+      "args": {
+        "image_path": "assets/bmps/random_emotes.bmp",
+        "sprites": [
+          [ 160, 103, 64, 64 ],
+          [ 838, 197, 64, 64 ],
+          [ 711, 193, 64, 64 ]
+        ]
+      }
+    },
     {
       "at": 0.0,
       "cmd": "event",

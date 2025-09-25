@@ -1,12 +1,12 @@
 {
   "version": 1,
   "timeline": [
-    { "at": 0.0,  "cmd": "mode",  "args": {"name": "face"} },
+    { "at": 0.0,  "cmd": "math",  "args": {"name": "face"} },
     { "at": 1.0,  "cmd": "event", "args": {"name": "blink"} },
 
-    { "at": 2.0,  "cmd": "mode",  "args": {"name": "bars", "fg": [255, 120, 40]} },
-    { "at": 4.0,  "cmd": "mode",  "args": {"name": "rainbow"} },
+    { "at": 2.0,  "cmd": "math",  "args": {"name": "bars", "fg": [255, 120, 40]} },
+    { "at": 4.0,  "cmd": "math",  "args": {"name": "rainbow"} },
 
-    { "at": 6.0,  "cmd": "stop" }
+    { "at": 6.0,  "cmd": "stop_script" }
   ]
 }

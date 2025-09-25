@@ -34,8 +34,9 @@
     },
     {
       "at": 10.0,
-      "cmd": "timer",
+      "cmd": "math",
       "args": {
+        "name": "timer",
         "fg": "0 255 255"
       }
     },

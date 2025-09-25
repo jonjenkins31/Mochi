@@ -103,22 +103,26 @@ class _AnimationFactory:
     def create(self, cmd: str, w: int, h: int, **args) -> Animation:
         self._discover()
 
-        # The command is the handler/animation name
-        handler_class = self._registry.get(cmd)
-        if not handler_class:
-            raise KeyError(f"Unknown handler or animation command '{cmd}'. Available: {', '.join(sorted(self._registry.keys()))}")
+        lookup_key = cmd
+        if cmd == 'math':
+            lookup_key = args.get('name')
+            if not lookup_key:
+                raise ValueError("The 'math' command requires a 'name' argument to specify the animation.")
+        
+        handler_class = self._registry.get(lookup_key)
 
-        # If a named asset is required, resolve its path
+        if not handler_class:
+            raise KeyError(f"Unknown handler or animation command '{lookup_key}'.")
+
+        # If a named asset is required, resolve its path. This is for handlers
+        # like `media_handler` that get a `name` argument for an asset file.
         asset_name = args.get("name")
         if asset_name:
             asset_path = self._asset_paths.get(asset_name)
-            if not asset_path:
-                raise KeyError(f"Unknown asset name '{asset_name}' for handler '{cmd}'. Available: {', '.join(sorted(self._asset_paths.keys()))}")
-            
-            # Inject the resolved path and directory into the arguments
-            args['path'] = asset_path
-            args['resolve_dir'] = os.path.dirname(asset_path)
-
+            if asset_path:
+                args['path'] = asset_path
+                args['resolve_dir'] = os.path.dirname(asset_path)
+        
         # Instantiate the handler with all the arguments
         inst = handler_class(w, h)
         inst.on_enter(**args)

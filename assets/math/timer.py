@@ -2,6 +2,7 @@
 import time
 import numpy as np
 from core.mochi_animations import Animation
+from core.color_utils import parse_color
 
 class Timer(Animation):
     name = "timer"
@@ -24,6 +25,10 @@ class Timer(Animation):
         super().__init__(w, h)
         self.countdown_end_time = 0
         self.timer_running = False
+        self.fg = (255, 255, 255)  # Default to white
+
+    def on_enter(self, **kwargs):
+        self.fg = parse_color(kwargs.get("fg"), self.fg)
 
     def on_event(self, event: str, **kwargs):
         if event.lower() == "start":

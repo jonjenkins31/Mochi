@@ -2,10 +2,9 @@
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "mode",
+      "cmd": "sprite_handler",
       "args": {
-        "name": "sprite_handler",
-        "config_path": "/Users/jonathanjenkins/Library/Mobile Documents/com~apple~CloudDocs/Jenkins Robotics/GITHUB/Mochi/scripts/random_emotes_config.json"
+        "config_path": "random_emotes_config.json"
       }
     }
   ]

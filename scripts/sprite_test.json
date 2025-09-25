@@ -2,9 +2,8 @@
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "mode",
+      "cmd": "sprite_handler",
       "args": {
-        "name": "sprite_handler",
         "config_path": "sprite_test_config.json"
       }
     },

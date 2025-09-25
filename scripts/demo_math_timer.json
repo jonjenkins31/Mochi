@@ -2,8 +2,9 @@
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "timer",
+      "cmd": "math",
       "args": {
+        "name": "timer",
         "fg": "0 255 0"
       }
     },
