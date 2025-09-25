@@ -1,4 +1,4 @@
-# animations/bars.py
+# assets/math/bars.py
 # Vertical sweeping bars using a sinusoidal profile.
 
 import numpy as np

@@ -1,4 +1,4 @@
-# animations/test_rects.py
+# assets/math/test_rects.py
 # A Python/NumPy recreation of the testRects pattern from Adafruit GFX.
 
 import numpy as np

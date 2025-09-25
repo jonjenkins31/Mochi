@@ -1,0 +1,11 @@
+{
+  "timeline": [
+    {
+      "at": 0.0,
+      "cmd": "bitmap_handler",
+      "args": {
+        "name": "wink_open"
+      }
+    }
+  ]
+}

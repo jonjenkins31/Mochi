@@ -1,4 +1,4 @@
-# animations/test_triangles.py
+# assets/math/test_triangles.py
 # A Python/NumPy recreation of the testTriangles pattern from Adafruit GFX.
 
 import numpy as np

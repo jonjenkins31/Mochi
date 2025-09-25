@@ -1,4 +1,4 @@
-# animations/rainbow.py
+# assets/math/rainbow.py
 # Rainbow flow using three phase-shifted sinusoids (fast, branchless, pretty).
 
 import math

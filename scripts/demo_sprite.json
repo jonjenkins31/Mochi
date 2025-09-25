@@ -1,0 +1,22 @@
+{
+  "timeline": [
+    {
+      "at": 0.0,
+      "cmd": "sprite_handler",
+      "args": {
+        "image_path": "../assets/bmps/patric_emotes.bmp",
+        "sprites": [
+          [469, 285, 64, 64]
+        ]
+      }
+    },
+    {
+      "at": 0.1,
+      "cmd": "event",
+      "args": {
+        "name": "show_sprite",
+        "index": 0
+      }
+    }
+  ]
+}

@@ -1,4 +1,27 @@
 # animations/media_handler.py
+
+"""
+Media Handler: The Generic Image & GIF Player
+
+Function:
+This handler is responsible for displaying standard raster images (PNG, JPG, BMP)
+and animated GIFs. It is automatically invoked by the Master Handler when an
+asset with a corresponding file extension is requested. It handles image
+decoding, resizing (including letterboxing), and frame timing for animations.
+
+Inputs (via kwargs from Master Handler):
+- path (str): The absolute path to the image or GIF file to be displayed.
+- loop (bool, optional): For animated GIFs, determines if the animation should
+  loop. Defaults to True.
+- fps (float, optional): Overrides the frame rate of an animated GIF.
+- bg (tuple, optional): The RGB color to use for letterboxing if the asset's
+  aspect ratio does not match the display. Defaults to black.
+
+Output:
+- Renders the image or the correct animation frame into the pixel buffer
+  provided by the Mochi node.
+"""
+
 from __future__ import annotations
 from typing import Optional
 import numpy as np

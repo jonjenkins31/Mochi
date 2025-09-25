@@ -1,3 +1,32 @@
+# animations/sprite_handler.py
+
+"""
+Sprite Handler: Displays individual sprites from a sprite sheet.
+
+Function:
+This handler is designed to work with sprite sheets, where a single image file
+contains multiple smaller images or frames. It loads a main sprite sheet image
+and a configuration (usually a JSON file) that defines the coordinates (x, y,
+width, height) of each individual sprite. It then displays one sprite at a time,
+centered on the screen.
+
+Inputs (via kwargs from Master Handler or on_enter):
+- config_path (str): Path to a JSON file that specifies the 'image_path' for
+  the sprite sheet and a list of 'sprites' with their coordinates.
+- image_path (str): Can be used instead of config_path to specify the sprite
+  sheet image directly.
+- sprites (list): A Python list of [x, y, w, h] coordinates. Must be provided
+  if image_path is used without a config_path.
+
+Event Inputs (on_event):
+- event (str): Listens for a 'show_sprite' event.
+- index (int): When 'show_sprite' is received, displays the sprite at this
+  index in the sprites list.
+
+Output:
+- Renders the currently selected sprite, cropped from the main sprite sheet,
+  into the pixel buffer provided by the Mochi node.
+"""
 
 import json
 import os

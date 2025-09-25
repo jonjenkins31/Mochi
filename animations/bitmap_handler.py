@@ -1,5 +1,28 @@
 # animations/bitmap_handler.py
-# Renders 1-bit monochrome bitmap data from raw data or an asset file.
+
+"""
+Bitmap Handler: Renders 1-bit monochrome bitmap assets.
+
+Function:
+This handler is designed to parse and display 1-bit monochrome bitmap data.
+It is invoked by the Master Handler when a JSON asset is requested. The JSON
+file is expected to contain 'width', 'height', and a 'data' array representing
+the packed bitmap. The handler centers the bitmap on the display.
+
+Inputs (via kwargs from Master Handler):
+- path (str): The absolute path to the JSON asset file.
+- on_color (tuple, optional): The RGB color for the 'on' pixels (1s). Defaults
+  to white.
+- off_color (tuple, optional): The RGB color for the 'off' pixels (0s).
+  Defaults to black.
+
+Event Inputs (on_event):
+- event (str): Listens for a 'show_bitmap' event.
+- path (str): When 'show_bitmap' is received, loads a new bitmap from this path.
+
+Output:
+- Renders the specified bitmap into the pixel buffer provided by the Mochi node.
+"""
 
 import numpy as np
 import os

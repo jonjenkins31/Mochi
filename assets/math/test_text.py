@@ -1,4 +1,4 @@
-# animations/test_text.py
+# assets/math/test_text.py
 # A Python/NumPy recreation of the testText pattern from Adafruit GFX.
 
 import numpy as np

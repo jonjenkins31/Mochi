@@ -1,11 +1,24 @@
 # mochi_node.py
-import time, struct, threading, signal, logging, json, zmq, yaml, sys, os
+import time, struct, threading, signal, logging, json, zmq, yaml, os
 import psutil
+import numpy as np
 
 # --- Core components ---
-from animations import create as create_anim
+from animations.master_handler import create_animation as create_anim
+from core.mochi_animations import Animation
 from core.mochi_script_engine import load_script, Command
 from core.logging_utils import setup_logger
+
+# --- Simple fallback animation ---
+class SolidColorAnimation(Animation):
+    """A simple animation that fills the screen with a solid color."""
+    def __init__(self, w, h, color=(0, 0, 0)):
+        super().__init__(w, h)
+        self.color = color
+
+    def render_into(self, t: float, pixel_buf: bytearray):
+        frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))
+        frame[:, :] = self.color
 
 # --- Protocol & topics ---
 HEADER_FMT = ">HHQI"  # w,h,uint64 ts_ms,uint32 seq
@@ -54,22 +67,7 @@ def process_command(cmd: Command, logger, resolve_dir: str | None = None):
     """Executes a command received from a script."""
     global node_state
     try:
-        if cmd.name == "mode":
-            args = cmd.args.copy()
-            name = args.pop("name", None)
-            if not name:
-                logger.warning("Script: mode step missing 'name'")
-                return
-            
-            # Inject the script's directory to resolve relative paths
-            if resolve_dir:
-                args['resolve_dir'] = resolve_dir
-
-            new = create_anim(name, node_state.w, node_state.h, **args)
-            node_state.anim, node_state.current_mode = new, name
-            logger.info(f"Script: mode -> {name} with args {args}")
-
-        elif cmd.name == "event":
+        if cmd.name == "event":
             ev_name = cmd.args.pop("name", None)
             if not ev_name:
                 logger.warning("Script: event step missing 'name'")
@@ -82,7 +80,17 @@ def process_command(cmd: Command, logger, resolve_dir: str | None = None):
                 logger.info("Script finished")
                 node_state.script = None
         else:
-            logger.warning(f"Script: unknown cmd '{cmd.name}'")
+            # All other commands are treated as animation/asset names
+            try:
+                args = cmd.args.copy()
+                if resolve_dir:
+                    args['resolve_dir'] = resolve_dir
+                
+                new = create_anim(cmd.name, node_state.w, node_state.h, **args)
+                node_state.anim, node_state.current_mode = new, cmd.name
+                logger.info(f"Script: loaded animation '{cmd.name}' with args {args}")
+            except KeyError:
+                 logger.warning(f"Script: unknown command or asset '{cmd.name}'")
     except Exception as e:
         logger.error(f"Script error processing step {cmd}: {e}")
 
@@ -154,7 +162,7 @@ def main():
 
     process = psutil.Process(os.getpid())
 
-    def _sig_handler(s, f): shutdown_evt.set()
+    def _sig_handler(_s, _f): shutdown_evt.set()
     signal.signal(signal.SIGINT, _sig_handler); signal.signal(signal.SIGTERM, _sig_handler)
 
     threading.Thread(target=control_loop, args=(ctrl_addr, logger), daemon=True).start()
@@ -167,7 +175,10 @@ def main():
         node_state.anim = create_anim(default_mode, node_state.w, node_state.h)
         node_state.current_mode = default_mode
     except Exception as e:
-        logger.warning(f"Unknown mode '{default_mode}' ({e}); falling back to 'idle'"); node_state.anim = create_anim("idle", node_state.w, node_state.h); node_state.current_mode = "idle"
+        light_blue = (173, 216, 230)
+        logger.warning(f"Unknown mode '{default_mode}' ({e}); falling back to solid color {light_blue}")
+        node_state.anim = SolidColorAnimation(node_state.w, node_state.h, color=light_blue)
+        node_state.current_mode = "solid_color"
 
     seq = 0
     clock = time.perf_counter
@@ -190,6 +201,8 @@ def main():
             if node_state.anim is None: continue
 
             _ensure_buffers(node_state.anim.w, node_state.anim.h)
+            if pixel_buf is None or packet_buf is None:
+                continue
 
             try:
                 node_state.anim.render_into(time.time(), pixel_buf)

@@ -2,25 +2,22 @@
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "mode",
+      "cmd": "bitmap_handler",
       "args": {
-        "name": "bitmap_handler",
-        "path": "../assets/bitmaps/wink_open.json"
+        "name": "wink_open"
       }
     },
     {
       "at": 3.0,
-      "cmd": "mode gears",
+      "cmd": "media_handler",
       "args": {
-        "name": "gif_handler",
-        "path": "../assets/gifs/gears.gif"
+        "name": "gears"
       }
     },
     {
       "at": 8.0,
-      "cmd": "mode",
+      "cmd": "sprite_handler",
       "args": {
-        "name": "sprite_handler",
         "image_path": "../assets/bmps/patric_emotes.bmp",
         "sprites": [
           [469, 285, 64, 64]
@@ -28,7 +25,7 @@
       }
     },
     {
-      "at": 8.0,
+      "at": 8.1, 
       "cmd": "event",
       "args": {
         "name": "show_sprite",
@@ -37,9 +34,8 @@
     },
     {
       "at": 10.0,
-      "cmd": "mode",
+      "cmd": "timer",
       "args": {
-        "name": "timer",
         "fg": "0 255 255"
       }
     },

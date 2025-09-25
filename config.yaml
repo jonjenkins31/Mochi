@@ -13,5 +13,5 @@ gui:
 
 display:
   sub_address: "tcp://127.0.0.1:5555"
-  zoom: 8  # The pixel scaling factor for the virtual display window.
+  zoom: 1  # The pixel scaling factor for the virtual display window.
   poll_ms: 5

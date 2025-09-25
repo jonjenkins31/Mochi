@@ -1,4 +1,4 @@
-# animations/test_lines.py
+# assets/math/test_lines.py
 # A Python/NumPy recreation of the testLines pattern from Adafruit GFX.
 
 import numpy as np

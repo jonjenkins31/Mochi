@@ -1,4 +1,4 @@
-# animations/test_circles.py
+# assets/math/test_circles.py
 # A Python/NumPy recreation of the testCircles pattern from Adafruit GFX.
 
 import numpy as np
