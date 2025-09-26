@@ -6,7 +6,7 @@ node:
   fps: 60
   pub_address: "tcp://127.0.0.1:5555"
   ctrl_address: "tcp://127.0.0.1:5556"
-  default_script: "scripts/demo_wink.json"
+  default_script: "mscripts/demo_wink.mscript"
 
 gui:
   pub_address: "tcp://127.0.0.1:5556"

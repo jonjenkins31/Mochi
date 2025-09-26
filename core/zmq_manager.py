@@ -11,7 +11,7 @@ import logging
 import threading
 
 from animations.master_handler import create_animation as create_anim
-from core.mochi_script_engine import load_script
+from core.mscript_engine import MscriptScript
 from core.node_state import node_state
 
 logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ def control_loop(ctrl_addr):
             elif cmd == "play" and len(parts) >= 2:
                 path = " ".join(parts[1:])
                 try:
-                    node_state.script = load_script(path)
+                    node_state.script = MscriptScript(path)
                     logger.info(f"Ctrl: Started script '{path}'")
                 except Exception as e:
                     logger.error(f"Failed to start script '{path}': {e}")

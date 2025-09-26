@@ -22,7 +22,7 @@ from core.mochi_animations import Animation
 from core.logging_utils import setup_logger
 from core.node_state import node_state
 from core.command_processor import process_command
-from core.mochi_script_engine import load_script
+from core.mscript_engine import MscriptScript
 from core import zmq_manager
 
 # The root directory of the Mochi project.
@@ -91,7 +91,7 @@ def main():
         try:
             # Manually load the script object, bypassing the command processor
             # for the initial 'play' action, which is not a standard command.
-            node_state.script = load_script(os.path.join(PROJECT_ROOT, default_script))
+            node_state.script = MscriptScript(os.path.join(PROJECT_ROOT, default_script))
             logger.info(f"Default script '{default_script}' loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load default script '{default_script}': {e}")
