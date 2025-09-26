@@ -1,21 +1,15 @@
 {
+  "resources": [
+    { "id": 1, "path": "assets/png/cloud-network.png" }
+  ],
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "sprite_handler",
+      "command": "SPRITE",
       "args": {
-        "image_path": "../assets/png/cloud-network.png",
-        "sprites": [
-          [0, 0, 32, 32]
-        ]
-      }
-    },
-    {
-      "at": 0.1,
-      "cmd": "event",
-      "args": {
-        "name": "show_sprite",
-        "index": 0
+        "K": 1,
+        "D": 5.0,
+        "SRC": "0,0,32,32"
       }
     }
   ]

@@ -1,117 +1,131 @@
 {
+  "resources": [
+    { "id": 1, "path": "assets/math/test_fill_screen.py" },
+    { "id": 2, "path": "assets/math/test_text.py" },
+    { "id": 3, "path": "assets/math/test_filled_rects.py" },
+    { "id": 4, "path": "assets/math/test_filled_circles.py" },
+    { "id": 5, "path": "assets/math/test_filled_triangles.py" },
+    { "id": 6, "path": "assets/math/test_filled_round_rects.py" },
+    { "id": 7, "path": "assets/math/test_fast_lines.py" },
+    { "id": 8, "path": "assets/math/test_rects.py" },
+    { "id": 9, "path": "assets/math/test_circles.py" },
+    { "id": 10, "path": "assets/math/test_triangles.py" }
+  ],
   "timeline": [
     {
-      "at": 0,
-      "cmd": "math",
+      "at": 0.0,
+      "command": "MATH",
       "args": {
-        "name": "test_fill_screen",
+        "K": 1,
+        "D": 2.5,
         "colors": [[0, 0, 0], [255, 0, 0], [0, 255, 0], [0, 0, 255]],
-        "duration": 0.5
+        "DUR": 0.5
       }
     },
     {
       "at": 2.5,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_text",
-        "text": "Mochi GFX",
-        "color": [255, 255, 0],
-        "size": 3,
-        "x": 2,
-        "y": 10
+        "K": 2,
+        "D": 3.0,
+        "TXT": "Mochi GFX",
+        "CLR": "255 255 0",
+        "SZ": 3,
+        "X": 2,
+        "Y": 10
       }
     },
     {
       "at": 5.5,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_text",
-        "text": "Powered by NumPy",
-        "color": [0, 255, 255],
-        "size": 1,
-        "x": 4,
-        "y": 40
+        "K": 2,
+        "D": 2.5,
+        "TXT": "Powered by NumPy",
+        "CLR": "0 255 255",
+        "SZ": 1,
+        "X": 4,
+        "Y": 40
       }
     },
     {
       "at": 8.0,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_filled_rects",
-        "color1": [255, 255, 0],
-        "color2": [255, 0, 255]
+        "K": 3,
+        "D": 5.0,
+        "CLR": "255 255 0",
+        "CLR2": "255 0 255"
       }
     },
     {
       "at": 13.0,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_filled_circles",
-        "color": [255, 0, 255],
-        "radius": 12
+        "K": 4,
+        "D": 3.0,
+        "CLR": "255 0 255",
+        "RAD": 12
       }
     },
     {
       "at": 16.0,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_filled_triangles"
+        "K": 5,
+        "D": 5.0
       }
     },
     {
       "at": 21.0,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_filled_round_rects",
-        "color": [0, 255, 0]
+        "K": 6,
+        "D": 5.0,
+        "CLR": "0 255 0"
       }
     },
     {
       "at": 26.0,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_fast_lines",
-        "color1": [50, 0, 0],
-        "color2": [0, 0, 50],
-        "clear": true
+        "K": 7,
+        "D": 0.1,
+        "CLR": "50 0 0",
+        "CLR2": "0 0 50",
+        "CLEAR": 1
       }
     },
     {
       "at": 26.1,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_rects",
-        "color": [0, 255, 0],
-        "clear": false
+        "K": 8,
+        "D": 4.0,
+        "CLR": "0 255 0",
+        "CLEAR": 0
       }
     },
     {
       "at": 30.1,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_circles",
-        "color": [255, 255, 255],
-        "radius": 15,
-        "clear": false
+        "K": 9,
+        "D": 4.0,
+        "CLR": "255 255 255",
+        "RAD": 15,
+        "CLEAR": 0
       }
     },
     {
       "at": 34.1,
-      "cmd": "math",
+      "command": "MATH",
       "args": {
-        "name": "test_triangles",
-        "color": [255, 0, 0],
-        "clear": false
+        "K": 10,
+        "D": 5.0,
+        "CLR": "255 0 0",
+        "CLEAR": 0
       }
-    },
-    {
-      "at": 39.1,
-      "cmd": "stop_script"
-    },
-    {
-      "at": 39.2,
-      "cmd": "math",
-      "args": { "name": "idle" }
     }
   ]
 }

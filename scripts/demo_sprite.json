@@ -1,21 +1,15 @@
 {
+  "resources": [
+    { "id": 1, "path": "../assets/bmps/patric_emotes.bmp" }
+  ],
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "sprite_handler",
+      "command": "SPRITE",
       "args": {
-        "image_path": "../assets/bmps/patric_emotes.bmp",
-        "sprites": [
-          [469, 285, 64, 64]
-        ]
-      }
-    },
-    {
-      "at": 0.1,
-      "cmd": "event",
-      "args": {
-        "name": "show_sprite",
-        "index": 0
+        "K": 1,
+        "D": 5.0,
+        "SRC": "469,285,64,64"
       }
     }
   ]

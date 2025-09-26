@@ -1,42 +1,47 @@
 {
+  "resources": [
+    { "id": 1, "path": "assets/bitmaps/wink_open.json" },
+    { "id": 2, "path": "assets/bitmaps/wink_closed.json" }
+  ],
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "bitmap_handler",
+      "command": "BITMAP",
       "args": {
-        "path": "../assets/bitmaps/wink_open.json"
+        "K": 1,
+        "D": 2.0
       }
     },
     {
       "at": 2.0,
-      "cmd": "event",
+      "command": "BITMAP",
       "args": {
-        "name": "show_bitmap",
-        "path": "../assets/bitmaps/wink_closed.json"
+        "K": 2,
+        "D": 0.2
       }
     },
     {
       "at": 2.2,
-      "cmd": "event",
+      "command": "BITMAP",
       "args": {
-        "name": "show_bitmap",
-        "path": "../assets/bitmaps/wink_open.json"
+        "K": 1,
+        "D": 1.8
       }
     },
     {
       "at": 4.0,
-      "cmd": "event",
+      "command": "BITMAP",
       "args": {
-        "name": "show_bitmap",
-        "path": "../assets/bitmaps/wink_closed.json"
+        "K": 2,
+        "D": 0.2
       }
     },
     {
       "at": 4.2,
-      "cmd": "event",
+      "command": "BITMAP",
       "args": {
-        "name": "show_bitmap",
-        "path": "../assets/bitmaps/wink_open.json"
+        "K": 1,
+        "D": 2.0
       }
     }
   ]

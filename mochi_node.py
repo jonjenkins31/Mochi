@@ -53,7 +53,7 @@ def main():
     fps = node_config.get("fps", 60)
     pub_addr = node_config.get("pub_address", "tcp://127.0.0.1:5555")
     ctrl_addr = node_config.get("ctrl_address", "tcp://127.0.0.1:5556")
-    default_mode = node_config.get("default_mode", "idle")
+    default_script = node_config.get("default_script")
 
     process = psutil.Process(os.getpid())
 
@@ -74,15 +74,23 @@ def main():
     time.sleep(0.1)
     logger.info(f"Publisher bound -> {pub_addr}; logical_size={node_state.w}x{node_state.h}; FPS={fps}")
 
-    # --- Load the default animation ---
-    try:
-        node_state.anim = create_anim(default_mode, node_state.w, node_state.h)
-        node_state.current_mode = default_mode
-    except Exception as e:
-        light_blue = (173, 216, 230)
-        logger.warning(f"Unknown mode '{default_mode}' ({e}); falling back to solid color {light_blue}")
-        node_state.anim = SolidColorAnimation(node_state.w, node_state.h, color=light_blue)
-        node_state.current_mode = "solid_color"
+    # --- Load the default animation/script ---
+    # Set a fallback animation
+    light_blue = (173, 216, 230)
+    node_state.anim = SolidColorAnimation(node_state.w, node_state.h, color=light_blue)
+    node_state.current_mode = "solid_color"
+    logger.info(f"Defaulting to solid color {light_blue}")
+
+    # Load default script if specified
+    if default_script:
+        logger.info(f"Loading default script: {default_script}")
+        try:
+            # The command processor needs the directory of the script to resolve relative paths
+            # for assets inside the script.
+            script_dir = os.path.dirname(default_script)
+            process_command(f"play {default_script}", resolve_dir=script_dir)
+        except Exception as e:
+            logger.error(f"Failed to load default script '{default_script}': {e}")
 
     # --- Main render loop ---
     seq = 0

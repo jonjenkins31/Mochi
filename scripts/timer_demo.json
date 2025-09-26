@@ -1,6 +1,25 @@
 {
+  "resources": [
+    { "id": 1, "path": "assets/math/timer.py" }
+  ],
   "timeline": [
-    { "at": 0.0, "cmd": "math", "args": { "name": "timer", "fg": [0, 255, 0] } },
-    { "at": 1.0, "cmd": "event", "args": { "name": "start", "duration_mins": 1 } }
+    {
+      "at": 0.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "D": 61.0,
+        "FG": "0 255 0"
+      }
+    },
+    {
+      "at": 1.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "EVENT": "start",
+        "DUR_M": 1
+      }
+    }
   ]
 }

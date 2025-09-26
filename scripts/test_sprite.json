@@ -1,39 +1,36 @@
 {
+  "resources": [
+    {
+      "id": 1,
+      "path": "assets/bmps/random_emotes.bmp"
+    }
+  ],
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "sprite_handler",
+      "command": "SPRITE",
       "args": {
-        "image_path": "assets/bmps/random_emotes.bmp",
-        "sprites": [
-          [ 160, 103, 64, 64 ],
-          [ 838, 197, 64, 64 ],
-          [ 711, 193, 64, 64 ]
-        ]
-      }
-    },
-    {
-      "at": 0.0,
-      "cmd": "event",
-      "args": {
-        "name": "show_sprite",
-        "index": 0
+        "K": 1,
+        "D": 5.0,
+        "SRC": "160,103,64,64"
       }
     },
     {
       "at": 5.0,
-      "cmd": "event",
+      "command": "SPRITE",
       "args": {
-        "name": "show_sprite",
-        "index": 1
+        "K": 1,
+        "D": 5.0,
+        "SRC": "838,197,64,64"
       }
     },
     {
       "at": 10.0,
-      "cmd": "event",
+      "command": "SPRITE",
       "args": {
-        "name": "show_sprite",
-        "index": 2
+        "K": 1,
+        "D": 5.0,
+        "SRC": "711,193,64,64"
       }
     }
   ]

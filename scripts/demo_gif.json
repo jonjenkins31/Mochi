@@ -1,10 +1,14 @@
 {
+  "resources": [
+    { "id": 1, "path": "assets/gifs/gears.gif" }
+  ],
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "media_handler",
+      "command": "MEDIA",
       "args": {
-        "name": "gears"
+        "K": 1,
+        "D": 5.0
       }
     }
   ]

@@ -30,25 +30,35 @@ class Script(ABC):
         """
         raise NotImplementedError
 
-# --- V1.0 JSON Timeline Implementation ---
+# --- V3.0 JSON Timeline Implementation (mscript-aligned) ---
 class JsonTimelineScript(Script):
     """
-    The V1.0 script implementation that reads from a JSON file
-    with a 'timeline' array.
+    The V3.0 script implementation that reads from a JSON file
+    with a 'timeline' and 'resources' array.
     """
     def __init__(self, path: str):
         super().__init__(path)
         self._timeline = []
+        self._resources: Dict[int, str] = {}
         self._index = 0
         self._load()
 
     def _load(self):
         with open(self.path, "r") as f:
             data = json.load(f)
+        
         if "timeline" not in data:
             raise ValueError("script missing 'timeline' list")
+        
+        if "resources" in data:
+            for resource in data["resources"]:
+                self._resources[resource["id"]] = resource["path"]
+
         # Sort timeline by 'at' time
         self._timeline = sorted(data["timeline"], key=lambda s: float(s.get("at", 0.0)))
+
+    def _get_resource_path(self, key: int) -> str:
+        return self._resources.get(key)
 
     def update(self, t: float) -> List[Command]:
         elapsed = t - self.start_time
@@ -58,18 +68,28 @@ class JsonTimelineScript(Script):
             step = self._timeline[self._index]
             self._index += 1
             
-            cmd_name = step.get("cmd", "").lower()
+            # Use "command" key, do not convert to lower
+            cmd_name = step.get("command", "")
             if not cmd_name:
                 continue
 
+            args = step.get("args", {})
+
+            # Resolve resource key if present
+            if "K" in args:
+                resource_path = self._get_resource_path(args["K"])
+                if resource_path:
+                    args["asset_path"] = resource_path
+                else:
+                    print(f"Warning: Resource key {args['K']} not found in resources.")
+                    continue
+
             # The 'stop' command is special, it stops this script.
-            if cmd_name == "stop":
-                # Return a special command that the node will use to stop the script.
+            if cmd_name.lower() == "stop":
                 due_commands.append(Command(name="stop_script", args={}))
-                # Stop processing further steps in this script
                 break
             else:
-                due_commands.append(Command(name=cmd_name, args=step.get("args", {})))
+                due_commands.append(Command(name=cmd_name, args=args))
                 
         return due_commands
 
@@ -77,12 +97,9 @@ class JsonTimelineScript(Script):
 def load_script(path: str) -> Script:
     """
     Factory function to load a script from a given path.
-    It will eventually detect the script type, but for V1.0,
+    It will eventually detect the script type, but for now,
     it only knows about the JSON timeline format.
     """
-    # For now, we only have one script type.
-    # In the future, we could inspect the file extension or contents
-    # to decide which Script class to instantiate.
     if path.lower().endswith('.json'):
         return JsonTimelineScript(path)
     else:

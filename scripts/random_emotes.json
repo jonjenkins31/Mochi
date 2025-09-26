@@ -1,10 +1,15 @@
 {
+  "resources": [
+    { "id": 1, "path": "assets/bmps/random_emotes.bmp" }
+  ],
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "sprite_handler",
+      "command": "SPRITE",
       "args": {
-        "config_path": "random_emotes_config.json"
+        "K": 1,
+        "D": 5.0,
+        "SRC": "160,103,64,64"
       }
     }
   ]

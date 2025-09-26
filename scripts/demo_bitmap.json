@@ -1,10 +1,14 @@
 {
+  "resources": [
+    { "id": 1, "path": "assets/bitmaps/wink_open.json" }
+  ],
   "timeline": [
     {
       "at": 0.0,
-      "cmd": "bitmap_handler",
+      "command": "BITMAP",
       "args": {
-        "name": "wink_open"
+        "K": 1,
+        "D": 5.0
       }
     }
   ]
