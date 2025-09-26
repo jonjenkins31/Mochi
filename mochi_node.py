@@ -17,10 +17,12 @@ import psutil
 import threading
 import numpy as np
 
+from animations import create_animation
 from core.mochi_animations import Animation
 from core.logging_utils import setup_logger
 from core.node_state import node_state
 from core.command_processor import process_command
+from core.mochi_script_engine import load_script
 from core import zmq_manager
 
 # The root directory of the Mochi project.
@@ -87,8 +89,10 @@ def main():
     if default_script:
         logger.info(f"Loading default script: {default_script}")
         try:
-            # Use the project root to resolve asset paths inside the script.
-            process_command(f"play {default_script}", resolve_dir=PROJECT_ROOT)
+            # Manually load the script object, bypassing the command processor
+            # for the initial 'play' action, which is not a standard command.
+            node_state.script = load_script(os.path.join(PROJECT_ROOT, default_script))
+            logger.info(f"Default script '{default_script}' loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load default script '{default_script}': {e}")
 
