@@ -5,17 +5,18 @@ Media Handler: The Generic Image & GIF Player
 
 Function:
 This handler is responsible for displaying standard raster images (PNG, JPG, BMP)
-and animated GIFs. It is automatically invoked by the Master Handler when an
-asset with a corresponding file extension is requested. It handles image
-decoding, resizing (including letterboxing), and frame timing for animations.
+and animated GIFs. It is invoked by the Master Handler for a 'MEDIA' command.
+It handles image decoding, resizing (including letterboxing), and frame
+timing for animations.
 
 Inputs (via kwargs from Master Handler):
-- path (str): The absolute path to the image or GIF file to be displayed.
+- asset_path (str): The absolute path to the image or GIF file to be displayed.
+- SPD (float, optional): Playback speed multiplier for animated GIFs.
+  Defaults to 1.0.
+- BG (str, optional): The RGB color for letterboxing as a space-separated
+  string (e.g., "0 0 0"). Defaults to black.
 - loop (bool, optional): For animated GIFs, determines if the animation should
   loop. Defaults to True.
-- fps (float, optional): Overrides the frame rate of an animated GIF.
-- bg (tuple, optional): The RGB color to use for letterboxing if the asset's
-  aspect ratio does not match the display. Defaults to black.
 
 Output:
 - Renders the image or the correct animation frame into the pixel buffer
@@ -30,29 +31,34 @@ from core.media import MediaFrames, decode_image
 
 class MediaHandler(Animation):
     """
-    Plays a raster image, GIF/APNG (animated), or SVG (requires cairosvg).
-    By default uses GIF/APNG per-frame durations; can override with fps.
+    Plays a raster image or animated media (GIF/APNG).
+    Supports speed control and letterboxing.
     """
-    name = "media_handler"
+    name = "MEDIA"
 
     def __init__(self, w:int, h:int, frames: Optional[MediaFrames] = None):
         super().__init__(w, h)
         self._mf: Optional[MediaFrames] = frames
         self._loop = True
-        self._fps_override: Optional[float] = None
         self._letterbox = (0,0,0)
+        self.speed = 1.0
         # Store path and fit mode for resizing
         self.path: Optional[str] = None
         self.fit_mode: str = "fit"
 
     def on_enter(self, **kw):
         super().on_enter(**kw)
-        path = kw.get("path")
+        path = kw.get("asset_path")
         self.fit_mode = kw.get("fit", "fit")
         self._loop = bool(kw.get("loop", True))
-        self._fps_override = float(kw["fps"]) if "fps" in kw else None
-        if "bg" in kw:
-            self._letterbox = tuple(kw["bg"])
+        self.speed = float(kw.get("SPD", 1.0))
+
+        if "BG" in kw:
+            try:
+                # BG is passed as a string "R G B"
+                self._letterbox = tuple(int(c) for c in kw["BG"].split())
+            except (ValueError, AttributeError):
+                print(f"Warning: Invalid BG color format: {kw['BG']}. Using default.")
         
         if path:
             self.path = path # Remember the path
@@ -70,25 +76,24 @@ class MediaHandler(Animation):
             out_buf[:] = b"\x00" * len(out_buf)
             return
 
+        # Apply speed multiplier to time
+        effective_t = t * self.speed
+
         idx = 0
-        if self._fps_override and self._fps_override > 0:
-            period = 1.0 / self._fps_override
-            idx = int(t / period) % len(self._mf.frames) if self._loop else min(int(t/period), len(self._mf.frames)-1)
+        elapsed = int(effective_t * 1000.0)
+        total_duration = self._mf.total_duration
+        if self._loop and total_duration > 0:
+            elapsed %= total_duration
+        
+        current_duration = 0
+        for i, d in enumerate(self._mf.durations_ms):
+            dur = d if d > 0 else 100
+            if elapsed < current_duration + dur:
+                idx = i
+                break
+            current_duration += dur
         else:
-            elapsed = int(t * 1000.0)
-            total_duration = self._mf.total_duration
-            if self._loop and total_duration > 0:
-                elapsed %= total_duration
-            
-            current_duration = 0
-            for i, d in enumerate(self._mf.durations_ms):
-                dur = d if d > 0 else 100
-                if elapsed < current_duration + dur:
-                    idx = i
-                    break
-                current_duration += dur
-            else:
-                idx = len(self._mf.frames) - 1
+            idx = len(self._mf.frames) - 1
 
         im = self._mf.frames[idx]
         

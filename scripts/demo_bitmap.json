@@ -1,6 +1,9 @@
 {
   "resources": [
-    { "id": 1, "path": "assets/bitmaps/wink_open.json" }
+    {
+      "id": 1,
+      "path": "assets/bitmaps/test_bitmap_data.json"
+    }
   ],
   "timeline": [
     {
@@ -8,7 +11,9 @@
       "command": "BITMAP",
       "args": {
         "K": 1,
-        "D": 5.0
+        "D": 10.0,
+        "FG": "30 215 96",
+        "BG": "0 0 0"
       }
     }
   ]

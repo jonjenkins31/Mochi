@@ -2,7 +2,6 @@
 import time
 import numpy as np
 from core.mochi_animations import Animation
-from core.color_utils import parse_color
 
 class Timer(Animation):
     name = "timer"
@@ -28,11 +27,18 @@ class Timer(Animation):
         self.fg = (255, 255, 255)  # Default to white
 
     def on_enter(self, **kwargs):
-        self.fg = parse_color(kwargs.get("fg"), self.fg)
+        # Manually parse the standard 'FG' argument key
+        fg_color_str = kwargs.get("FG")
+        if fg_color_str and isinstance(fg_color_str, str):
+            try:
+                self.fg = tuple(int(c) for c in fg_color_str.split())
+            except (ValueError, AttributeError):
+                print(f"Warning: Invalid FG color format: {fg_color_str}. Using default.")
 
     def on_event(self, event: str, **kwargs):
         if event.lower() == "start":
-            duration_mins = int(kwargs.get("duration_mins", 0))
+            # Use the standard 'DUR_M' argument key
+            duration_mins = int(kwargs.get("DUR_M", 0))
             if duration_mins > 0:
                 self.countdown_end_time = time.time() + duration_mins * 60
                 self.timer_running = True
@@ -40,6 +46,9 @@ class Timer(Animation):
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))
         frame[:, :] = (0, 0, 0)  # Clear to black
+
+        minutes = 0
+        seconds = 0
 
         if self.timer_running:
             remaining_time = self.countdown_end_time - time.time()
@@ -50,12 +59,12 @@ class Timer(Animation):
             minutes = int(remaining_time / 60)
             seconds = int(remaining_time % 60)
 
-            self._draw_timer(frame, minutes, seconds)
+        self._draw_timer(frame, minutes, seconds)
 
     def _draw_timer(self, frame, minutes, seconds):
         # Position the timer on the screen
-        start_x = 2
-        start_y = 2
+        start_x = 10 # Centered a bit more
+        start_y = 28 # Centered a bit more
         digit_spacing = 6
 
         # Draw minutes
@@ -63,7 +72,7 @@ class Timer(Animation):
         self._draw_digit(frame, start_x + digit_spacing, start_y, minutes % 10, self.fg)
 
         # Draw separator (colon)
-        colon_x = start_x + 2 * digit_spacing
+        colon_x = start_x + 2 * digit_spacing + 1 # Adjusted for spacing
         frame[start_y + 1, colon_x] = self.fg
         frame[start_y + 3, colon_x] = self.fg
 

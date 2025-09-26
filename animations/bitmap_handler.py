@@ -5,20 +5,16 @@ Bitmap Handler: Renders 1-bit monochrome bitmap assets.
 
 Function:
 This handler is designed to parse and display 1-bit monochrome bitmap data.
-It is invoked by the Master Handler when a JSON asset is requested. The JSON
-file is expected to contain 'width', 'height', and a 'data' array representing
-the packed bitmap. The handler centers the bitmap on the display.
+It is invoked by the Master Handler for a 'BITMAP' command. The associated
+asset is a JSON file containing 'width', 'height', and a 'data' array
+representing the packed bitmap. The handler centers the bitmap on the display.
 
 Inputs (via kwargs from Master Handler):
-- path (str): The absolute path to the JSON asset file.
-- on_color (tuple, optional): The RGB color for the 'on' pixels (1s). Defaults
-  to white.
-- off_color (tuple, optional): The RGB color for the 'off' pixels (0s).
-  Defaults to black.
-
-Event Inputs (on_event):
-- event (str): Listens for a 'show_bitmap' event.
-- path (str): When 'show_bitmap' is received, loads a new bitmap from this path.
+- asset_path (str): The absolute path to the JSON asset file.
+- FG (str, optional): The RGB color for the 'on' pixels (1s) as a
+  space-separated string (e.g., "255 255 255"). Defaults to white.
+- BG (str, optional): The RGB color for the 'off' pixels (0s) as a
+  space-separated string (e.g., "0 0 0"). Defaults to black.
 
 Output:
 - Renders the specified bitmap into the pixel buffer provided by the Mochi node.
@@ -31,11 +27,9 @@ from core.mochi_animations import Animation
 
 class BitmapHandler(Animation):
     """
-    An animation that renders raw 1-bit bitmap data. The bitmap can be
-    provided directly or loaded from a JSON asset file. It supports a
-    'show_bitmap' event to dynamically change the displayed asset.
+    An animation that renders raw 1-bit bitmap data loaded from a JSON asset file.
     """
-    name = "bitmap_handler"
+    name = "BITMAP"
 
     def __init__(self, w: int, h: int):
         super().__init__(w, h)
@@ -71,28 +65,24 @@ class BitmapHandler(Animation):
         super().on_enter(**kwargs)
 
         self._resolve_dir = kwargs.get("resolve_dir")
-        path = kwargs.get("path")
+        path = kwargs.get("asset_path")
 
         if path:
             self._load_from_path(path)
-        elif "bitmap_data" in kwargs:
-            raw_data = kwargs.get("bitmap_data")
-            if raw_data and isinstance(raw_data, list):
-                self.bitmap_data = np.array(raw_data, dtype=np.uint8)
-            self.bitmap_w = int(kwargs.get("bitmap_w", 0))
-            self.bitmap_h = int(kwargs.get("bitmap_h", 0))
+        else:
+            print("Warning: BitmapHandler received no asset_path.")
 
-        if "on_color" in kwargs:
-            self.on_color = np.array(kwargs["on_color"], dtype=np.uint8)
-        if "off_color" in kwargs:
-            self.off_color = np.array(kwargs["off_color"], dtype=np.uint8)
-
-    def on_event(self, event: str, **kwargs):
-        super().on_event(event, **kwargs)
-        if event.lower() == "show_bitmap":
-            path = kwargs.get("path")
-            if path:
-                self._load_from_path(path)
+        if "FG" in kwargs:
+            try:
+                self.on_color = np.array([int(c) for c in kwargs["FG"].split()], dtype=np.uint8)
+            except (ValueError, AttributeError):
+                print(f"Warning: Invalid FG color format: {kwargs['FG']}. Using default.")
+        
+        if "BG" in kwargs:
+            try:
+                self.off_color = np.array([int(c) for c in kwargs["BG"].split()], dtype=np.uint8)
+            except (ValueError, AttributeError):
+                print(f"Warning: Invalid BG color format: {kwargs['BG']}. Using default.")
 
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))

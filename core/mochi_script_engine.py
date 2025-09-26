@@ -84,12 +84,7 @@ class JsonTimelineScript(Script):
                     print(f"Warning: Resource key {args['K']} not found in resources.")
                     continue
 
-            # The 'stop' command is special, it stops this script.
-            if cmd_name.lower() == "stop":
-                due_commands.append(Command(name="stop_script", args={}))
-                break
-            else:
-                due_commands.append(Command(name=cmd_name, args=args))
+            due_commands.append(Command(name=cmd_name, args=args))
                 
         return due_commands
 

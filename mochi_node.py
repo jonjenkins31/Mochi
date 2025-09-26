@@ -17,13 +17,15 @@ import psutil
 import threading
 import numpy as np
 
-from animations.master_handler import create_animation as create_anim
 from core.mochi_animations import Animation
 from core.logging_utils import setup_logger
 from core.node_state import node_state
 from core.command_processor import process_command
 from core import zmq_manager
 
+# The root directory of the Mochi project.
+# Assumes that this script (mochi_node.py) is located at the project root.
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 class SolidColorAnimation(Animation):
     """A simple fallback animation that fills the screen with a solid color."""
@@ -85,10 +87,8 @@ def main():
     if default_script:
         logger.info(f"Loading default script: {default_script}")
         try:
-            # The command processor needs the directory of the script to resolve relative paths
-            # for assets inside the script.
-            script_dir = os.path.dirname(default_script)
-            process_command(f"play {default_script}", resolve_dir=script_dir)
+            # Use the project root to resolve asset paths inside the script.
+            process_command(f"play {default_script}", resolve_dir=PROJECT_ROOT)
         except Exception as e:
             logger.error(f"Failed to load default script '{default_script}': {e}")
 
@@ -107,10 +107,10 @@ def main():
             
             # --- Run script if active ---
             if node_state.script:
-                script_dir = os.path.dirname(node_state.script.path)
+                # Use the project root to resolve asset paths inside the script.
                 due_commands = node_state.script.update(time.time())
                 for command in due_commands:
-                    process_command(command, resolve_dir=script_dir)
+                    process_command(command, resolve_dir=PROJECT_ROOT)
 
             if node_state.anim is None:
                 continue

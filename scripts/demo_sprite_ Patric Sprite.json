@@ -2,7 +2,7 @@
   "resources": [
     {
       "id": 1,
-      "path": "../assets/bmps/patric_emotes.bmp"
+      "path": "assets/bmps/patric_emotes.bmp"
     }
   ],
   "timeline": [
