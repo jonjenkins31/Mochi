@@ -1,36 +1,14 @@
 # core/mochi_script_engine.py
-# Pluggable engine for parsing and running command scripts.
+# Pluggable engine for parsing and running JSON command scripts.
 
-import time
 import json
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, NamedTuple
 
-# A command is a simple structure for what the node should do.
-class Command(NamedTuple):
-    name: str
-    args: Dict[str, Any]
+# Import base classes from the new neutral location
+from .mochi_animations import Script, Command
+# Import the Mscript engine so the factory can use it
+from .mscript_engine import MscriptScript
 
-# --- Abstract Base Class for all Scripts ---
-class Script(ABC):
-    """
-    Abstract base class for a runnable script.
-    A script is an object that returns commands for the node to execute
-    based on the current time.
-    """
-    def __init__(self, path: str):
-        self.path = path
-        self.start_time = time.time()
-
-    @abstractmethod
-    def update(self, t: float) -> List[Command]:
-        """
-        Given the current time `t`, return a list of any commands
-        that are due to be executed.
-        """
-        raise NotImplementedError
-
-# --- V3.0 JSON Timeline Implementation (mscript-aligned) ---
+# --- V3.0 JSON Timeline Implementation ---
 class JsonTimelineScript(Script):
     """
     The V3.0 script implementation that reads from a JSON file
@@ -39,7 +17,7 @@ class JsonTimelineScript(Script):
     def __init__(self, path: str):
         super().__init__(path)
         self._timeline = []
-        self._resources: Dict[int, str] = {}
+        self._resources: dict[int, str] = {}
         self._index = 0
         self._load()
 
@@ -57,10 +35,10 @@ class JsonTimelineScript(Script):
         # Sort timeline by 'at' time
         self._timeline = sorted(data["timeline"], key=lambda s: float(s.get("at", 0.0)))
 
-    def _get_resource_path(self, key: int) -> str:
+    def _get_resource_path(self, key: int) -> str | None:
         return self._resources.get(key)
 
-    def update(self, t: float) -> List[Command]:
+    def update(self, t: float) -> list[Command]:
         elapsed = t - self.start_time
         due_commands = []
         
@@ -68,7 +46,6 @@ class JsonTimelineScript(Script):
             step = self._timeline[self._index]
             self._index += 1
             
-            # Use "command" key, do not convert to lower
             cmd_name = step.get("command", "")
             if not cmd_name:
                 continue
@@ -88,14 +65,16 @@ class JsonTimelineScript(Script):
                 
         return due_commands
 
-# --- Factory ---
+# --- Universal Script Factory ---
 def load_script(path: str) -> Script:
     """
     Factory function to load a script from a given path.
-    It will eventually detect the script type, but for now,
-    it only knows about the JSON timeline format.
+    It detects the script type based on the file extension and returns the
+    appropriate script engine instance.
     """
     if path.lower().endswith('.json'):
         return JsonTimelineScript(path)
+    elif path.lower().endswith('.mscript'):
+        return MscriptScript(path)
     else:
         raise ValueError(f"Unknown script format for path: {path}")

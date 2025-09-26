@@ -6,7 +6,8 @@ Handles processing of commands from scripts.
 
 import logging
 from animations import create_animation
-from core.mochi_script_engine import Command
+# Import Command from its new, neutral location
+from core.mochi_animations import Command
 from core.node_state import node_state
 
 logger = logging.getLogger(__name__)

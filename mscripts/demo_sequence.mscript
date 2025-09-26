@@ -1,42 +1,22 @@
 [Header start]
-! ----------------------------------------------------
-! SCRIPT: demo_sequence
-! DESC: A demo of image, GIF, sprite, and timer commands.
-! AUTHOR: Gemini
-! VERSION: 1.0
-! ----------------------------------------------------
+! Converted from demo_sequence.json
 [Header end]
 
-[Main start]
-! === Main Program ===================================
-LBL[1:Start]
-    ! 1. Show a static image for 3 seconds
-    IMAGE K[1:network] D[3.0]
-
-    ! 2. Play a GIF for 5 seconds
-    GIF K[2:gears] D[5.0]
-
-    ! 3. Show a single sprite from a sheet for 2 seconds
-    SPRITE K[3:patric] SRC[469,285,64,64] D[2.0]
-
-    ! 4. Show a timer for 5 seconds
-    MATH NAME[timer] FG[0,255,255] D[5.0]
-
-    ! 5. Loop back to the beginning
-    JMP LBL[1:Start]
-
-LBL[9999:End]
-! --- End of Program ---
-[Main end]
-
-[Keyframes start]
-! === Keyframe Definitions ===========================
-! This section is reserved for keyframe data.
-[Keyframes end]
-
 [Resources start]
-! === Resource Definitions ===========================
-K[1:network]: '../assets/png/cloud-network.png'
-K[2:gears]: '../assets/gifs/gears.gif'
-K[3:patric]: '../assets/bmps/patric_emotes.bmp'
+K[1]: 'assets/bitmaps/wink_open.json'
+K[2]: 'assets/gifs/gears.gif'
+K[3]: 'assets/bmps/patric_emotes.bmp'
+K[4]: 'assets/math/timer.py'
 [Resources end]
+
+[Main start]
+BITMAP K[1] D[3.0]
+WAIT D[3.0]
+MEDIA K[2] D[5.0]
+WAIT D[5.0]
+SPRITE K[3] D[2.0] SRC[469,285,64,64]
+WAIT D[2.0]
+MATH K[4] D[61.0] FG[0,255,255]
+WAIT D[0.1]
+MATH K[4] EVENT[start] DUR_M[1]
+[Main end]

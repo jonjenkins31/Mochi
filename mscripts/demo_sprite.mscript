@@ -1,0 +1,15 @@
+[Header start]
+! Converted from demo_sprite.json
+[Header end]
+
+[Resources start]
+K[1]: 'assets/bmps/random_emotes.bmp'
+[Resources end]
+
+[Main start]
+SPRITE K[1] D[5.0] SRC[160,103,64,64]
+WAIT D[5.0]
+SPRITE K[1] D[5.0] SRC[838,197,64,64]
+WAIT D[5.0]
+SPRITE K[1] D[5.0] SRC[711,193,64,64]
+[Main end]
