@@ -1,0 +1,53 @@
+{
+  "resources": [
+    { "id": 1, "path": "assets/bitmaps/wink_open.json" },
+    { "id": 2, "path": "assets/gifs/gears.gif" },
+    { "id": 3, "path": "assets/bmps/patric_emotes.bmp" },
+    { "id": 4, "path": "assets/math/timer.py" }
+  ],
+  "timeline": [
+    {
+      "at": 0.0,
+      "command": "BITMAP",
+      "args": {
+        "K": 1,
+        "D": 3.0
+      }
+    },
+    {
+      "at": 3.0,
+      "command": "MEDIA",
+      "args": {
+        "K": 2,
+        "D": 5.0
+      }
+    },
+    {
+      "at": 8.0,
+      "command": "SPRITE",
+      "args": {
+        "K": 3,
+        "D": 2.0,
+        "SRC": "469,285,64,64"
+      }
+    },
+    {
+      "at": 10.0,
+      "command": "MATH",
+      "args": {
+        "K": 4,
+        "D": 61.0,
+        "FG": "0 255 255"
+      }
+    },
+    {
+      "at": 10.1,
+      "command": "MATH",
+      "args": {
+        "K": 4,
+        "EVENT": "start",
+        "DUR_M": 1
+      }
+    }
+  ]
+}

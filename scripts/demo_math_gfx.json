@@ -1,0 +1,131 @@
+{
+  "resources": [
+    { "id": 1, "path": "assets/math/test_fill_screen.py" },
+    { "id": 2, "path": "assets/math/test_text.py" },
+    { "id": 3, "path": "assets/math/test_filled_rects.py" },
+    { "id": 4, "path": "assets/math/test_filled_circles.py" },
+    { "id": 5, "path": "assets/math/test_filled_triangles.py" },
+    { "id": 6, "path": "assets/math/test_filled_round_rects.py" },
+    { "id": 7, "path": "assets/math/test_fast_lines.py" },
+    { "id": 8, "path": "assets/math/test_rects.py" },
+    { "id": 9, "path": "assets/math/test_circles.py" },
+    { "id": 10, "path": "assets/math/test_triangles.py" }
+  ],
+  "timeline": [
+    {
+      "at": 0.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "D": 2.5,
+        "colors": [[0, 0, 0], [255, 0, 0], [0, 255, 0], [0, 0, 255]],
+        "DUR": 0.5
+      }
+    },
+    {
+      "at": 2.5,
+      "command": "MATH",
+      "args": {
+        "K": 2,
+        "D": 3.0,
+        "TXT": "Mochi GFX",
+        "CLR": "255 255 0",
+        "SZ": 3,
+        "X": 2,
+        "Y": 10
+      }
+    },
+    {
+      "at": 5.5,
+      "command": "MATH",
+      "args": {
+        "K": 2,
+        "D": 2.5,
+        "TXT": "Powered by NumPy",
+        "CLR": "0 255 255",
+        "SZ": 1,
+        "X": 4,
+        "Y": 40
+      }
+    },
+    {
+      "at": 8.0,
+      "command": "MATH",
+      "args": {
+        "K": 3,
+        "D": 5.0,
+        "CLR": "255 255 0",
+        "CLR2": "255 0 255"
+      }
+    },
+    {
+      "at": 13.0,
+      "command": "MATH",
+      "args": {
+        "K": 4,
+        "D": 3.0,
+        "CLR": "255 0 255",
+        "RAD": 12
+      }
+    },
+    {
+      "at": 16.0,
+      "command": "MATH",
+      "args": {
+        "K": 5,
+        "D": 5.0
+      }
+    },
+    {
+      "at": 21.0,
+      "command": "MATH",
+      "args": {
+        "K": 6,
+        "D": 5.0,
+        "CLR": "0 255 0"
+      }
+    },
+    {
+      "at": 26.0,
+      "command": "MATH",
+      "args": {
+        "K": 7,
+        "D": 0.1,
+        "CLR": "50 0 0",
+        "CLR2": "0 0 50",
+        "CLEAR": 1
+      }
+    },
+    {
+      "at": 26.1,
+      "command": "MATH",
+      "args": {
+        "K": 8,
+        "D": 4.0,
+        "CLR": "0 255 0",
+        "CLEAR": 0
+      }
+    },
+    {
+      "at": 30.1,
+      "command": "MATH",
+      "args": {
+        "K": 9,
+        "D": 4.0,
+        "CLR": "255 255 255",
+        "RAD": 15,
+        "CLEAR": 0
+      }
+    },
+    {
+      "at": 34.1,
+      "command": "MATH",
+      "args": {
+        "K": 10,
+        "D": 5.0,
+        "CLR": "255 0 0",
+        "CLEAR": 0
+      }
+    }
+  ]
+}

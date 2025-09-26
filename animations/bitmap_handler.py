@@ -1,5 +1,24 @@
 # animations/bitmap_handler.py
-# Renders 1-bit monochrome bitmap data from raw data or an asset file.
+
+"""
+Bitmap Handler: Renders 1-bit monochrome bitmap assets.
+
+Function:
+This handler is designed to parse and display 1-bit monochrome bitmap data.
+It is invoked by the Master Handler for a 'BITMAP' command. The associated
+asset is a JSON file containing 'width', 'height', and a 'data' array
+representing the packed bitmap. The handler centers the bitmap on the display.
+
+Inputs (via kwargs from Master Handler):
+- asset_path (str): The absolute path to the JSON asset file.
+- FG (list[int], optional): The RGB color for the 'on' pixels (1s).
+  Defaults to white.
+- BG (list[int], optional): The RGB color for the 'off' pixels (0s).
+  Defaults to black.
+
+Output:
+- Renders the specified bitmap into the pixel buffer provided by the Mochi node.
+"""
 
 import numpy as np
 import os
@@ -8,11 +27,9 @@ from core.mochi_animations import Animation
 
 class BitmapHandler(Animation):
     """
-    An animation that renders raw 1-bit bitmap data. The bitmap can be
-    provided directly or loaded from a JSON asset file. It supports a
-    'show_bitmap' event to dynamically change the displayed asset.
+    An animation that renders raw 1-bit bitmap data loaded from a JSON asset file.
     """
-    name = "bitmap_handler"
+    name = "BITMAP"
 
     def __init__(self, w: int, h: int):
         super().__init__(w, h)
@@ -48,28 +65,18 @@ class BitmapHandler(Animation):
         super().on_enter(**kwargs)
 
         self._resolve_dir = kwargs.get("resolve_dir")
-        path = kwargs.get("path")
+        path = kwargs.get("asset_path")
 
         if path:
             self._load_from_path(path)
-        elif "bitmap_data" in kwargs:
-            raw_data = kwargs.get("bitmap_data")
-            if raw_data and isinstance(raw_data, list):
-                self.bitmap_data = np.array(raw_data, dtype=np.uint8)
-            self.bitmap_w = int(kwargs.get("bitmap_w", 0))
-            self.bitmap_h = int(kwargs.get("bitmap_h", 0))
+        else:
+            print("Warning: BitmapHandler received no asset_path.")
 
-        if "on_color" in kwargs:
-            self.on_color = np.array(kwargs["on_color"], dtype=np.uint8)
-        if "off_color" in kwargs:
-            self.off_color = np.array(kwargs["off_color"], dtype=np.uint8)
-
-    def on_event(self, event: str, **kwargs):
-        super().on_event(event, **kwargs)
-        if event.lower() == "show_bitmap":
-            path = kwargs.get("path")
-            if path:
-                self._load_from_path(path)
+        if "FG" in kwargs and isinstance(kwargs["FG"], list):
+            self.on_color = np.array(kwargs["FG"], dtype=np.uint8)
+        
+        if "BG" in kwargs and isinstance(kwargs["BG"], list):
+            self.off_color = np.array(kwargs["BG"], dtype=np.uint8)
 
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))

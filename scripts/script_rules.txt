@@ -1,0 +1,137 @@
+### Mochi Script .json Format v3.0 (mscript-aligned)
+
+This document outlines the JSON-based scripting format for Mochi, updated to align with the terminology and conventions of the `mscript` language specification. The goal is to provide a clear migration path towards a unified scripting system.
+
+---
+
+### 1. Core Concepts
+
+A Mochi script is a JSON file defining a timeline of commands. It uses a resource-key system based on the **Keyframe** concept from `mscript` to define and preload assets before they are used.
+
+*   `"resources"`: A top-level array where all assets are declared. This corresponds to the `[Resources]` section in `mscript`.
+*   `"timeline"`: A top-level array of command objects that execute sequentially. This corresponds to the `[Main]` section in `mscript`.
+
+---
+
+### 2. Resource Definitions (Keyframes)
+
+All external assets (images, GIFs, python scripts, etc.) are defined in the `"resources"` array. Each resource object links a numeric ID to a file path.
+
+*   `"id"`: The numeric key for the asset (e.g., `1`). This corresponds to the `id` in an `mscript` `K[id]`.
+*   `"path"`: The path to the asset file.
+
+**Example:**
+```json
+{
+  "resources": [
+    { "id": 1, "path": "assets/sprites/face_sprite.json" },
+    { "id": 2, "path": "assets/math/timer.py" },
+    { "id": 3, "path": "assets/media/mochi_logo.png" }
+  ],
+  "timeline": [ ... ]
+}
+```
+
+---
+
+### 3. Timeline & Command Objects
+
+The `"timeline"` array contains command objects. Each object specifies a point in time, a command to execute, and the arguments for that command.
+
+*   `"at"` (number): The absolute time in seconds when the command executes.
+*   `"command"` (string): The command to run. Aligned with `mscript` commands: `MEDIA`, `BITMAP`, `SPRITE`, `MATH`.
+*   `"args"` (object): A container for all parameters, using keys from the `mscript` Standard Argument Dictionary.
+
+---
+
+### 4. Command Reference & Arguments
+
+This section provides templates for each command type. The `K` argument is used to reference a resource `id`.
+
+#### **EVENTs**
+To send an event to an already-active command, include the `EVENT` argument in the `args` object.
+
+---
+
+#### 1. `MEDIA`
+Plays animated media (like GIFs) and displays static images (like PNGs).
+
+**Template:**
+```json
+{
+  "at": 3.0,
+  "command": "MEDIA",
+  "args": {
+    "K": 3,       // Required: The resource 'id'.
+    "D": 10.0,    // Required: Duration to play the media.
+    "SPD": 1.5    // Optional: Playback speed multiplier. Defaults to 1.0.
+  }
+}
+```
+
+---
+
+#### 2. `BITMAP`
+Displays 1-bit monochrome bitmap assets.
+
+**Template:**
+```json
+{
+  "at": 0.0,
+  "command": "BITMAP",
+  "args": {
+    "K": 4,         // Required: The resource 'id'.
+    "D": 5.0,       // Required: Duration to display.
+    "FG": "0 255 0",// Optional: RGB color for 'on' pixels. Defaults to white.
+    "BG": "0 0 0"   // Optional: RGB color for 'off' pixels. Defaults to black.
+  }
+}
+```
+
+---
+
+#### 3. `SPRITE`
+Displays sprites from a sprite sheet configuration.
+
+**Template:**
+```json
+{
+  "at": 8.0,
+  "command": "SPRITE",
+  "args": {
+    "K": 1,               // Required: The resource 'id' for the sprite's .json config.
+    "D": 5.0,             // Required: Duration to display.
+    "SRC": "0,0,64,64"    // Optional: Source rectangle [x,y,w,h] from the sprite sheet.
+  }
+}
+```
+
+---
+
+#### 4. `MATH`
+Loads and runs Python-based animations.
+
+**Initialization Template:**
+```json
+{
+  "at": 10.0,
+  "command": "MATH",
+  "args": {
+    "K": 2,           // Required: The resource 'id' for the Python file.
+    "FG": "0 255 255" // Dynamic: This argument is an example and is specific to the animation.
+  }
+}
+```
+
+**Event Template:**
+```json
+{
+  "at": 10.1,
+  "command": "MATH",
+  "args": {
+    "K": 2,               // Required: The key identifying which active math handler to command.
+    "EVENT": "start",     // Required: The name of the event to send.
+    "DUR_M": 1            // Dynamic: This argument is specific to the 'start' event.
+  }
+}
+```

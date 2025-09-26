@@ -1,0 +1,37 @@
+{
+  "resources": [
+    {
+      "id": 1,
+      "path": "assets/bmps/patric_emotes.bmp"
+    }
+  ],
+  "timeline": [
+    {
+      "at": 0.0,
+      "command": "SPRITE",
+      "args": {
+        "K": 1,
+        "D": 0.5,
+        "SRC": "469,285,64,64"
+      }
+    },
+    {
+      "at": 0.5,
+      "command": "SPRITE",
+      "args": {
+        "K": 1,
+        "D": 0.5,
+        "SRC": "582,285,64,64"
+      }
+    },
+    {
+      "at": 1.0,
+      "command": "SPRITE",
+      "args": {
+        "K": 1,
+        "D": 5.0,
+        "SRC": "135,104,64,64"
+      }
+    }
+  ]
+}

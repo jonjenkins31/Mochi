@@ -1,0 +1,80 @@
+{
+  "resources": [
+    { "id": 1, "path": "assets/math/eyes.py" }
+  ],
+  "timeline": [
+    {
+      "at": 0.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "D": 11.0,
+        "FG": "255 255 255"
+      }
+    },
+    {
+      "at": 1.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "EVENT": "wakeup"
+      }
+    },
+    {
+      "at": 2.5,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "EVENT": "blink"
+      }
+    },
+    {
+      "at": 4.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "EVENT": "look_left"
+      }
+    },
+    {
+      "at": 5.5,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "EVENT": "center"
+      }
+    },
+    {
+      "at": 6.5,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "EVENT": "look_right"
+      }
+    },
+    {
+      "at": 8.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "EVENT": "center"
+      }
+    },
+    {
+      "at": 9.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "EVENT": "blink"
+      }
+    },
+    {
+      "at": 10.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "EVENT": "sleep"
+      }
+    }
+  ]
+}

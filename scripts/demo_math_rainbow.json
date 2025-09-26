@@ -1,0 +1,15 @@
+{
+  "resources": [
+    { "id": 1, "path": "assets/math/rainbow.py" }
+  ],
+  "timeline": [
+    {
+      "at": 0.0,
+      "command": "MATH",
+      "args": {
+        "K": 1,
+        "D": 5.0
+      }
+    }
+  ]
+}

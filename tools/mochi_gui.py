@@ -9,20 +9,21 @@ import zmq
 import logging
 import sys
 import os
-import animations  # Import the animations package
 import subprocess
 import threading
 import json
 from queue import Queue, Empty
 
 # Add project root to path to allow importing core modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(PROJECT_ROOT)
 from core.logging_utils import setup_logger
 
 # --- Constants ---
 CTRL_TOPIC = b"ctrl"
 HEALTH_TOPIC = b"health"
-SCRIPTS_DIR = "../scripts"
+SCRIPTS_DIR = os.path.join(PROJECT_ROOT, "scripts")
+MSCRIPTS_DIR = os.path.join(PROJECT_ROOT, "mscripts")
 
 class MochiGUI:
     def __init__(self, root, pub_addr: str, health_sub_addr: str, logger):
@@ -68,31 +69,13 @@ class MochiGUI:
             col += 2
         status_frame.grid_columnconfigure(11, weight=1) # Push to left
 
-        # Row 1: Dynamic animation selection
-        anim_frame = ttk.LabelFrame(outer, text="Animation Control")
-        anim_frame.grid(row=1, column=0, sticky="ew", pady=4)
-        
-        self.anim_var = tk.StringVar()
-        try:
-            anim_list = animations.list_names()
-            self.anim_combo = ttk.Combobox(anim_frame, textvariable=self.anim_var, values=anim_list, state="readonly")
-            if anim_list:
-                self.anim_var.set(anim_list[0])
-        except Exception as e:
-            self.logger.error(f"Could not list animations: {e}")
-            self.anim_combo = ttk.Combobox(anim_frame, textvariable=self.anim_var, values=["Error loading..."], state="disabled")
-        
-        self.anim_combo.grid(row=0, column=0, padx=6, pady=6, sticky="ew")
-        ttk.Button(anim_frame, text="Play", command=self.send_mode_from_combobox).grid(row=0, column=1, padx=6, pady=6)
-        anim_frame.grid_columnconfigure(0, weight=1)
-
-        # Row 2: Script selection
-        script_frame = ttk.LabelFrame(outer, text="Script Control")
-        script_frame.grid(row=2, column=0, sticky="ew", pady=4)
+        # Row 1: JSON Script selection
+        script_frame = ttk.LabelFrame(outer, text="JSON Script Control (.json)")
+        script_frame.grid(row=1, column=0, sticky="ew", pady=4)
 
         self.script_var = tk.StringVar()
         try:
-            script_list = [f for f in os.listdir(SCRIPTS_DIR) if f.endswith('.json')]
+            script_list = sorted([f for f in os.listdir(SCRIPTS_DIR) if f.endswith('.json')])
             self.script_combo = ttk.Combobox(script_frame, textvariable=self.script_var, values=script_list, state="readonly")
             if script_list:
                 self.script_var.set(script_list[0])
@@ -104,6 +87,24 @@ class MochiGUI:
         ttk.Button(script_frame, text="Run", command=self.send_script_from_combobox).grid(row=0, column=1, padx=6, pady=6)
         ttk.Button(script_frame, text="Stop", command=self.stop_script).grid(row=0, column=2, padx=6, pady=6)
         script_frame.grid_columnconfigure(0, weight=1)
+
+        # Row 2: MochiScript selection
+        mscript_frame = ttk.LabelFrame(outer, text="MochiScript Control (.mscript)")
+        mscript_frame.grid(row=2, column=0, sticky="ew", pady=4)
+
+        self.mscript_var = tk.StringVar()
+        try:
+            mscript_list = sorted([f for f in os.listdir(MSCRIPTS_DIR) if f.endswith('.mscript')])
+            self.mscript_combo = ttk.Combobox(mscript_frame, textvariable=self.mscript_var, values=mscript_list, state="readonly")
+            if mscript_list:
+                self.mscript_var.set(mscript_list[0])
+        except FileNotFoundError:
+            self.logger.warning(f"MochiScripts directory not found: {MSCRIPTS_DIR}")
+            self.mscript_combo = ttk.Combobox(mscript_frame, textvariable=self.mscript_var, values=["No mscripts found..."], state="disabled")
+        
+        self.mscript_combo.grid(row=0, column=0, padx=6, pady=6, sticky="ew")
+        ttk.Button(mscript_frame, text="Run", command=self.send_mscript_from_combobox).grid(row=0, column=1, padx=6, pady=6)
+        mscript_frame.grid_columnconfigure(0, weight=1)
 
         # Row 3: color for Bars
         color_row = ttk.LabelFrame(outer, text="Color Control")
@@ -164,17 +165,17 @@ class MochiGUI:
         self.health_thread.start()
         self.root.after(100, self._process_health_queue)
 
-    def send_mode_from_combobox(self):
-        anim_name = self.anim_var.get()
-        if anim_name:
-            self.send(f"mode {anim_name}")
-
     def send_script_from_combobox(self):
         script_name = self.script_var.get()
         if script_name:
             script_path = os.path.join(SCRIPTS_DIR, script_name)
-            abs_script_path = os.path.abspath(script_path)
-            self.send(f"play {abs_script_path}")
+            self.send(f"play {script_path}")
+
+    def send_mscript_from_combobox(self):
+        script_name = self.mscript_var.get()
+        if script_name:
+            script_path = os.path.join(MSCRIPTS_DIR, script_name)
+            self.send(f"play {script_path}")
 
     def stop_script(self):
         self.send("stop")
@@ -308,7 +309,8 @@ def main():
 
     # --- Load Config ---
     try:
-        with open("../config.yaml", "r") as f:
+        config_path = os.path.join(PROJECT_ROOT, "config.yaml")
+        with open(config_path, "r") as f:
             config = yaml.safe_load(f)
     except FileNotFoundError:
         logger.error("config.yaml not found. Please create it.")

@@ -6,12 +6,12 @@ node:
   fps: 60
   pub_address: "tcp://127.0.0.1:5555"
   ctrl_address: "tcp://127.0.0.1:5556"
-  default_mode: "idle"
+  default_script: "scripts/demo_wink.json"
 
 gui:
   pub_address: "tcp://127.0.0.1:5556"
 
 display:
   sub_address: "tcp://127.0.0.1:5555"
-  zoom: 8  # The pixel scaling factor for the virtual display window.
+  zoom: 4  # The pixel scaling factor for the virtual display window.
   poll_ms: 5
