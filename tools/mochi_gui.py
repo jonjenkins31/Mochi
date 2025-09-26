@@ -22,7 +22,6 @@ from core.logging_utils import setup_logger
 # --- Constants ---
 CTRL_TOPIC = b"ctrl"
 HEALTH_TOPIC = b"health"
-SCRIPTS_DIR = os.path.join(PROJECT_ROOT, "scripts")
 MSCRIPTS_DIR = os.path.join(PROJECT_ROOT, "mscripts")
 
 class MochiGUI:
@@ -69,28 +68,9 @@ class MochiGUI:
             col += 2
         status_frame.grid_columnconfigure(11, weight=1) # Push to left
 
-        # Row 1: JSON Script selection
-        script_frame = ttk.LabelFrame(outer, text="JSON Script Control (.json)")
-        script_frame.grid(row=1, column=0, sticky="ew", pady=4)
-
-        self.script_var = tk.StringVar()
-        try:
-            script_list = sorted([f for f in os.listdir(SCRIPTS_DIR) if f.endswith('.json')])
-            self.script_combo = ttk.Combobox(script_frame, textvariable=self.script_var, values=script_list, state="readonly")
-            if script_list:
-                self.script_var.set(script_list[0])
-        except FileNotFoundError:
-            self.logger.warning(f"Scripts directory not found: {SCRIPTS_DIR}")
-            self.script_combo = ttk.Combobox(script_frame, textvariable=self.script_var, values=["No scripts found..."], state="disabled")
-        
-        self.script_combo.grid(row=0, column=0, padx=6, pady=6, sticky="ew")
-        ttk.Button(script_frame, text="Run", command=self.send_script_from_combobox).grid(row=0, column=1, padx=6, pady=6)
-        ttk.Button(script_frame, text="Stop", command=self.stop_script).grid(row=0, column=2, padx=6, pady=6)
-        script_frame.grid_columnconfigure(0, weight=1)
-
-        # Row 2: MochiScript selection
+        # Row 1: MochiScript selection
         mscript_frame = ttk.LabelFrame(outer, text="MochiScript Control (.mscript)")
-        mscript_frame.grid(row=2, column=0, sticky="ew", pady=4)
+        mscript_frame.grid(row=1, column=0, sticky="ew", pady=4)
 
         self.mscript_var = tk.StringVar()
         try:
@@ -104,11 +84,12 @@ class MochiGUI:
         
         self.mscript_combo.grid(row=0, column=0, padx=6, pady=6, sticky="ew")
         ttk.Button(mscript_frame, text="Run", command=self.send_mscript_from_combobox).grid(row=0, column=1, padx=6, pady=6)
+        ttk.Button(mscript_frame, text="Stop", command=self.stop_script).grid(row=0, column=2, padx=6, pady=6)
         mscript_frame.grid_columnconfigure(0, weight=1)
 
-        # Row 3: color for Bars
+        # Row 2: color for Bars
         color_row = ttk.LabelFrame(outer, text="Color Control")
-        color_row.grid(row=3, column=0, sticky="ew", pady=4)
+        color_row.grid(row=2, column=0, sticky="ew", pady=4)
         self.color_preview = tk.Canvas(color_row, width=32, height=20, highlightthickness=1, highlightbackground="#888")
         self.color_preview.grid(row=0, column=0, padx=(8, 4), pady=6)
         ttk.Button(color_row, text="Pick Color…", command=self.pick_color).grid(row=0, column=1, padx=6, pady=6, sticky="w")
@@ -116,17 +97,17 @@ class MochiGUI:
         ttk.Entry(color_row, textvariable=self.rgb_var, width=12).grid(row=0, column=2, padx=6, pady=6, sticky="w")
         ttk.Button(color_row, text="Send", command=self.send_color_from_entry).grid(row=0, column=3, padx=6, pady=6)
 
-        # Row 4: size control
+        # Row 3: size control
         size_row = ttk.LabelFrame(outer, text="Matrix Size (WxH)")
-        size_row.grid(row=4, column=0, sticky="ew", pady=4)
+        size_row.grid(row=3, column=0, sticky="ew", pady=4)
         self.size_var = tk.StringVar(value="64x64") # Updated default
         ttk.Entry(size_row, textvariable=self.size_var, width=10).grid(row=0, column=0, padx=6, pady=6)
         ttk.Button(size_row, text="Apply", command=self.send_size).grid(row=0, column=1, padx=6, pady=6)
         ttk.Label(size_row, text="Example: 64x32").grid(row=0, column=2, padx=6, pady=6)
 
-        # Row 5: raw command
+        # Row 4: raw command
         raw = ttk.LabelFrame(outer, text="Raw Command")
-        raw.grid(row=5, column=0, sticky="ew", pady=4)
+        raw.grid(row=4, column=0, sticky="ew", pady=4)
         self.cmd_var = tk.StringVar(value="")
         entry = ttk.Entry(raw, textvariable=self.cmd_var)
         entry.grid(row=0, column=0, padx=6, pady=6, sticky="ew")
@@ -136,16 +117,16 @@ class MochiGUI:
         )
         raw.grid_columnconfigure(0, weight=1)
 
-        # Row 6: Launchers
+        # Row 5: Launchers
         launch_frame = ttk.LabelFrame(outer, text="Launch Tools")
-        launch_frame.grid(row=6, column=0, sticky="ew", pady=4)
+        launch_frame.grid(row=5, column=0, sticky="ew", pady=4)
         ttk.Button(launch_frame, text="Launch Virtual Display", command=self.launch_vdisplay).pack(side=tk.LEFT, padx=6, pady=6)
         ttk.Button(launch_frame, text="Launch Performance Monitor", command=self.launch_perf_monitor).pack(side=tk.LEFT, padx=6, pady=6)
         ttk.Button(launch_frame, text="Launch Sprite Editor", command=self.launch_sprite_editor).pack(side=tk.LEFT, padx=6, pady=6)
 
-        # Row 7: footer
+        # Row 6: footer
         footer = ttk.Frame(outer)
-        footer.grid(row=7, column=0, sticky="ew", pady=(8, 0))
+        footer.grid(row=6, column=0, sticky="ew", pady=(8, 0))
         self.status = tk.StringVar(value="Ready")
         ttk.Label(footer, textvariable=self.status).pack(side=tk.LEFT)
         ttk.Button(footer, text="Quit Node", command=lambda: self.send("quit")).pack(side=tk.RIGHT)
@@ -164,12 +145,6 @@ class MochiGUI:
         self.health_thread = threading.Thread(target=self._health_poll_loop, daemon=True)
         self.health_thread.start()
         self.root.after(100, self._process_health_queue)
-
-    def send_script_from_combobox(self):
-        script_name = self.script_var.get()
-        if script_name:
-            script_path = os.path.join(SCRIPTS_DIR, script_name)
-            self.send(f"play {script_path}")
 
     def send_mscript_from_combobox(self):
         script_name = self.mscript_var.get()

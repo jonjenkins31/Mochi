@@ -10,7 +10,7 @@ import struct
 import logging
 import threading
 
-from animations.master_handler import create_animation as create_anim
+from animations import create_animation as create_anim
 from core.mscript_engine import MscriptScript
 from core.node_state import node_state
 
