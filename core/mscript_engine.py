@@ -15,6 +15,8 @@ class _MscriptParser:
         
         self.instructions: list[dict[str, any]] = []
         self.resources: dict[int, str] = {}
+        # A set of argument keys that are known to be colors and need parsing.
+        self._color_keys = {'FG', 'BG', 'CLR', 'CLR2'}
         self._parse(script_path)
 
     def _parse(self, path: str):
@@ -53,6 +55,14 @@ class _MscriptParser:
         # Regex to find all KEY[value] pairs
         arg_matches = re.findall(r'([A-Z_]+)\[([^\]]*)\]', args_str)
         args = {key: val for key, val in arg_matches}
+
+        # --- NEW: Normalize color arguments to integer lists ---
+        for key in self._color_keys:
+            if key in args and isinstance(args[key], str):
+                try:
+                    args[key] = [int(c.strip()) for c in args[key].split(',')]
+                except (ValueError, AttributeError):
+                    print(f"Warning: Could not parse color string '{args[key]}' for key '{key}'")
         
         self.instructions.append({'command': command, 'args': args})
 

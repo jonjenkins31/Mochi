@@ -3,7 +3,7 @@
 
 import numpy as np
 from core.mochi_animations import Animation, clamp8
-from core.gfx import draw_triangle, parse_color
+from core.gfx import draw_triangle
 
 class TestTriangles(Animation):
     name = "test_triangles"
@@ -15,8 +15,9 @@ class TestTriangles(Animation):
     def on_enter(self, **kwargs):
         super().on_enter(**kwargs) # Handles the 'clear' flag
         
-        if "color" in kwargs:
-            self.color_override = parse_color(kwargs["color"])
+        # Use standard uppercase argument key
+        if "CLR" in kwargs and isinstance(kwargs["CLR"], list):
+            self.color_override = tuple(kwargs["CLR"])
 
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))

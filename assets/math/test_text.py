@@ -3,7 +3,7 @@
 
 import numpy as np
 from core.mochi_animations import Animation
-from core.gfx import draw_text, parse_color
+from core.gfx import draw_text
 
 class TestText(Animation):
     name = "test_text"
@@ -20,16 +20,17 @@ class TestText(Animation):
     def on_enter(self, **kwargs):
         super().on_enter(**kwargs) # Handles the 'clear' flag
 
-        if "text" in kwargs:
-            self.text = str(kwargs["text"])
-        if "color" in kwargs:
-            self.color = parse_color(kwargs["color"], self.color)
-        if "size" in kwargs:
-            self.size = int(kwargs["size"])
-        if "x" in kwargs:
-            self.x = int(kwargs["x"])
-        if "y" in kwargs:
-            self.y = int(kwargs["y"])
+        # Use standard uppercase argument keys
+        if "TXT" in kwargs:
+            self.text = str(kwargs["TXT"])
+        if "CLR" in kwargs and isinstance(kwargs["CLR"], list):
+            self.color = tuple(kwargs["CLR"])
+        if "SZ" in kwargs:
+            self.size = int(kwargs["SZ"])
+        if "X" in kwargs:
+            self.x = int(kwargs["X"])
+        if "Y" in kwargs:
+            self.y = int(kwargs["Y"])
 
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))

@@ -13,8 +13,8 @@ Inputs (via kwargs from Master Handler):
 - asset_path (str): The absolute path to the image or GIF file to be displayed.
 - SPD (float, optional): Playback speed multiplier for animated GIFs.
   Defaults to 1.0.
-- BG (str, optional): The RGB color for letterboxing as a space-separated
-  string (e.g., "0 0 0"). Defaults to black.
+- BG (list[int], optional): The RGB color for letterboxing.
+  Defaults to black.
 - loop (bool, optional): For animated GIFs, determines if the animation should
   loop. Defaults to True.
 
@@ -53,12 +53,8 @@ class MediaHandler(Animation):
         self._loop = bool(kw.get("loop", True))
         self.speed = float(kw.get("SPD", 1.0))
 
-        if "BG" in kw:
-            try:
-                # BG is passed as a string "R G B"
-                self._letterbox = tuple(int(c) for c in kw["BG"].split())
-            except (ValueError, AttributeError):
-                print(f"Warning: Invalid BG color format: {kw['BG']}. Using default.")
+        if "BG" in kw and isinstance(kw["BG"], list):
+            self._letterbox = tuple(kw["BG"])
         
         if path:
             self.path = path # Remember the path

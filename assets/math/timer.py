@@ -27,13 +27,10 @@ class Timer(Animation):
         self.fg = (255, 255, 255)  # Default to white
 
     def on_enter(self, **kwargs):
-        # Manually parse the standard 'FG' argument key
-        fg_color_str = kwargs.get("FG")
-        if fg_color_str and isinstance(fg_color_str, str):
-            try:
-                self.fg = tuple(int(c) for c in fg_color_str.split())
-            except (ValueError, AttributeError):
-                print(f"Warning: Invalid FG color format: {fg_color_str}. Using default.")
+        # The 'FG' argument is now expected as a list of integers.
+        fg_color = kwargs.get("FG")
+        if fg_color and isinstance(fg_color, list):
+            self.fg = tuple(fg_color)
 
     def on_event(self, event: str, **kwargs):
         if event.lower() == "start":

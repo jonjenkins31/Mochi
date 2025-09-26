@@ -1,142 +1,100 @@
 
-import time
 import numpy as np
 from core.mochi_animations import Animation
-from core.gfx import fill_round_rect
 
 class Eyes(Animation):
     name = "eyes"
 
     def __init__(self, w: int, h: int):
         super().__init__(w, h)
-        # Eye geometry
-        self.eye_w = 20
-        self.eye_h = 20
-        self.eye_spacing = 4
-        self.corner_radius = 4
-
-        # Initial state
-        self.center_x = self.w / 2
-        self.center_y = self.h / 2
-        self.left_eye_pos = (self.center_x - self.eye_w / 2 - self.eye_spacing, self.center_y)
-        self.right_eye_pos = (self.center_x + self.eye_w / 2 + self.eye_spacing, self.center_y)
-        self.left_eye_size = (self.eye_w, self.eye_h)
-        self.right_eye_size = (self.eye_w, self.eye_h)
-
-        # Animation state
-        self.anim_mode = None
-        self.anim_start_t = 0
+        self.eye_radius = 12
+        self.pupil_radius = 4
+        self.eye_y = h // 2
+        self.left_eye_x = w // 2 - 18
+        self.right_eye_x = w // 2 + 18
+        self.pupil_offset_x = 0
+        self.pupil_offset_y = 0
+        self.is_asleep = True
+        self.blink_state = 0  # 0: open, 1: closing, 2: opening
+        self.blink_progress = 0.0
+        self.blink_speed = 4.0
+        self.fg = (255, 255, 255)
 
     def on_enter(self, **kwargs):
-        super().on_enter(**kwargs)
-        self.center_eyes() # Reset to default state
+        # The 'FG' argument is now expected as a list of integers.
+        fg_color = kwargs.get("FG")
+        if fg_color and isinstance(fg_color, list):
+            self.fg = tuple(fg_color)
 
     def on_event(self, event: str, **kwargs):
-        self.anim_mode = event.lower()
-        self.anim_start_t = time.time()
+        event = event.lower()
+        if event == "wakeup":
+            self.is_asleep = False
+        elif event == "sleep":
+            self.is_asleep = True
+        elif event == "blink":
+            if self.blink_state == 0:
+                self.blink_state = 1
+                self.blink_progress = 0.0
+        elif event == "look_left":
+            self.pupil_offset_x = -6
+        elif event == "look_right":
+            self.pupil_offset_x = 6
+        elif event == "center":
+            self.pupil_offset_x = 0
+            self.pupil_offset_y = 0
 
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))
         frame[:, :] = (0, 0, 0)  # Clear to black
 
-        if self.anim_mode and self.anim_mode != "hold":
-            elapsed = t - self.anim_start_t
-            handler = getattr(self, f"_anim_{self.anim_mode}", None)
-            if handler:
-                handler(elapsed)
-            else:
-                self.center_eyes() # Default to center if anim is unknown
+        if self.is_asleep:
+            # Draw closed eyes (lines)
+            y = self.eye_y
+            for i in range(-self.eye_radius, self.eye_radius):
+                frame[y, self.left_eye_x + i] = self.fg
+                frame[y, self.right_eye_x + i] = self.fg
+            return
 
-        # Draw the two eyes
-        lx, ly = self.left_eye_pos
-        lw, lh = self.left_eye_size
-        fill_round_rect(frame, int(lx - lw/2), int(ly - lh/2), int(lw), int(lh), self.corner_radius, self.fg)
+        # Handle blinking animation
+        if self.blink_state != 0:
+            self.blink_progress += self.blink_speed * (1.0/60.0) # Assuming 60fps
+            if self.blink_progress >= 1.0:
+                if self.blink_state == 1: # Was closing
+                    self.blink_state = 2 # Now opening
+                    self.blink_progress = 0.0
+                elif self.blink_state == 2: # Was opening
+                    self.blink_state = 0 # Now open
+                    self.blink_progress = 0.0
 
-        rx, ry = self.right_eye_pos
-        rw, rh = self.right_eye_size
-        fill_round_rect(frame, int(rx - rw/2), int(ry - rh/2), int(rw), int(rh), self.corner_radius, self.fg)
+        # Draw eyes (circles)
+        y_coords, x_coords = np.mgrid[0:self.h, 0:self.w]
 
-    def center_eyes(self):
-        self.left_eye_pos = (self.center_x - self.eye_w / 2 - self.eye_spacing, self.center_y)
-        self.right_eye_pos = (self.center_x + self.eye_w / 2 + self.eye_spacing, self.center_y)
-        self.left_eye_size = (self.eye_w, self.eye_h)
-        self.right_eye_size = (self.eye_w, self.eye_h)
-        self.anim_mode = None
+        # Left eye
+        left_eye_mask = (x_coords - self.left_eye_x)**2 + (y_coords - self.eye_y)**2 < self.eye_radius**2
+        frame[left_eye_mask] = self.fg
 
-    def _anim_wakeup(self, elapsed: float, duration=1.5):
-        p = min(elapsed / duration, 1.0)
-        
-        if p < 0.4: # Stage 1: Expand width
-            w = self.eye_w * (p / 0.4)
-            self.left_eye_size = (w, 2)
-            self.right_eye_size = (w, 2)
-        elif p < 0.5: # Stage 2: Hold horizontal line
-            self.left_eye_size = (self.eye_w, 2)
-            self.right_eye_size = (self.eye_w, 2)
-        elif p < 0.9: # Stage 3: Expand height
-            h_p = (p - 0.5) / 0.4
-            h = 2 + (self.eye_h - 2) * h_p
-            self.left_eye_size = (self.eye_w, h)
-            self.right_eye_size = (self.eye_w, h)
-        else: # Stage 4: Hold open
-            self.left_eye_size = (self.eye_w, self.eye_h)
-            self.right_eye_size = (self.eye_w, self.eye_h)
+        # Right eye
+        right_eye_mask = (x_coords - self.right_eye_x)**2 + (y_coords - self.eye_y)**2 < self.eye_radius**2
+        frame[right_eye_mask] = self.fg
 
-        if p >= 1.0: self.center_eyes()
+        # Draw pupils
+        left_pupil_x = self.left_eye_x + self.pupil_offset_x
+        left_pupil_y = self.eye_y + self.pupil_offset_y
+        left_pupil_mask = (x_coords - left_pupil_x)**2 + (y_coords - left_pupil_y)**2 < self.pupil_radius**2
+        frame[left_pupil_mask] = (0, 0, 0)
 
-    def _anim_sleep(self, elapsed: float, duration=1.5):
-        p = min(elapsed / duration, 1.0)
+        right_pupil_x = self.right_eye_x + self.pupil_offset_x
+        right_pupil_y = self.eye_y + self.pupil_offset_y
+        right_pupil_mask = (x_coords - right_pupil_x)**2 + (y_coords - right_pupil_y)**2 < self.pupil_radius**2
+        frame[right_pupil_mask] = (0, 0, 0)
 
-        if p < 0.4: # Stage 1: Shrink height
-            h = self.eye_h * (1.0 - (p / 0.4))
-            self.left_eye_size = (self.eye_w, h)
-            self.right_eye_size = (self.eye_w, h)
-        elif p < 0.5: # Stage 2: Hold horizontal line
-            self.left_eye_size = (self.eye_w, 2)
-            self.right_eye_size = (self.eye_w, 2)
-        elif p < 0.9: # Stage 3: Shrink width
-            w_p = (p - 0.5) / 0.4
-            w = self.eye_w * (1.0 - w_p)
-            self.left_eye_size = (w, 2)
-            self.right_eye_size = (w, 2)
-        else: # Stage 4: Hold closed
-            self.left_eye_size = (0, 0)
-            self.right_eye_size = (0, 0)
-
-        if p >= 1.0:
-            self.left_eye_size = (0, 0)
-            self.right_eye_size = (0, 0)
-            self.anim_mode = None # Stay asleep
-
-    def _anim_blink(self, elapsed: float, duration=0.25):
-        p = min(elapsed / duration, 1.0)
-        if p < 0.5:
-            h = self.eye_h * (1.0 - (p * 2))
-        else:
-            h = self.eye_h * ((p - 0.5) * 2)
-        self.left_eye_size = (self.eye_w, h)
-        self.right_eye_size = (self.eye_w, h)
-        if p >= 1.0: self.center_eyes()
-
-    def _anim_look_left(self, elapsed: float, duration=0.4):
-        p = min(elapsed / duration, 1.0)
-        offset = -10 * p
-        self.left_eye_pos = (self.center_x - self.eye_w / 2 - self.eye_spacing + offset, self.center_y)
-        self.right_eye_pos = (self.center_x + self.eye_w / 2 + self.eye_spacing + offset, self.center_y)
-        if p >= 1.0: self.anim_mode = "hold" # Stay looking left
-
-    def _anim_look_right(self, elapsed: float, duration=0.4):
-        p = min(elapsed / duration, 1.0)
-        offset = 10 * p
-        self.left_eye_pos = (self.center_x - self.eye_w / 2 - self.eye_spacing + offset, self.center_y)
-        self.right_eye_pos = (self.center_x + self.eye_w / 2 + self.eye_spacing + offset, self.center_y)
-        if p >= 1.0: self.anim_mode = "hold" # Stay looking right
-
-    def _anim_center(self, elapsed: float, duration=0.3):
-        p = min(elapsed / duration, 1.0)
-        # A simple interpolation back to center.
-        current_offset = self.left_eye_pos[0] - (self.center_x - self.eye_w / 2 - self.eye_spacing)
-        offset = current_offset * (1.0 - p)
-        self.left_eye_pos = (self.center_x - self.eye_w / 2 - self.eye_spacing + offset, self.center_y)
-        self.right_eye_pos = (self.center_x + self.eye_w / 2 + self.eye_spacing + offset, self.center_y)
-        if p >= 1.0: self.center_eyes()
+        # Apply blink effect
+        if self.blink_state == 1: # Closing
+            lid_height = int(self.eye_radius * 2 * self.blink_progress)
+            frame[self.eye_y - self.eye_radius : self.eye_y - self.eye_radius + lid_height, :] = (0,0,0)
+            frame[self.eye_y + self.eye_radius - lid_height : self.eye_y + self.eye_radius, :] = (0,0,0)
+        elif self.blink_state == 2: # Opening
+            lid_height = int(self.eye_radius * 2 * (1.0 - self.blink_progress))
+            frame[self.eye_y - self.eye_radius : self.eye_y - self.eye_radius + lid_height, :] = (0,0,0)
+            frame[self.eye_y + self.eye_radius - lid_height : self.eye_y + self.eye_radius, :] = (0,0,0)

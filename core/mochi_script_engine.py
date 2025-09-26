@@ -19,6 +19,8 @@ class JsonTimelineScript(Script):
         self._timeline = []
         self._resources: dict[int, str] = {}
         self._index = 0
+        # A set of argument keys that are known to be colors and need parsing.
+        self._color_keys = {'FG', 'BG', 'CLR', 'CLR2'}
         self._load()
 
     def _load(self):
@@ -51,6 +53,14 @@ class JsonTimelineScript(Script):
                 continue
 
             args = step.get("args", {})
+
+            # --- NEW: Normalize color arguments to integer lists ---
+            for key in self._color_keys:
+                if key in args and isinstance(args[key], str):
+                    try:
+                        args[key] = [int(c) for c in args[key].split()]
+                    except (ValueError, AttributeError):
+                        print(f"Warning: Could not parse color string '{args[key]}' for key '{key}'")
 
             # Resolve resource key if present
             if "K" in args:

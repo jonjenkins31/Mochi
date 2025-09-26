@@ -3,7 +3,6 @@
 
 import numpy as np
 from core.mochi_animations import Animation
-from core.gfx import parse_color
 
 class TestRects(Animation):
     name = "test_rects"
@@ -15,8 +14,9 @@ class TestRects(Animation):
     def on_enter(self, **kwargs):
         super().on_enter(**kwargs) # Handles the 'clear' flag
         
-        if "color" in kwargs:
-            self.color = parse_color(kwargs["color"], self.color)
+        # Use standard uppercase argument key
+        if "CLR" in kwargs and isinstance(kwargs["CLR"], list):
+            self.color = tuple(kwargs["CLR"])
 
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))

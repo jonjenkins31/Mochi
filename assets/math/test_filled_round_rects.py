@@ -3,7 +3,7 @@
 
 import numpy as np
 from core.mochi_animations import Animation, clamp8
-from core.gfx import fill_round_rect, parse_color
+from core.gfx import fill_round_rect
 
 class TestFilledRoundRects(Animation):
     name = "test_filled_round_rects"
@@ -16,9 +16,10 @@ class TestFilledRoundRects(Animation):
     def on_enter(self, **kwargs):
         super().on_enter(**kwargs) # Handles the 'clear' flag
         
-        if "color" in kwargs:
+        # Use standard uppercase argument key
+        if "CLR" in kwargs and isinstance(kwargs["CLR"], list):
             # If a color is passed, use it as a fixed color
-            self.color = parse_color(kwargs["color"], self.color)
+            self.color = tuple(kwargs["CLR"])
             self.is_dynamic_color = False
 
     def render_into(self, t: float, pixel_buf: bytearray):

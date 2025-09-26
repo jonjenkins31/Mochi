@@ -4,7 +4,6 @@
 import numpy as np
 import math
 from core.mochi_animations import Animation
-from core.gfx import parse_color
 
 class TestFilledRects(Animation):
     name = "test_filled_rects"
@@ -17,10 +16,10 @@ class TestFilledRects(Animation):
     def on_enter(self, **kwargs):
         super().on_enter(**kwargs) # Handles the 'clear' flag
         
-        if "color1" in kwargs:
-            self.color1 = parse_color(kwargs["color1"], self.color1)
-        if "color2" in kwargs:
-            self.color2 = parse_color(kwargs["color2"], self.color2)
+        if "CLR" in kwargs and isinstance(kwargs["CLR"], list):
+            self.color1 = tuple(kwargs["CLR"])
+        if "CLR2" in kwargs and isinstance(kwargs["CLR2"], list):
+            self.color2 = tuple(kwargs["CLR2"])
 
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))

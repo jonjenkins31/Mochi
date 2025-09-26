@@ -11,10 +11,10 @@ representing the packed bitmap. The handler centers the bitmap on the display.
 
 Inputs (via kwargs from Master Handler):
 - asset_path (str): The absolute path to the JSON asset file.
-- FG (str, optional): The RGB color for the 'on' pixels (1s) as a
-  space-separated string (e.g., "255 255 255"). Defaults to white.
-- BG (str, optional): The RGB color for the 'off' pixels (0s) as a
-  space-separated string (e.g., "0 0 0"). Defaults to black.
+- FG (list[int], optional): The RGB color for the 'on' pixels (1s).
+  Defaults to white.
+- BG (list[int], optional): The RGB color for the 'off' pixels (0s).
+  Defaults to black.
 
 Output:
 - Renders the specified bitmap into the pixel buffer provided by the Mochi node.
@@ -72,17 +72,11 @@ class BitmapHandler(Animation):
         else:
             print("Warning: BitmapHandler received no asset_path.")
 
-        if "FG" in kwargs:
-            try:
-                self.on_color = np.array([int(c) for c in kwargs["FG"].split()], dtype=np.uint8)
-            except (ValueError, AttributeError):
-                print(f"Warning: Invalid FG color format: {kwargs['FG']}. Using default.")
+        if "FG" in kwargs and isinstance(kwargs["FG"], list):
+            self.on_color = np.array(kwargs["FG"], dtype=np.uint8)
         
-        if "BG" in kwargs:
-            try:
-                self.off_color = np.array([int(c) for c in kwargs["BG"].split()], dtype=np.uint8)
-            except (ValueError, AttributeError):
-                print(f"Warning: Invalid BG color format: {kwargs['BG']}. Using default.")
+        if "BG" in kwargs and isinstance(kwargs["BG"], list):
+            self.off_color = np.array(kwargs["BG"], dtype=np.uint8)
 
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))
