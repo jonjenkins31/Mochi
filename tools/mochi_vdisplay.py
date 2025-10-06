@@ -17,6 +17,9 @@ HEADER_FMT = ">HHQI"   # w,h,uint64 ts_ms,uint32 seq
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
 FRAME_TOPIC = b"frame"
 
+# The root directory of the Mochi project.
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
 class VirtualDisplay:
     def __init__(self, root, sub_addr: str, zoom: int, poll_ms: int, logger):
         self.root = root
@@ -140,7 +143,8 @@ def main():
     logger.addHandler(info_handler); logger.addHandler(err_handler)
 
     try:
-        with open("../config.yaml", "r") as f: config = yaml.safe_load(f)
+        config_path = os.path.join(PROJECT_ROOT, "config.yaml")
+        with open(config_path, "r") as f: config = yaml.safe_load(f)
     except Exception as e: logger.error(f"Cannot load config.yaml: {e}"); return
 
     display_config = config.get("display", {})

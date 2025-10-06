@@ -1,5 +1,6 @@
 # mochi_perf.py
 # A simple performance and health monitor for a Mochi node.
+import os
 
 import tkinter as tk
 from tkinter import ttk
@@ -11,6 +12,9 @@ import yaml
 
 # --- Constants ---
 HEALTH_TOPIC = b"health"
+
+# The root directory of the Mochi project.
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 class PerfMonitor:
     def __init__(self, root, sub_addr: str, poll_ms: int, logger):
@@ -100,7 +104,8 @@ def main():
     logger.addHandler(handler)
 
     try:
-        with open("../config.yaml", "r") as f: config = yaml.safe_load(f)
+        config_path = os.path.join(PROJECT_ROOT, "config.yaml")
+        with open(config_path, "r") as f: config = yaml.safe_load(f)
     except Exception as e: logger.error(f"Cannot load config.yaml: {e}"); return
 
     # The performance monitor connects to the node's PUB address
