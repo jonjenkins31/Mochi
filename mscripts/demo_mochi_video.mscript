@@ -1,0 +1,12 @@
+[Header start]
+! Converted from demo_gif.json
+[Header end]
+
+[Resources start]
+K[1]: 'assets/video/mochi enhance/split_0_0_restored.mp4'
+[Resources end]
+
+[Main start]
+MEDIA K[1]
+
+[Main end]

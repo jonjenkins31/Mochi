@@ -2,3 +2,4 @@ pyzmq
 pillow
 pyyaml
 numpy
+moviepy

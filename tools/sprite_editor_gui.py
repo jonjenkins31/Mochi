@@ -4,9 +4,11 @@ from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageTk
 import json
 import os
+import re
 
 RESIZE_HANDLE_SIZE = 4
 PREVIEW_SIZE = (64, 64)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 class SpriteEditor:
     def __init__(self, root):
@@ -14,6 +16,7 @@ class SpriteEditor:
         self.root.title("Sprite Script Editor")
 
         self.image_path = None
+        self.image_resource_id = "K[1]" # Hardcoded for simplicity
         self.current_script_path = None
         self.image = None
         self.tk_image = None
@@ -247,60 +250,90 @@ class SpriteEditor:
         self.update_all_views()
 
     def _load_image_from_path(self, path):
-        self.image_path = os.path.abspath(path)
-        self.image = Image.open(self.image_path)
-        self.tk_image = ImageTk.PhotoImage(self.image)
-        self.canvas.delete("all")
-        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
-        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+        try:
+            full_path = path if os.path.isabs(path) else os.path.join(PROJECT_ROOT, path)
+            if not os.path.exists(full_path):
+                raise FileNotFoundError(f"Image file not found at: {full_path}")
+            
+            self.image_path = os.path.relpath(full_path, PROJECT_ROOT).replace('\\', '/')
+            self.image = Image.open(full_path)
+            self.tk_image = ImageTk.PhotoImage(self.image)
+            self.canvas.delete("all")
+            self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
+            self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+            return True
+        except Exception as e:
+            messagebox.showerror("Image Load Error", str(e))
+            return False
+
+    def _parse_sections(self, all_lines):
+        sections = {}
+        current_section = None
+        section_regex = re.compile(r'^\[\s*(\w+)\s*(start|end)\s*\]$', re.IGNORECASE)
+        for line in all_lines:
+            match = section_regex.match(line.strip())
+            if match:
+                section_name, status = match.groups()
+                if status.lower() == 'start':
+                    current_section = section_name.lower()
+                    sections[current_section] = []
+                elif status.lower() == 'end':
+                    current_section = None
+            elif current_section:
+                sections[current_section].append(line.strip())
+        return sections
 
     def load_script(self):
-        script_path = filedialog.askopenfilename(title="Select Sprite Script", filetypes=[("JSON files", "*.json")], initialdir="scripts")
+        script_path = filedialog.askopenfilename(title="Select MochiScript File", filetypes=[("MochiScript files", "*.mscript")], initialdir="mscripts")
         if not script_path: return
+        
         try:
-            with open(script_path, 'r') as f: 
-                script_data = json.load(f)
+            with open(script_path, 'r') as f:
+                all_lines = f.readlines()
+            
+            sections = self._parse_sections(all_lines)
 
-            if "timeline" not in script_data:
-                raise ValueError("Script file must contain a 'timeline' list.")
-
+            # -- Reset state --
             self.sprites = []
             self.timeline = []
-            timeline_to_parse = script_data["timeline"]
+            
+            # -- Parse Resources --
+            resource_lines = sections.get('resources', [])
+            if not resource_lines: raise ValueError("No [Resources] section found.")
+            
+            res_match = re.match(r"(K\[\d+\]):\s*'(.*)'", resource_lines[0])
+            if not res_match: raise ValueError("Could not parse resource line.")
+            
+            self.image_resource_id, image_path_rel = res_match.groups()
+            if not self._load_image_from_path(image_path_rel):
+                return
 
-            sprite_mode_cmd = next((item for item in timeline_to_parse if item.get("cmd") == "mode" and item.get("args", {}).get("name") == "sprite_handler"), None)
-            if not sprite_mode_cmd:
-                raise ValueError("Script does not contain a sprite_handler mode command.")
+            # -- Parse Main --
+            main_lines = sections.get('main', [])
+            if not main_lines: raise ValueError("No [Main] section found.")
 
-            sprite_mode_args = sprite_mode_cmd.get("args", {})
+            sprite_cmd_re = re.compile(r"SPRITE\s+K\[\d+\](?:\s+D\[([\d\.]+)\])?\s+SRC\[(\d+),(\d+),(\d+),(\d+)\]")
+            wait_cmd_re = re.compile(r"WAIT\s+D\[([\d\.]+)\]")
 
-            if "image_path" in sprite_mode_args and "sprites" in sprite_mode_args:
-                self._load_image_from_path(sprite_mode_args["image_path"])
-                self.sprites = sprite_mode_args["sprites"]
-            elif "config_path" in sprite_mode_args:
-                config_path_rel = sprite_mode_args["config_path"]
-                config_path = config_path_rel if os.path.isabs(config_path_rel) else os.path.join(os.path.dirname(script_path), config_path_rel)
-                
-                with open(config_path, 'r') as f:
-                    config_data = json.load(f)
-                
-                self._load_image_from_path(config_data["image_path"])
-                self.sprites = config_data.get("sprites", [])
-            else:
-                raise ValueError("Could not find sprite configuration in the script.")
+            for line in main_lines:
+                sprite_match = sprite_cmd_re.match(line)
+                wait_match = wait_cmd_re.match(line)
 
-            events = sorted([item for item in timeline_to_parse if item.get("cmd") == "event"], key=lambda x: x["at"])
-            last_time = 0.0
-            for event in events:
-                delay = event["at"] - last_time
-                if delay > 0.01: 
-                    self.timeline.append({"cmd": "delay", "duration": round(delay, 2)})
-                
-                event_args = event.get("args", {})
-                if event_args.get("name") == "show_sprite":
-                    self.timeline.append({"cmd": "show_sprite", "index": event_args["index"]})
-                
-                last_time = event["at"]
+                if sprite_match:
+                    duration, x, y, w, h = sprite_match.groups()
+                    sprite_rect = [int(v) for v in (x, y, w, h)]
+                    
+                    if sprite_rect not in self.sprites:
+                        self.sprites.append(sprite_rect)
+                    sprite_index = self.sprites.index(sprite_rect)
+                    
+                    self.timeline.append({"cmd": "show_sprite", "index": sprite_index})
+                    if duration:
+                        self.timeline.append({"cmd": "delay", "duration": float(duration)})
+
+                elif wait_match:
+                    duration = wait_match.groups()[0]
+                    self.timeline.append({"cmd": "delay", "duration": float(duration)})
 
             self.current_script_path = script_path
             self.root.title(f"Sprite Script Editor - {os.path.basename(script_path)}")
@@ -308,17 +341,23 @@ class SpriteEditor:
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load script: {e}")
+            # Reset on failure
+            self.image_path = None
+            self.current_script_path = None
+            self.sprites = []
+            self.timeline = []
+            self.update_all_views()
+
 
     def load_image(self):
-        path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png *.bmp"), ("All files", "*.*")] )
+        path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png *.bmp *.jpg"), ("All files", "*.*")] )
         if not path: return
-        try:
-            self._load_image_from_path(path)
+        
+        if self._load_image_from_path(path):
             self.sprites, self.timeline, self.selected_sprite_index = [], [], None
             self.current_script_path = None # New image means new script
             self.root.title("Sprite Script Editor")
             self.update_all_views()
-        except Exception as e: messagebox.showerror("Error", f"Failed to load image: {e}")
 
     def update_all_views(self):
         sprite_sel = self.sprite_listbox.curselection()
@@ -343,17 +382,28 @@ class SpriteEditor:
 
     def delete_sprite(self):
         if self.selected_sprite_index is None: return
-        del self.sprites[self.selected_sprite_index]
-        # Remap timeline indices
-        self.timeline = [t for t in self.timeline if t.get('index') != self.selected_sprite_index]
-        for t in self.timeline:
-            if t.get('index', -1) > self.selected_sprite_index: t['index'] -= 1
+        
+        deleted_idx = self.selected_sprite_index
+        del self.sprites[deleted_idx]
+        
+        # Filter timeline and remap indices
+        new_timeline = []
+        for item in self.timeline:
+            if item.get('cmd') == 'show_sprite':
+                if item['index'] == deleted_idx:
+                    continue # Skip items that used the deleted sprite
+                elif item['index'] > deleted_idx:
+                    item['index'] -= 1 # Decrement indices of sprites that came after
+            new_timeline.append(item)
+        self.timeline = new_timeline
+
         self.selected_sprite_index = None
         self.sprite_listbox.selection_clear(0, tk.END)
         self.update_all_views()
 
     def draw_sprite_rects(self):
         self.canvas.delete("sprite_rect")
+        if not self.image: return
         for i, (x, y, w, h) in enumerate(self.sprites):
             color = "yellow" if i == self.selected_sprite_index else "cyan"
             self.canvas.create_rectangle(x, y, x + w, y + h, outline=color, width=1, tags="sprite_rect")
@@ -445,10 +495,10 @@ class SpriteEditor:
 
     def save_script_as(self):
         script_path = filedialog.asksaveasfilename(
-            title="Save Sprite Script As",
-            defaultextension=".json",
-            filetypes=[("JSON files", "*.json")],
-            initialdir="scripts"
+            title="Save MochiScript As",
+            defaultextension=".mscript",
+            filetypes=[("MochiScript files", "*.mscript")],
+            initialdir="mscripts"
         )
         if not script_path: return
         self.current_script_path = script_path
@@ -460,35 +510,49 @@ class SpriteEditor:
             messagebox.showerror("Error", "Please load an asset image first.")
             return
 
-        mochi_timeline = []
-        mochi_timeline.append({
-            "at": 0.0,
-            "cmd": "mode",
-            "args": {
-                "name": "sprite_handler",
-                "image_path": self.image_path,
-                "sprites": self.sprites
-            }
-        })
+        # Ensure image path is relative to project root for consistency
+        image_path_rel = self.image_path
+        if os.path.isabs(image_path_rel):
+             image_path_rel = os.path.relpath(image_path_rel, PROJECT_ROOT).replace('\\', '/')
 
-        current_time = 0.0
-        for item in self.timeline:
-            if item["cmd"] == "show_sprite":
-                mochi_timeline.append({
-                    "at": round(current_time, 2),
-                    "cmd": "event",
-                    "args": {"name": "show_sprite", "index": item["index"]}
-                })
-            elif item["cmd"] == "delay":
-                current_time += item["duration"]
+        # --- Build Script Content ---
+        output = []
+        output.append("[Header start]")
+        output.append(f"! Generated by Mochi Sprite Editor")
+        output.append("[Header end]\n")
+
+        output.append("[Resources start]")
+        output.append(f"{self.image_resource_id}: '{image_path_rel}'")
+        output.append("[Resources end]\n")
+
+        output.append("[Main start]")
         
-        script_data = {
-            "timeline": mochi_timeline
-        }
+        i = 0
+        while i < len(self.timeline):
+            item = self.timeline[i]
+            if item['cmd'] == 'show_sprite':
+                sprite_idx = item['index']
+                x, y, w, h = self.sprites[sprite_idx]
+                
+                # Look ahead for a delay to use as duration
+                duration = 0.0
+                if i + 1 < len(self.timeline) and self.timeline[i+1]['cmd'] == 'delay':
+                    duration = self.timeline[i+1]['duration']
+                    i += 1 # Consume the delay
+                
+                output.append(f"SPRITE {self.image_resource_id} D[{duration}] SRC[{x},{y},{w},{h}]")
+
+            elif item['cmd'] == 'delay':
+                # This is a standalone delay
+                output.append(f"WAIT D[{item['duration']}]")
+            
+            i += 1
+        
+        output.append("[Main end]")
 
         try:
             with open(script_path, 'w') as f:
-                json.dump(script_data, f, indent=2)
+                f.write('\n'.join(output))
             messagebox.showinfo("Success", f"Script saved to:\n{script_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save file: {e}")
