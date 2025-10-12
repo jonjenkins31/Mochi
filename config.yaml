@@ -1,17 +1,11 @@
-# Mochi Configuration
-
 node:
-  logical_width: 64
-  logical_height: 64
-  fps: 60
   pub_address: "tcp://127.0.0.1:5555"
   ctrl_address: "tcp://127.0.0.1:5556"
-  default_script: "mscripts/demo_wink.mscript"
 
 gui:
-  pub_address: "tcp://127.0.0.1:5556"
+  ctrl_address: "tcp://127.0.0.1:5556"
 
 display:
   sub_address: "tcp://127.0.0.1:5555"
-  zoom: 4  # The pixel scaling factor for the virtual display window.
+  zoom: 4
   poll_ms: 5

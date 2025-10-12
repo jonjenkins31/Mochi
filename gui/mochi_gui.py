@@ -1,51 +1,100 @@
-# mochi_gui.py — Manual control panel for Mochi (Tk + ZeroMQ PUB)
-# Sends control commands to mochi_node.py on topic "ctrl".
+"""
+Tk-based control panel for the Mochi animation node.
 
+Provides manual controls for animations, scripts, and convenience launchers
+for the virtual display and performance monitor.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import subprocess
+import sys
+import threading
 import time
+from pathlib import Path
+from queue import Empty, Queue
+
 import tkinter as tk
-from tkinter import ttk, colorchooser, messagebox
+from tkinter import colorchooser, messagebox, ttk
 import yaml
 import zmq
-import logging
-import sys
-import os
-import subprocess
-import threading
-import json
-from queue import Queue, Empty
 
-# Add project root to path to allow importing core modules
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(PROJECT_ROOT)
-from core.logging_utils import setup_logger
+GUI_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = GUI_DIR.parent
+TOOLS_DIR = PROJECT_ROOT / "tools"
+PLUGIN_ROOT = PROJECT_ROOT / "plugins" / "animation_node"
+MSCRIPTS_DIR = PLUGIN_ROOT / "mscripts"
+CONFIG_PATHS = [
+    PROJECT_ROOT / "config.yaml",
+    PROJECT_ROOT / "plugins" / "animation_node" / "config.yaml",
+]
 
-# --- Constants ---
-CTRL_TOPIC = b"ctrl"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+from plugins.animation_node.core.logging_utils import setup_logger
+
 HEALTH_TOPIC = b"health"
-MSCRIPTS_DIR = os.path.join(PROJECT_ROOT, "mscripts")
+DEFAULT_CTRL_ADDR = "tcp://127.0.0.1:5556"
+DEFAULT_HEALTH_ADDR = "tcp://127.0.0.1:5555"
+
+
+def _load_configs(logger: logging.Logger):
+    configs = []
+    for path in CONFIG_PATHS:
+        try:
+            with path.open("r", encoding="utf-8") as fh:
+                data = yaml.safe_load(fh) or {}
+            configs.append((path, data))
+        except FileNotFoundError:
+            continue
+        except yaml.YAMLError as exc:
+            logger.warning(f"Cannot parse {path}: {exc}")
+        except Exception as exc:
+            logger.warning(f"Cannot read {path}: {exc}")
+    return configs
+
+
+def _lookup(configs, keys, default=None):
+    for _, cfg in configs:
+        value = cfg
+        for key in keys:
+            if not isinstance(value, dict):
+                value = None
+                break
+            value = value.get(key)
+        if value is not None:
+            return value
+    return default
+
 
 class MochiGUI:
-    def __init__(self, root, pub_addr: str, health_sub_addr: str, logger):
+    def __init__(self, root, ctrl_addr: str, health_sub_addr: str, logger: logging.Logger):
         self.root = root
         self.logger = logger
-        self.root.title("Mochi Manual Control — Tk")
-        self.pub_addr = pub_addr
+        root.title("Mochi Manual Control — Tk")
+        self.ctrl_addr = ctrl_addr
         self.health_sub_addr = health_sub_addr
-        self._processes = []
+        self._processes: list[subprocess.Popen] = []
 
-        # --- ZMQ publisher ---
+        # --- ZMQ command socket ---
         self.ctx = zmq.Context.instance()
-        self.pub = self.ctx.socket(zmq.PUB)
-        self.pub.setsockopt(zmq.LINGER, 0)
+        self.push = self.ctx.socket(zmq.PUSH)
+        self.push.setsockopt(zmq.LINGER, 0)
         try:
-            self.pub.bind(self.pub_addr)
-            self.logger.info(f"Publisher bound to {self.pub_addr}")
-        except zmq.error.ZMQError as e:
-            self.logger.error(f"Failed to bind publisher to {self.pub_addr}: {e}")
-            messagebox.showerror("ZMQ Error", f"Failed to bind to address: {self.pub_addr}\nIs another GUI instance running?")
-            self.root.destroy()
+            self.push.connect(self.ctrl_addr)
+            self.logger.info(f"Command socket connected (PUSH) -> {self.ctrl_addr}")
+        except zmq.error.ZMQError as exc:
+            self.logger.error(f"Failed to connect to {self.ctrl_addr}: {exc}")
+            messagebox.showerror(
+                "ZMQ Error",
+                f"Failed to connect to control address:\n{self.ctrl_addr}\nIs the node running?",
+            )
+            root.destroy()
             return
-        time.sleep(0.1)  # slow-joiner allowance for node SUB to connect
+        time.sleep(0.05)  # allow the node to register our PUSH endpoint
 
         # --- UI ---
         outer = ttk.Frame(root, padding=12)
@@ -66,7 +115,7 @@ class MochiGUI:
             ttk.Label(status_frame, text=f"{name}:").grid(row=0, column=col, sticky="w", padx=(10, 2))
             ttk.Label(status_frame, textvariable=var, font=("Menlo", 10)).grid(row=0, column=col + 1, sticky="w")
             col += 2
-        status_frame.grid_columnconfigure(11, weight=1) # Push to left
+        status_frame.grid_columnconfigure(11, weight=1)
 
         # Row 1: MochiScript selection
         mscript_frame = ttk.LabelFrame(outer, text="MochiScript Control (.mscript)")
@@ -74,20 +123,24 @@ class MochiGUI:
 
         self.mscript_var = tk.StringVar()
         try:
-            mscript_list = sorted([f for f in os.listdir(MSCRIPTS_DIR) if f.endswith('.mscript')])
-            self.mscript_combo = ttk.Combobox(mscript_frame, textvariable=self.mscript_var, values=mscript_list, state="readonly")
+            mscript_list = sorted([p.name for p in MSCRIPTS_DIR.iterdir() if p.suffix == ".mscript"])
+            self.mscript_combo = ttk.Combobox(
+                mscript_frame, textvariable=self.mscript_var, values=mscript_list, state="readonly"
+            )
             if mscript_list:
                 self.mscript_var.set(mscript_list[0])
         except FileNotFoundError:
             self.logger.warning(f"MochiScripts directory not found: {MSCRIPTS_DIR}")
-            self.mscript_combo = ttk.Combobox(mscript_frame, textvariable=self.mscript_var, values=["No mscripts found..."], state="disabled")
-        
+            self.mscript_combo = ttk.Combobox(
+                mscript_frame, textvariable=self.mscript_var, values=["No mscripts found..."], state="disabled"
+            )
+
         self.mscript_combo.grid(row=0, column=0, padx=6, pady=6, sticky="ew")
         ttk.Button(mscript_frame, text="Run", command=self.send_mscript_from_combobox).grid(row=0, column=1, padx=6, pady=6)
         ttk.Button(mscript_frame, text="Stop", command=self.stop_script).grid(row=0, column=2, padx=6, pady=6)
         mscript_frame.grid_columnconfigure(0, weight=1)
 
-        # Row 2: color for Bars
+        # Row 2: Color picker
         color_row = ttk.LabelFrame(outer, text="Color Control")
         color_row.grid(row=2, column=0, sticky="ew", pady=4)
         self.color_preview = tk.Canvas(color_row, width=32, height=20, highlightthickness=1, highlightbackground="#888")
@@ -97,21 +150,21 @@ class MochiGUI:
         ttk.Entry(color_row, textvariable=self.rgb_var, width=12).grid(row=0, column=2, padx=6, pady=6, sticky="w")
         ttk.Button(color_row, text="Send", command=self.send_color_from_entry).grid(row=0, column=3, padx=6, pady=6)
 
-        # Row 3: size control
+        # Row 3: Matrix size
         size_row = ttk.LabelFrame(outer, text="Matrix Size (WxH)")
         size_row.grid(row=3, column=0, sticky="ew", pady=4)
-        self.size_var = tk.StringVar(value="64x64") # Updated default
+        self.size_var = tk.StringVar(value="64x64")
         ttk.Entry(size_row, textvariable=self.size_var, width=10).grid(row=0, column=0, padx=6, pady=6)
         ttk.Button(size_row, text="Apply", command=self.send_size).grid(row=0, column=1, padx=6, pady=6)
         ttk.Label(size_row, text="Example: 64x32").grid(row=0, column=2, padx=6, pady=6)
 
-        # Row 4: raw command
+        # Row 4: Raw command
         raw = ttk.LabelFrame(outer, text="Raw Command")
         raw.grid(row=4, column=0, sticky="ew", pady=4)
         self.cmd_var = tk.StringVar(value="")
         entry = ttk.Entry(raw, textvariable=self.cmd_var)
         entry.grid(row=0, column=0, padx=6, pady=6, sticky="ew")
-        entry.bind("<Return>", lambda e: self.send(self.cmd_var.get().strip()))
+        entry.bind("<Return>", lambda _e: self.send(self.cmd_var.get().strip()))
         ttk.Button(raw, text="Send", command=lambda: self.send(self.cmd_var.get().strip())).grid(
             row=0, column=1, padx=6, pady=6
         )
@@ -124,7 +177,7 @@ class MochiGUI:
         ttk.Button(launch_frame, text="Launch Performance Monitor", command=self.launch_perf_monitor).pack(side=tk.LEFT, padx=6, pady=6)
         ttk.Button(launch_frame, text="Launch Sprite Editor", command=self.launch_sprite_editor).pack(side=tk.LEFT, padx=6, pady=6)
 
-        # Row 6: footer
+        # Row 6: Footer
         footer = ttk.Frame(outer)
         footer.grid(row=6, column=0, sticky="ew", pady=(8, 0))
         self.status = tk.StringVar(value="Ready")
@@ -132,42 +185,44 @@ class MochiGUI:
         ttk.Button(footer, text="Quit Node", command=lambda: self.send("quit")).pack(side=tk.RIGHT)
         ttk.Button(footer, text="Close GUI", command=self.on_close).pack(side=tk.RIGHT, padx=6)
 
-        # Keyboard shortcuts (only close)
-        root.bind("<Escape>", lambda e: self.on_close())
-        root.bind("q", lambda e: self.on_close())
+        root.bind("<Escape>", lambda _e: self.on_close())
+        root.bind("q", lambda _e: self.on_close())
 
-        # Initialize color preview
         self._set_preview_color(255, 120, 40)
 
         # Health subscriber
-        self.health_queue = Queue()
+        self.health_queue: Queue = Queue()
         self.health_stop_event = threading.Event()
         self.health_thread = threading.Thread(target=self._health_poll_loop, daemon=True)
         self.health_thread.start()
-        self.root.after(100, self._process_health_queue)
+        root.after(100, self._process_health_queue)
 
-    def send_mscript_from_combobox(self):
+    def send_mscript_from_combobox(self) -> None:
         script_name = self.mscript_var.get()
         if script_name:
-            script_path = os.path.join(MSCRIPTS_DIR, script_name)
-            self.send(f"play {script_path}")
+            script_path = MSCRIPTS_DIR / script_name
+            if not script_path.exists():
+                messagebox.showerror("Script Missing", f"Could not find {script_path}")
+                return
+            relative = f"mscripts/{script_name}"
+            self.send(f"play {relative}")
 
-    def stop_script(self):
+    def stop_script(self) -> None:
         self.send("stop")
 
-    def send(self, msg: str):
+    def send(self, msg: str) -> None:
         msg = msg.strip()
         if not msg:
             return
         try:
-            self.pub.send_multipart([CTRL_TOPIC, msg.encode()])
+            self.push.send_string(msg)
             self.status.set(f"Sent: {msg}")
             self.logger.info(f"Sent command: {msg}")
-        except Exception as e:
-            self.status.set(f"Error: {e}")
-            self.logger.error(f"Failed to send command: {e}")
+        except Exception as exc:
+            self.status.set(f"Error: {exc}")
+            self.logger.error(f"Failed to send command: {exc}")
 
-    def pick_color(self):
+    def pick_color(self) -> None:
         rgb_tuple, _ = colorchooser.askcolor(title="Choose Bars Color")
         if not rgb_tuple:
             return
@@ -176,7 +231,7 @@ class MochiGUI:
         self._set_preview_color(r, g, b)
         self.send(f"color {r} {g} {b}")
 
-    def send_color_from_entry(self):
+    def send_color_from_entry(self) -> None:
         try:
             parts = [int(x) for x in self.rgb_var.get().split()]
             if len(parts) != 3:
@@ -188,11 +243,11 @@ class MochiGUI:
         self._set_preview_color(r, g, b)
         self.send(f"color {r} {g} {b}")
 
-    def _set_preview_color(self, r, g, b):
+    def _set_preview_color(self, r: int, g: int, b: int) -> None:
         self.color_preview.delete("all")
         self.color_preview.create_rectangle(0, 0, 32, 20, fill=f"#{r:02x}{g:02x}{b:02x}", outline="")
 
-    def send_size(self):
+    def send_size(self) -> None:
         s = self.size_var.get().lower().strip()
         if "x" not in s:
             messagebox.showerror("Invalid size", "Use format: WxH (e.g., 64x32)")
@@ -207,39 +262,52 @@ class MochiGUI:
             return
         self.send(f"size {w_i}x{h_i}")
 
-    def launch_vdisplay(self):
-        self.logger.info("Launching mochi_vdisplay.py")
+    def launch_vdisplay(self) -> None:
+        script = GUI_DIR / "mochi_vdisplay.py"
+        self.logger.info(f"Launching {script.name}")
         try:
-            p = subprocess.Popen([sys.executable, "mochi_vdisplay.py"])
+            p = subprocess.Popen([sys.executable, str(script)], cwd=str(GUI_DIR))
             self._processes.append(p)
-        except Exception as e:
-            self.logger.error(f"Failed to launch vdisplay: {e}")
-            messagebox.showerror("Launch Error", f"Could not start mochi_vdisplay.py:\n{e}")
+        except Exception as exc:
+            self.logger.error(f"Failed to launch virtual display: {exc}")
+            messagebox.showerror("Launch Error", f"Could not start {script.name}:\n{exc}")
 
-    def launch_perf_monitor(self):
-        self.logger.info("Launching mochi_perf.py")
+    def launch_perf_monitor(self) -> None:
+        script = GUI_DIR / "mochi_perf.py"
+        self.logger.info(f"Launching {script.name}")
         try:
-            p = subprocess.Popen([sys.executable, "mochi_perf.py"])
+            p = subprocess.Popen([sys.executable, str(script)], cwd=str(GUI_DIR))
             self._processes.append(p)
-        except Exception as e:
-            self.logger.error(f"Failed to launch perf monitor: {e}")
-            messagebox.showerror("Launch Error", f"Could not start mochi_perf.py:\n{e}")
+        except Exception as exc:
+            self.logger.error(f"Failed to launch perf monitor: {exc}")
+            messagebox.showerror("Launch Error", f"Could not start {script.name}:\n{exc}")
 
-    def launch_sprite_editor(self):
-        self.logger.info("Launching sprite_editor_gui.py")
+    def launch_sprite_editor(self) -> None:
+        script = TOOLS_DIR / "sprite_editor_gui.py"
+        self.logger.info(f"Launching {script.name}")
+        if not script.exists():
+            msg = f"Sprite editor not found at {script}"
+            self.logger.error(msg)
+            messagebox.showerror("Launch Error", msg)
+            return
         try:
-            p = subprocess.Popen([sys.executable, "sprite_editor_gui.py"])
+            p = subprocess.Popen([sys.executable, str(script)], cwd=str(TOOLS_DIR))
             self._processes.append(p)
-        except Exception as e:
-            self.logger.error(f"Failed to launch sprite editor: {e}")
-            messagebox.showerror("Launch Error", f"Could not start sprite_editor_gui.py:\n{e}")
+        except Exception as exc:
+            self.logger.error(f"Failed to launch sprite editor: {exc}")
+            messagebox.showerror("Launch Error", f"Could not start {script.name}:\n{exc}")
 
-    def _health_poll_loop(self):
+    def _health_poll_loop(self) -> None:
         sub = self.ctx.socket(zmq.SUB)
         sub.setsockopt(zmq.RCVHWM, 1)
-        sub.connect(self.health_sub_addr)
-        sub.setsockopt(zmq.SUBSCRIBE, HEALTH_TOPIC)
-        self.logger.info(f"Health subscriber connected to {self.health_sub_addr}")
+        try:
+            sub.connect(self.health_sub_addr)
+            sub.setsockopt(zmq.SUBSCRIBE, HEALTH_TOPIC)
+            self.logger.info(f"Health subscriber connected -> {self.health_sub_addr}")
+        except Exception as exc:
+            self.logger.error(f"Failed to connect health subscriber: {exc}")
+            self.health_queue.put({"error": str(exc)})
+            return
 
         while not self.health_stop_event.is_set():
             try:
@@ -248,17 +316,20 @@ class MochiGUI:
                 self.health_queue.put(data)
             except zmq.Again:
                 time.sleep(0.1)
-            except Exception as e:
-                self.logger.warning(f"Error in health poller: {e}")
-        
-        sub.close()
+            except Exception as exc:
+                if not self.health_stop_event.is_set():
+                    self.logger.warning(f"Error in health poller: {exc}")
+        sub.close(0)
 
-    def _process_health_queue(self):
+    def _process_health_queue(self) -> None:
         try:
             while not self.health_queue.empty():
                 data = self.health_queue.get_nowait()
-                self.status_metrics["Mode"].set(data.get('mode', '?'))
-                self.status_metrics["Size"].set(f"{data.get('w','?')}x{data.get('h','?')}")
+                if "error" in data:
+                    self.status.set(f"Health error: {data['error']}")
+                    continue
+                self.status_metrics["Mode"].set(data.get("mode", "?"))
+                self.status_metrics["Size"].set(f"{data.get('w', '?')}x{data.get('h', '?')}")
                 self.status_metrics["FPS"].set(f"{data.get('fps', 0)}")
                 self.status_metrics["Mem (MB)"].set(f"{data.get('mem_mb', 0):.2f}")
                 self.status_metrics["Tx (MB/s)"].set(f"{data.get('tx_rate_mbps', 0):.3f}")
@@ -268,39 +339,28 @@ class MochiGUI:
             if self.root.winfo_exists():
                 self.root.after(100, self._process_health_queue)
 
-    def on_close(self):
+    def on_close(self) -> None:
         self.health_stop_event.set()
-        for p in self._processes:
-            if p.poll() is None:
-                p.terminate()
+        for proc in self._processes:
+            if proc.poll() is None:
+                proc.terminate()
         try:
-            self.pub.close(0)
+            self.push.close(0)
         finally:
             self.root.destroy()
 
+
 def main():
-    # --- Logger Setup ---
     logger = setup_logger("MochiGUI")
 
-    # --- Load Config ---
-    try:
-        config_path = os.path.join(PROJECT_ROOT, "config.yaml")
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
-    except FileNotFoundError:
-        logger.error("config.yaml not found. Please create it.")
-        return
-    except yaml.YAMLError as e:
-        logger.error(f"Error parsing config.yaml: {e}")
-        return
+    configs = _load_configs(logger)
+    ctrl_addr = _lookup(configs, ("gui", "ctrl_address"), DEFAULT_CTRL_ADDR)
+    if ctrl_addr == DEFAULT_CTRL_ADDR:
+        ctrl_addr = _lookup(configs, ("gui", "pub_address"), ctrl_addr)
+        ctrl_addr = _lookup(configs, ("node", "ctrl_address"), ctrl_addr)
 
-    gui_config = config.get("gui", {})
-    pub_addr = gui_config.get("pub_address", "tcp://127.0.0.1:5556")
-    
-    node_config = config.get("node", {})
-    health_sub_addr = node_config.get("pub_address", "tcp://127.0.0.1:5555")
+    health_sub_addr = _lookup(configs, ("node", "pub_address"), DEFAULT_HEALTH_ADDR)
 
-    # --- Run App ---
     root = tk.Tk()
     try:
         style = ttk.Style(root)
@@ -308,12 +368,13 @@ def main():
             style.theme_use("aqua")
     except Exception:
         pass
-    
-    app = MochiGUI(root, pub_addr=pub_addr, health_sub_addr=health_sub_addr, logger=logger)
-    if not root.winfo_exists(): # Check if window was destroyed due to error
+
+    app = MochiGUI(root, ctrl_addr=str(ctrl_addr), health_sub_addr=str(health_sub_addr), logger=logger)
+    if not root.winfo_exists():
         return
-        
+
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()

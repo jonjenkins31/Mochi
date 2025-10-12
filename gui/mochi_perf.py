@@ -1,20 +1,56 @@
 # mochi_perf.py
 # A simple performance and health monitor for a Mochi node.
-import os
 
-import tkinter as tk
-from tkinter import ttk
-import zmq
 import json
 import logging
 import sys
+from pathlib import Path
+
+import tkinter as tk
+from tkinter import ttk
 import yaml
+import zmq
 
 # --- Constants ---
 HEALTH_TOPIC = b"health"
 
 # The root directory of the Mochi project.
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+GUI_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = GUI_DIR.parent
+CONFIG_PATHS = [
+    PROJECT_ROOT / "config.yaml",
+    PROJECT_ROOT / "plugins" / "animation_node" / "config.yaml",
+]
+
+
+def _load_perf_settings(logger):
+    settings = {}
+    for path in CONFIG_PATHS:
+        try:
+            with path.open("r", encoding="utf-8") as fh:
+                cfg = yaml.safe_load(fh) or {}
+        except FileNotFoundError:
+            continue
+        except yaml.YAMLError as exc:
+            logger.warning(f"Cannot parse {path}: {exc}")
+            continue
+        except Exception as exc:
+            logger.warning(f"Cannot read {path}: {exc}")
+            continue
+
+        node_cfg = cfg.get("node") or {}
+        display_cfg = cfg.get("display") or {}
+        if "pub_address" in node_cfg and "pub_address" not in settings:
+            settings["pub_address"] = node_cfg["pub_address"]
+        if "poll_ms" in display_cfg and "poll_ms" not in settings:
+            settings["poll_ms"] = display_cfg["poll_ms"]
+
+        if {"pub_address", "poll_ms"} <= settings.keys():
+            break
+
+    settings.setdefault("pub_address", "tcp://127.0.0.1:5555")
+    settings.setdefault("poll_ms", 100)
+    return settings
 
 class PerfMonitor:
     def __init__(self, root, sub_addr: str, poll_ms: int, logger):
@@ -103,17 +139,9 @@ def main():
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    try:
-        config_path = os.path.join(PROJECT_ROOT, "config.yaml")
-        with open(config_path, "r") as f: config = yaml.safe_load(f)
-    except Exception as e: logger.error(f"Cannot load config.yaml: {e}"); return
-
-    # The performance monitor connects to the node's PUB address
-    node_config = config.get("node", {})
-    pub_addr = node_config.get("pub_address", "tcp://127.0.0.1:5555")
-    
-    display_config = config.get("display", {})
-    poll_ms = int(display_config.get("poll_ms", 100)) # Poll less frequently than vdisplay
+    settings = _load_perf_settings(logger)
+    pub_addr = str(settings.get("pub_address", "tcp://127.0.0.1:5555"))
+    poll_ms = int(settings.get("poll_ms", 100))
 
     root = tk.Tk()
     app = PerfMonitor(root, sub_addr=pub_addr, poll_ms=poll_ms, logger=logger)

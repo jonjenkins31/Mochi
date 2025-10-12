@@ -1,16 +1,17 @@
 # mochi_vdisplay.py — Minimal Virtual LED Display (Tkinter)
 # This client receives small, logical frames and performs a pixel-perfect upscale.
 
-import os
 import struct
 import time
-import zmq
+from pathlib import Path
+
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 import yaml
 import logging
 import sys
+import zmq
 
 # --- Protocol & transport (must match mochi_node.py) ---
 HEADER_FMT = ">HHQI"   # w,h,uint64 ts_ms,uint32 seq
@@ -18,7 +19,47 @@ HEADER_SIZE = struct.calcsize(HEADER_FMT)
 FRAME_TOPIC = b"frame"
 
 # The root directory of the Mochi project.
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+GUI_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = GUI_DIR.parent
+CONFIG_PATHS = [
+    PROJECT_ROOT / "config.yaml",
+    PROJECT_ROOT / "plugins" / "animation_node" / "config.yaml",
+]
+
+
+def _load_display_settings(logger):
+    settings = {}
+    for path in CONFIG_PATHS:
+        try:
+            with path.open("r", encoding="utf-8") as fh:
+                cfg = yaml.safe_load(fh) or {}
+        except FileNotFoundError:
+            continue
+        except yaml.YAMLError as exc:
+            logger.warning(f"Cannot parse {path}: {exc}")
+            continue
+        except Exception as exc:
+            logger.warning(f"Cannot read {path}: {exc}")
+            continue
+
+        display_cfg = cfg.get("display") or {}
+        node_cfg = cfg.get("node") or {}
+        if display_cfg:
+            settings.setdefault("sub_address", display_cfg.get("sub_address"))
+            settings.setdefault("zoom", display_cfg.get("zoom"))
+            settings.setdefault("poll_ms", display_cfg.get("poll_ms"))
+        if "sub_address" not in settings:
+            if "pub_address" in node_cfg:
+                settings["sub_address"] = node_cfg["pub_address"]
+
+        # If we already have everything we need, stop searching.
+        if {"sub_address", "zoom", "poll_ms"} <= settings.keys():
+            break
+
+    settings.setdefault("sub_address", "tcp://127.0.0.1:5555")
+    settings.setdefault("zoom", 8)
+    settings.setdefault("poll_ms", 5)
+    return settings
 
 class VirtualDisplay:
     def __init__(self, root, sub_addr: str, zoom: int, poll_ms: int, logger):
@@ -142,15 +183,10 @@ def main():
     err_handler = logging.StreamHandler(sys.stderr); err_handler.setLevel(logging.WARNING); err_handler.setFormatter(formatter)
     logger.addHandler(info_handler); logger.addHandler(err_handler)
 
-    try:
-        config_path = os.path.join(PROJECT_ROOT, "config.yaml")
-        with open(config_path, "r") as f: config = yaml.safe_load(f)
-    except Exception as e: logger.error(f"Cannot load config.yaml: {e}"); return
-
-    display_config = config.get("display", {})
-    sub_addr = display_config.get("sub_address", "tcp://127.0.0.1:5555")
-    zoom = int(display_config.get("zoom", 8))
-    poll_ms = int(display_config.get("poll_ms", 5))
+    settings = _load_display_settings(logger)
+    sub_addr = str(settings.get("sub_address", "tcp://127.0.0.1:5555"))
+    zoom = int(settings.get("zoom", 8))
+    poll_ms = int(settings.get("poll_ms", 5))
 
     root = tk.Tk()
     try:
