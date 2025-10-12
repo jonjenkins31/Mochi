@@ -2,7 +2,7 @@
 # A Python/NumPy recreation of the testRects pattern from Adafruit GFX.
 
 import numpy as np
-from core.mochi_animations import Animation
+from plugin_core.mochi_animations import Animation
 
 class TestRects(Animation):
     name = "test_rects"

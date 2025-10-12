@@ -5,6 +5,7 @@ node:
   logical_height: 64
   fps: 60
   pub_address: "tcp://127.0.0.1:5555"
+  pub_backend_address: "tcp://127.0.0.1:5557"
   ctrl_address: "tcp://127.0.0.1:5556"
   default_script: "mscripts/demo_wink.mscript"
 

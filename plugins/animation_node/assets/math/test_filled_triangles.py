@@ -2,8 +2,8 @@
 # A Python/NumPy recreation of the testFilledTriangles pattern from Adafruit GFX.
 
 import numpy as np
-from core.mochi_animations import Animation, clamp8
-from core.gfx import draw_triangle, fill_triangle, parse_color
+from plugin_core.mochi_animations import Animation, clamp8
+from plugin_core.gfx import draw_triangle, fill_triangle, parse_color
 
 class TestFilledTriangles(Animation):
     name = "test_filled_triangles"

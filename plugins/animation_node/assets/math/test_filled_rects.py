@@ -3,7 +3,7 @@
 
 import numpy as np
 import math
-from core.mochi_animations import Animation
+from plugin_core.mochi_animations import Animation
 
 class TestFilledRects(Animation):
     name = "test_filled_rects"

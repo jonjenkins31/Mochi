@@ -10,7 +10,7 @@ import logging
 from importlib import reload
 from typing import Dict, Type, List
 
-from core.mochi_animations import Animation
+from plugin_core.mochi_animations import Animation
 # Import modules to allow for registration and reloading
 from . import bitmap_handler
 from . import media_handler

@@ -23,7 +23,7 @@ Output:
 import numpy as np
 import os
 import json
-from core.mochi_animations import Animation
+from plugin_core.mochi_animations import Animation
 
 class BitmapHandler(Animation):
     """

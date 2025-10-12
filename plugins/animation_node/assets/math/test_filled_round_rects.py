@@ -2,8 +2,8 @@
 # A Python/NumPy recreation of the testFilledRoundRects pattern from Adafruit GFX.
 
 import numpy as np
-from core.mochi_animations import Animation, clamp8
-from core.gfx import fill_round_rect
+from plugin_core.mochi_animations import Animation, clamp8
+from plugin_core.gfx import fill_round_rect
 
 class TestFilledRoundRects(Animation):
     name = "test_filled_round_rects"

@@ -22,7 +22,7 @@ Output:
 
 import os
 import importlib.util
-from core.mochi_animations import Animation
+from plugin_core.mochi_animations import Animation
 
 class MathHandler(Animation):
     """

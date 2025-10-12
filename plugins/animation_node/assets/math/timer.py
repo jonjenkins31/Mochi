@@ -1,7 +1,7 @@
 
 import time
 import numpy as np
-from core.mochi_animations import Animation
+from plugin_core.mochi_animations import Animation
 
 class Timer(Animation):
     name = "timer"

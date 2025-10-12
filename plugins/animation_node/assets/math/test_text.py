@@ -2,8 +2,8 @@
 # A Python/NumPy recreation of the testText pattern from Adafruit GFX.
 
 import numpy as np
-from core.mochi_animations import Animation
-from core.gfx import draw_text
+from plugin_core.mochi_animations import Animation
+from plugin_core.gfx import draw_text
 
 class TestText(Animation):
     name = "test_text"

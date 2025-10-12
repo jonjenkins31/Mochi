@@ -1,5 +1,10 @@
+broker:
+  frontend_addr: "tcp://127.0.0.1:5555"
+  backend_addr: "tcp://127.0.0.1:5557"
+
 node:
   pub_address: "tcp://127.0.0.1:5555"
+  pub_backend_address: "tcp://127.0.0.1:5557"
   ctrl_address: "tcp://127.0.0.1:5556"
 
 gui:

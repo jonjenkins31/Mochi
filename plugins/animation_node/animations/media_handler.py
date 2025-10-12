@@ -26,8 +26,8 @@ Output:
 from __future__ import annotations
 from typing import Optional
 import numpy as np
-from core.mochi_animations import Animation
-from core.media import MediaFrames, decode_image
+from plugin_core.mochi_animations import Animation
+from plugin_core.media import MediaFrames, decode_image
 
 class MediaHandler(Animation):
     """

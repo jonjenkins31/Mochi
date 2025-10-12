@@ -22,7 +22,7 @@ Output:
 import os
 from typing import Tuple
 import numpy as np
-from core.mochi_animations import Animation
+from plugin_core.mochi_animations import Animation
 from PIL import Image
 
 class SpriteHandler(Animation):

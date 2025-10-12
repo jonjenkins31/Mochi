@@ -25,9 +25,9 @@ PLUGIN_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(PLUGIN_ROOT)
 
 from animations import create_animation
-from core.mochi_animations import Animation, Command
-from core.logging_utils import setup_logger
-from core.mscript_engine import MscriptScript
+from plugin_core.mochi_animations import Animation, Command
+from plugin_core.logging_utils import setup_logger
+from plugin_core.mscript_engine import MscriptScript
 from core import zmq_manager # This will be the plugin's own ZMQ handling.
 
 class AnimationNode:
@@ -42,8 +42,10 @@ class AnimationNode:
         self.w = config.get("logical_width", 64)
         self.h = config.get("logical_height", 64)
         self.fps = config.get("fps", 60)
-        self.pub_addr = config.get("pub_address", "tcp://127.0.0.1:5555")
-        self.ctrl_addr = config.get("ctrl_address", "tcp://127.0.0.1:5556")
+        env = os.environ
+        self.pub_addr = env.get("MOCHI_BROKER_XPUB", config.get("pub_address", "tcp://127.0.0.1:5555"))
+        self.pub_backend_addr = env.get("MOCHI_BROKER_XSUB", config.get("pub_backend_address"))
+        self.ctrl_addr = env.get("MOCHI_NODE_CTRL_ADDR", config.get("ctrl_address", "tcp://127.0.0.1:5556"))
         default_script = config.get("default_script")
 
         # Set a fallback animation
@@ -251,9 +253,14 @@ def main():
     pub = ctx.socket(zmq.PUB)
     pub.setsockopt(zmq.LINGER, 0)
     pub.setsockopt(zmq.SNDHWM, 2)
-    pub.bind(node.pub_addr)
+    if node.pub_backend_addr:
+        pub.connect(node.pub_backend_addr)
+        logger.info(f"Publisher connected -> {node.pub_backend_addr}")
+    else:
+        pub.bind(node.pub_addr)
+        logger.info(f"Publisher bound -> {node.pub_addr}")
     time.sleep(0.1)
-    logger.info(f"Publisher bound -> {node.pub_addr}; logical_size={node.w}x{node.h}; FPS={node.fps}")
+    logger.info(f"Publisher ready; logical_size={node.w}x{node.h}; FPS={node.fps}")
 
     # --- Main render loop ---
     seq = 0

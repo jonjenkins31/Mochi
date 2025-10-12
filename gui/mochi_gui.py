@@ -34,7 +34,7 @@ CONFIG_PATHS = [
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
-from plugins.animation_node.core.logging_utils import setup_logger
+from plugins.animation_node.plugin_core.logging_utils import setup_logger
 
 HEALTH_TOPIC = b"health"
 DEFAULT_CTRL_ADDR = "tcp://127.0.0.1:5556"
