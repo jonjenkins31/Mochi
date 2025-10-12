@@ -3,9 +3,11 @@ broker:
   backend_addr: "tcp://127.0.0.1:5557"
 
 node:
+  id: "animation"
   pub_address: "tcp://127.0.0.1:5555"
   pub_backend_address: "tcp://127.0.0.1:5557"
   ctrl_address: "tcp://127.0.0.1:5556"
+  optional_topics: []
 
 gui:
   ctrl_address: "tcp://127.0.0.1:5556"

@@ -16,7 +16,6 @@ import zmq
 # --- Protocol & transport (must match mochi_node.py) ---
 HEADER_FMT = ">HHQI"   # w,h,uint64 ts_ms,uint32 seq
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
-FRAME_TOPIC = b"frame"
 
 # The root directory of the Mochi project.
 GUI_DIR = Path(__file__).resolve().parent
@@ -25,6 +24,11 @@ CONFIG_PATHS = [
     PROJECT_ROOT / "config.yaml",
     PROJECT_ROOT / "plugins" / "animation_node" / "config.yaml",
 ]
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+from core import make_node_topics
 
 
 def _load_display_settings(logger):
@@ -48,9 +52,11 @@ def _load_display_settings(logger):
             settings.setdefault("sub_address", display_cfg.get("sub_address"))
             settings.setdefault("zoom", display_cfg.get("zoom"))
             settings.setdefault("poll_ms", display_cfg.get("poll_ms"))
-        if "sub_address" not in settings:
-            if "pub_address" in node_cfg:
-                settings["sub_address"] = node_cfg["pub_address"]
+        if "sub_address" not in settings and node_cfg.get("pub_address"):
+            settings["sub_address"] = node_cfg["pub_address"]
+
+        if "node_id" not in settings and node_cfg.get("id"):
+            settings["node_id"] = str(node_cfg["id"])
 
         # If we already have everything we need, stop searching.
         if {"sub_address", "zoom", "poll_ms"} <= settings.keys():
@@ -59,14 +65,17 @@ def _load_display_settings(logger):
     settings.setdefault("sub_address", "tcp://127.0.0.1:5555")
     settings.setdefault("zoom", 8)
     settings.setdefault("poll_ms", 5)
+    settings.setdefault("node_id", "animation")
     return settings
 
 class VirtualDisplay:
-    def __init__(self, root, sub_addr: str, zoom: int, poll_ms: int, logger):
+    def __init__(self, root, sub_addr: str, zoom: int, poll_ms: int, node_id: str, logger):
         self.root = root
         self.logger = logger
         self.poll_ms = int(max(1, poll_ms))
         self.zoom = int(max(1, zoom))
+        self.node_id = node_id
+        self.topics = make_node_topics(node_id)
 
         root.title("Mochi Virtual Display — Tk")
         root.bind("q", lambda e: root.destroy())
@@ -99,8 +108,11 @@ class VirtualDisplay:
             self.root.destroy()
             return
             
-        self.sub.setsockopt(zmq.SUBSCRIBE, FRAME_TOPIC)
-        self.status.set(f"SUB -> {sub_addr} topic='{FRAME_TOPIC.decode()}'  |  q/Esc to quit")
+        frame_topic = self.topics.frame
+        self.sub.setsockopt(zmq.SUBSCRIBE, frame_topic)
+        self.status.set(
+            f"SUB -> {sub_addr} topic='{frame_topic.decode()}'  |  q/Esc to quit"
+        )
 
         self._last_t = time.time()
         self._frames = 0
@@ -187,6 +199,7 @@ def main():
     sub_addr = str(settings.get("sub_address", "tcp://127.0.0.1:5555"))
     zoom = int(settings.get("zoom", 8))
     poll_ms = int(settings.get("poll_ms", 5))
+    node_id = str(settings.get("node_id", "animation"))
 
     root = tk.Tk()
     try:
@@ -194,7 +207,14 @@ def main():
         if "aqua" in style.theme_names(): style.theme_use("aqua")
     except Exception: pass
         
-    app = VirtualDisplay(root, sub_addr=sub_addr, zoom=zoom, poll_ms=poll_ms, logger=logger)
+    app = VirtualDisplay(
+        root,
+        sub_addr=sub_addr,
+        zoom=zoom,
+        poll_ms=poll_ms,
+        node_id=node_id,
+        logger=logger,
+    )
     if not root.winfo_exists(): return
 
     root.mainloop()

@@ -1,6 +1,7 @@
 # Mochi Configuration
 
 node:
+  id: "animation"
   logical_width: 64
   logical_height: 64
   fps: 60
@@ -8,6 +9,7 @@ node:
   pub_backend_address: "tcp://127.0.0.1:5557"
   ctrl_address: "tcp://127.0.0.1:5556"
   default_script: "mscripts/demo_wink.mscript"
+  optional_topics: []
 
 gui:
   pub_address: "tcp://127.0.0.1:5556"

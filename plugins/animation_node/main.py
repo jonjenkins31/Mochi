@@ -15,30 +15,45 @@ import yaml
 import os
 import psutil
 import threading
+from typing import Sequence
 import numpy as np
 import zmq
 
 # Since this script is in a subdirectory, we need to add the plugin's root to the Python path
 # to ensure that imports like 'from animations import ...' work correctly.
 import sys
+from pathlib import Path
+from queue import Empty, SimpleQueue
+
 PLUGIN_ROOT = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(PLUGIN_ROOT)
+if PLUGIN_ROOT not in sys.path:
+    sys.path.append(PLUGIN_ROOT)
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT_STR = str(PROJECT_ROOT)
+if PROJECT_ROOT_STR not in sys.path:
+    sys.path.append(PROJECT_ROOT_STR)
 
 from animations import create_animation
 from plugin_core.mochi_animations import Animation, Command
 from plugin_core.logging_utils import setup_logger
 from plugin_core.mscript_engine import MscriptScript
-from core import zmq_manager # This will be the plugin's own ZMQ handling.
+from plugin_core import zmq_manager  # This will be the plugin's own ZMQ handling.
+from core import describe_node_catalog, make_node_topics
 
 class AnimationNode:
-    """
-    Manages the state and logic for rendering animations.
-    """
-    def __init__(self, config, project_root):
-        self.logger = logging.getLogger("AnimationNode")
-        self.project_root = project_root
+    """Manages the state and logic for rendering animations."""
 
-        # Load configuration
+    def __init__(self, node_id: str, config: dict, project_root: str, optional_topics: Sequence[bytes] | None = None):
+        self.project_root = project_root
+        self.node_id = node_id
+        self.topics = make_node_topics(node_id)
+        self.optional_topics = tuple(optional_topics or ())
+        zmq_manager.configure_topics(self.topics, optional_topics=self.optional_topics)
+
+        self.logger = logging.getLogger(f"AnimationNode[{self.node_id}]")
+
+        # Configuration & transport endpoints
         self.w = config.get("logical_width", 64)
         self.h = config.get("logical_height", 64)
         self.fps = config.get("fps", 60)
@@ -46,28 +61,88 @@ class AnimationNode:
         self.pub_addr = env.get("MOCHI_BROKER_XPUB", config.get("pub_address", "tcp://127.0.0.1:5555"))
         self.pub_backend_addr = env.get("MOCHI_BROKER_XSUB", config.get("pub_backend_address"))
         self.ctrl_addr = env.get("MOCHI_NODE_CTRL_ADDR", config.get("ctrl_address", "tcp://127.0.0.1:5556"))
-        default_script = config.get("default_script")
+        self.default_script = config.get("default_script")
 
-        # Set a fallback animation
+        self.anim: Animation | None = None
+        self.current_mode = None
+        self.keyframes: dict[int, Animation] = {}
+        self.script: MscriptScript | None = None
+        self._event_queue: SimpleQueue[dict] = SimpleQueue()
+
+        self._install_fallback()
+        self._load_default_script()
+
+    # ------------------------------------------------------------------
+    # Helpers
+    def _install_fallback(self):
         light_blue = (173, 216, 230)
         self.anim = SolidColorAnimation(self.w, self.h, color=light_blue)
         self.current_mode = "solid_color"
-        self.keyframes: dict[int, Animation] = {}
         self.logger.info(f"Defaulting to solid color {light_blue}")
+        self.enqueue_event("mode.changed", mode=self.current_mode, reason="fallback")
 
-        # Load default script if specified
-        self.script = None
-        if default_script:
-            self.logger.info(f"Loading default script: {default_script}")
-            try:
-                script_path = os.path.join(self.project_root, default_script)
-                self.script = MscriptScript(script_path)
-                self.logger.info(f"Default script '{default_script}' loaded successfully.")
-            except Exception as e:
-                self.logger.error(f"Failed to load default script '{default_script}': {e}")
+    def _load_default_script(self):
+        if not self.default_script:
+            return
+        self.logger.info(f"Loading default script: {self.default_script}")
+        try:
+            script_path = os.path.join(self.project_root, self.default_script)
+            self.script = MscriptScript(script_path)
+            self.enqueue_event("script.started", script=self.default_script, source="config")
+            self.logger.info(f"Default script '{self.default_script}' loaded successfully.")
+        except Exception as exc:
+            self.enqueue_event("script.error", script=self.default_script, message=str(exc))
+            self.logger.error(f"Failed to load default script '{self.default_script}': {exc}")
 
+    # ------------------------------------------------------------------
+    def enqueue_event(self, event_type: str, **data):
+        payload = {
+            "schema": "mochi.node.event.v1",
+            "node_id": self.node_id,
+            "event": event_type,
+            "timestamp_ms": int(time.time() * 1000),
+            "data": data,
+        }
+        self._event_queue.put(payload)
+
+    def poll_event(self) -> dict | None:
+        try:
+            return self._event_queue.get_nowait()
+        except Empty:
+            return None
+
+    def build_meta_payload(self) -> dict:
+        payload = describe_node_catalog(self.topics, self.optional_topics)
+        payload.update(
+            {
+                "timestamp_ms": int(time.time() * 1000),
+                "logical_size": {"width": self.w, "height": self.h},
+                "fps_target": self.fps,
+                "addresses": {
+                    "pub_frontend": self.pub_addr,
+                    "pub_backend": self.pub_backend_addr,
+                    "ctrl": self.ctrl_addr,
+                },
+            }
+        )
+        return payload
+
+    def build_health_payload(self, seq: int, tx_rate_mbps: float, rss_bytes: int) -> dict:
+        return {
+            "schema": "mochi.node.health.v1",
+            "node_id": self.node_id,
+            "timestamp_ms": int(time.time() * 1000),
+            "sequence": seq,
+            "logical_size": {"width": self.w, "height": self.h},
+            "fps_target": self.fps,
+            "mode": self.current_mode or "?",
+            "memory_mb": rss_bytes / (1024 * 1024),
+            "tx_rate_mbps": tx_rate_mbps,
+        }
+
+    # ------------------------------------------------------------------
     def process_command(self, msg):
-        """Processes an incoming command from either ZMQ or a running script."""
+        """Process an incoming command from either ZMQ or a running script."""
         if isinstance(msg, Command):
             self._process_script_command(msg)
             return
@@ -76,7 +151,8 @@ class AnimationNode:
             return
 
         parts = msg.strip().split()
-        if not parts: return
+        if not parts:
+            return
         cmd = parts[0].lower()
         self.logger.info(f"Ctrl: Received command: {msg}")
 
@@ -85,11 +161,13 @@ class AnimationNode:
                 name = " ".join(parts[1:])
                 new = create_animation(name, self.w, self.h)
                 self.anim, self.current_mode = new, name
+                self.enqueue_event("mode.changed", mode=name, source="ctrl")
                 self.logger.info(f"Ctrl: mode -> {name}")
             elif cmd == "size" and len(parts) == 2 and "x" in parts[1].lower():
                 w_str, h_str = parts[1].lower().split("x", 1)
                 new_w, new_h = int(w_str), int(h_str)
                 self.w, self.h = new_w, new_h
+                self.enqueue_event("size.changed", width=new_w, height=new_h, source="ctrl")
                 self.logger.info(f"Ctrl: resized to {new_w}x{new_h}")
                 if self.current_mode:
                     new_anim = create_animation(self.current_mode, new_w, new_h)
@@ -97,23 +175,29 @@ class AnimationNode:
                     self.logger.info(f"Reloaded animation '{self.current_mode}' with new size.")
             elif cmd == "color" and len(parts) == 4 and self.anim:
                 r, g, b = map(int, parts[1:])
-                if hasattr(self.anim, 'set_color'):
-                    self.anim.set_color((r,g,b))
+                if hasattr(self.anim, "set_color"):
+                    self.anim.set_color((r, g, b))
+                    self.enqueue_event("color.changed", rgb=(r, g, b), source="ctrl")
             elif cmd == "play" and len(parts) >= 2:
-                path = os.path.join(self.project_root, " ".join(parts[1:]))
+                script_rel = " ".join(parts[1:])
+                path = os.path.join(self.project_root, script_rel)
                 self.script = MscriptScript(path)
+                self.enqueue_event("script.started", script=script_rel, source="ctrl")
                 self.logger.info(f"Ctrl: Started script '{path}'")
             elif cmd == "stop":
                 if self.script:
                     self.logger.info("Ctrl: Script stopped by command")
+                    self.enqueue_event("script.stopped", source="ctrl")
                     self.script = None
             else:
+                self.enqueue_event("command.unknown", command=msg)
                 self.logger.warning(f"Ctrl: unknown command: {msg}")
-        except Exception as e:
-            self.logger.error(f"CTRL parse error: {e}")
+        except Exception as exc:
+            self.enqueue_event("command.error", command=msg, message=str(exc))
+            self.logger.error(f"CTRL parse error: {exc}")
 
     def _process_script_command(self, command: Command):
-        """Handles structured commands emitted by an active script."""
+        """Handle structured commands emitted by an active script."""
         name = (command.name or "").upper()
         args = dict(command.args or {})
 
@@ -127,7 +211,6 @@ class AnimationNode:
                 self.logger.warning(f"Script: invalid key id '{key_id}' for command {name}")
                 key_int = None
 
-        # Separate event commands from animation loads
         event_name = args.pop("EVENT", None)
 
         if event_name and key_int is not None:
@@ -138,20 +221,22 @@ class AnimationNode:
             try:
                 payload_args = {k: v for k, v in args.items() if k != "K"}
                 target_anim.on_event(event_name, **payload_args)
-                self.anim = target_anim  # Ensure the active animation is in sync
+                self.anim = target_anim
                 self.current_mode = f"{name}[{key_int}]"
-            except Exception as e:
-                self.logger.error(f"Script: event '{event_name}' failed for key {key_int}: {e}")
+                self.enqueue_event("animation.event", animation=self.current_mode, event=event_name, args=payload_args)
+            except Exception as exc:
+                self.enqueue_event("animation.error", animation=self.current_mode, message=str(exc))
+                self.logger.error(f"Script: event '{event_name}' failed for key {key_int}: {exc}")
             return
 
-        # Prepare kwargs for the animation factory
         anim_kwargs = {k: v for k, v in args.items() if k != "K"}
         anim_kwargs["resolve_dir"] = self.project_root
 
         try:
             new_anim = create_animation(name, self.w, self.h, **anim_kwargs)
-        except Exception as e:
-            self.logger.error(f"Script: failed to create animation '{name}' with args {anim_kwargs}: {e}")
+        except Exception as exc:
+            self.enqueue_event("animation.error", animation=name, message=str(exc))
+            self.logger.error(f"Script: failed to create animation '{name}' with args {anim_kwargs}: {exc}")
             return
 
         if key_int is not None:
@@ -159,23 +244,24 @@ class AnimationNode:
 
         self.anim = new_anim
         self.current_mode = f"{name}[{key_int}]" if key_int is not None else name
+        self.enqueue_event("mode.changed", mode=self.current_mode, source="script")
 
     def update(self, timestamp):
-        """Updates the active script."""
+        """Update the active script."""
         if self.script:
             due_commands = self.script.update(timestamp)
             for command in due_commands:
-                # Process script commands internally
                 self.process_command(command)
 
     def render(self, timestamp):
-        """Renders the current animation into a pixel buffer."""
+        """Render the current animation into a pixel buffer."""
         zmq_manager.ensure_buffers(self.w, self.h)
         try:
             self.anim.render_into(timestamp, zmq_manager.pixel_buf)
-        except Exception as e:
-            self.logger.error(f"frame() error from '{self.current_mode}': {e}")
-            error_color_bytes = b'\x80\x00\x00'
+        except Exception as exc:
+            self.enqueue_event("frame.error", animation=self.current_mode, message=str(exc))
+            self.logger.error(f"frame() error from '{self.current_mode}': {exc}")
+            error_color_bytes = b"\x80\x00\x00"
             zmq_manager.pixel_buf[:] = error_color_bytes * (self.w * self.h)
         return zmq_manager.pixel_buf
 
@@ -204,7 +290,26 @@ def main():
         return
 
     node_config = config.get("node", {})
-    node = AnimationNode(node_config, PLUGIN_ROOT)
+
+    node_id = os.environ.get("MOCHI_NODE_ID") or node_config.get("id") or "animation"
+
+    optional_topics_cfg = node_config.get("optional_topics", []) or []
+    optional_topics_env = os.environ.get("MOCHI_NODE_OPTIONAL_TOPICS", "")
+    if optional_topics_env:
+        optional_topics_cfg = list(optional_topics_cfg) + [t.strip() for t in optional_topics_env.split(",") if t.strip()]
+    optional_topics: list[bytes] = []
+    for entry in optional_topics_cfg:
+        if isinstance(entry, bytes):
+            optional_topics.append(entry)
+        elif isinstance(entry, str):
+            optional_topics.append(entry.encode("utf-8"))
+        else:
+            logger.warning(f"Ignoring optional topic with unsupported type: {entry!r}")
+
+    if optional_topics:
+        optional_topics = list(dict.fromkeys(optional_topics))
+
+    node = AnimationNode(node_id, node_config, PLUGIN_ROOT, optional_topics=optional_topics)
 
     process = psutil.Process(os.getpid())
     shutdown_evt = threading.Event()
@@ -260,7 +365,15 @@ def main():
         pub.bind(node.pub_addr)
         logger.info(f"Publisher bound -> {node.pub_addr}")
     time.sleep(0.1)
-    logger.info(f"Publisher ready; logical_size={node.w}x{node.h}; FPS={node.fps}")
+    meta_payload = node.build_meta_payload()
+    pub.send_multipart([node.topics.meta, json.dumps(meta_payload).encode("utf-8")])
+    logger.info(
+        "Publisher ready; logical_size=%dx%d; FPS=%s; meta=%s",
+        node.w,
+        node.h,
+        node.fps,
+        node.topics.meta.decode("utf-8"),
+    )
 
     # --- Main render loop ---
     seq = 0
@@ -283,21 +396,23 @@ def main():
             rendered_pixels = node.render(time.time())
             
             packed_bytes = zmq_manager.pack_frame(node.w, node.h, seq, rendered_pixels)
-            pub.send_multipart([zmq_manager.FRAME_TOPIC, packed_bytes], copy=False)
+            pub.send_multipart([node.topics.frame, packed_bytes], copy=False)
             bytes_sent_since_health += len(packed_bytes)
+
+            # Flush any pending event payloads
+            while True:
+                event_payload = node.poll_event()
+                if not event_payload:
+                    break
+                pub.send_multipart([node.topics.event, json.dumps(event_payload).encode("utf-8")])
 
             now_wall = time.time()
             if now_wall - last_health_t >= 1.0:
                 mem_info = process.memory_info()
-                tx_rate_mbps = (bytes_sent_since_health / (now_wall - last_health_t)) / (1024*1024) if now_wall > last_health_t else 0
-                hb = {
-                    "ts": int(now_wall * 1000), "seq": seq,
-                    "w": node.w, "h": node.h,
-                    "fps": node.fps, "mode": node.current_mode or "?",
-                    "mem_mb": mem_info.rss / (1024 * 1024),
-                    "tx_rate_mbps": tx_rate_mbps
-                }
-                pub.send_multipart([zmq_manager.HEALTH_TOPIC, json.dumps(hb).encode("utf-8")])
+                elapsed = max(1e-6, now_wall - last_health_t)
+                tx_rate_mbps = (bytes_sent_since_health / elapsed) / (1024 * 1024)
+                hb = node.build_health_payload(seq, tx_rate_mbps, mem_info.rss)
+                pub.send_multipart([node.topics.health, json.dumps(hb).encode("utf-8")])
                 last_health_t = now_wall
                 bytes_sent_since_health = 0
 
@@ -305,6 +420,16 @@ def main():
             next_frame += dt
     finally:
         shutdown_evt.set()
+        node.enqueue_event("node.stopping", reason="shutdown")
+        try:
+            while True:
+                pending = node.poll_event()
+                if not pending:
+                    break
+                pub.send_multipart([node.topics.event, json.dumps(pending).encode("utf-8")])
+        except Exception:
+            pass
+
         logger.info("Shutting down plugin.")
         try:
             pub.close()

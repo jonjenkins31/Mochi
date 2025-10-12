@@ -12,8 +12,6 @@ import yaml
 import zmq
 
 # --- Constants ---
-HEALTH_TOPIC = b"health"
-
 # The root directory of the Mochi project.
 GUI_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = GUI_DIR.parent
@@ -21,6 +19,11 @@ CONFIG_PATHS = [
     PROJECT_ROOT / "config.yaml",
     PROJECT_ROOT / "plugins" / "animation_node" / "config.yaml",
 ]
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+from core import make_node_topics
 
 
 def _load_perf_settings(logger):
@@ -42,6 +45,8 @@ def _load_perf_settings(logger):
         display_cfg = cfg.get("display") or {}
         if "pub_address" in node_cfg and "pub_address" not in settings:
             settings["pub_address"] = node_cfg["pub_address"]
+        if "id" in node_cfg and "node_id" not in settings:
+            settings["node_id"] = str(node_cfg["id"])
         if "poll_ms" in display_cfg and "poll_ms" not in settings:
             settings["poll_ms"] = display_cfg["poll_ms"]
 
@@ -50,14 +55,17 @@ def _load_perf_settings(logger):
 
     settings.setdefault("pub_address", "tcp://127.0.0.1:5555")
     settings.setdefault("poll_ms", 100)
+    settings.setdefault("node_id", "animation")
     return settings
 
 class PerfMonitor:
-    def __init__(self, root, sub_addr: str, poll_ms: int, logger):
+    def __init__(self, root, sub_addr: str, poll_ms: int, node_id: str, logger):
         self.root = root
         self.logger = logger
         self.poll_ms = poll_ms
         self._closed = False
+        self.node_id = node_id
+        self.node_topics = make_node_topics(node_id)
 
         root.title("Mochi Performance Monitor")
         root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -70,8 +78,9 @@ class PerfMonitor:
         self.sub.setsockopt(zmq.RCVHWM, 1)
         try:
             self.sub.connect(sub_addr)
-            self.sub.setsockopt(zmq.SUBSCRIBE, HEALTH_TOPIC)
-            logger.info(f"Health subscriber connected to {sub_addr}")
+            topic = self.node_topics.health
+            self.sub.setsockopt(zmq.SUBSCRIBE, topic)
+            logger.info(f"Health subscriber connected to {sub_addr} topic={topic.decode('utf-8')}")
         except Exception as e:
             logger.error(f"Failed to connect ZMQ subscriber: {e}")
             self.root.destroy()
@@ -116,12 +125,21 @@ class PerfMonitor:
         self.root.after(self.poll_ms, self.poll_health)
 
     def update_metrics(self, data):
-        self.metrics["Node Size"].set(f"{data.get('w', '?')} x {data.get('h', '?')}")
-        self.metrics["Mode"].set(data.get('mode', '?'))
-        self.metrics["FPS"].set(f"{data.get('fps', 0)}")
-        self.metrics["Frame Seq"].set(f"{data.get('seq', 0)}")
-        self.metrics["Memory (MB)"].set(f"{data.get('mem_mb', 0):.2f}")
-        self.metrics["Tx Rate (MB/s)"].set(f"{data.get('tx_rate_mbps', 0):.3f}")
+        size_block = data.get("logical_size", {})
+        width = size_block.get("width", data.get("w", "?"))
+        height = size_block.get("height", data.get("h", "?"))
+        mode = data.get("mode", "?")
+        fps_target = data.get("fps_target", data.get("fps", 0))
+        seq = data.get("sequence", data.get("seq", 0))
+        memory_mb = data.get("memory_mb", data.get("mem_mb", 0.0))
+        tx_rate = data.get("tx_rate_mbps", 0.0)
+
+        self.metrics["Node Size"].set(f"{width} x {height}")
+        self.metrics["Mode"].set(mode)
+        self.metrics["FPS"].set(f"{fps_target}")
+        self.metrics["Frame Seq"].set(f"{seq}")
+        self.metrics["Memory (MB)"].set(f"{memory_mb:.2f}")
+        self.metrics["Tx Rate (MB/s)"].set(f"{tx_rate:.3f}")
 
     def _on_close(self):
         self._closed = True
@@ -142,9 +160,10 @@ def main():
     settings = _load_perf_settings(logger)
     pub_addr = str(settings.get("pub_address", "tcp://127.0.0.1:5555"))
     poll_ms = int(settings.get("poll_ms", 100))
+    node_id = str(settings.get("node_id", "animation"))
 
     root = tk.Tk()
-    app = PerfMonitor(root, sub_addr=pub_addr, poll_ms=poll_ms, logger=logger)
+    app = PerfMonitor(root, sub_addr=pub_addr, poll_ms=poll_ms, node_id=node_id, logger=logger)
     if not root.winfo_exists(): return
     root.mainloop()
 

@@ -34,9 +34,10 @@ CONFIG_PATHS = [
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
+from core import make_node_topics
+
 from plugins.animation_node.plugin_core.logging_utils import setup_logger
 
-HEALTH_TOPIC = b"health"
 DEFAULT_CTRL_ADDR = "tcp://127.0.0.1:5556"
 DEFAULT_HEALTH_ADDR = "tcp://127.0.0.1:5555"
 
@@ -71,12 +72,14 @@ def _lookup(configs, keys, default=None):
 
 
 class MochiGUI:
-    def __init__(self, root, ctrl_addr: str, health_sub_addr: str, logger: logging.Logger):
+    def __init__(self, root, ctrl_addr: str, health_sub_addr: str, node_id: str, logger: logging.Logger):
         self.root = root
         self.logger = logger
         root.title("Mochi Manual Control — Tk")
         self.ctrl_addr = ctrl_addr
         self.health_sub_addr = health_sub_addr
+        self.node_id = node_id
+        self.node_topics = make_node_topics(node_id)
         self._processes: list[subprocess.Popen] = []
 
         # --- ZMQ command socket ---
@@ -302,8 +305,13 @@ class MochiGUI:
         sub.setsockopt(zmq.RCVHWM, 1)
         try:
             sub.connect(self.health_sub_addr)
-            sub.setsockopt(zmq.SUBSCRIBE, HEALTH_TOPIC)
-            self.logger.info(f"Health subscriber connected -> {self.health_sub_addr}")
+            topic = self.node_topics.health
+            sub.setsockopt(zmq.SUBSCRIBE, topic)
+            self.logger.info(
+                "Health subscriber connected -> %s topic=%s",
+                self.health_sub_addr,
+                topic.decode("utf-8"),
+            )
         except Exception as exc:
             self.logger.error(f"Failed to connect health subscriber: {exc}")
             self.health_queue.put({"error": str(exc)})
@@ -328,11 +336,19 @@ class MochiGUI:
                 if "error" in data:
                     self.status.set(f"Health error: {data['error']}")
                     continue
-                self.status_metrics["Mode"].set(data.get("mode", "?"))
-                self.status_metrics["Size"].set(f"{data.get('w', '?')}x{data.get('h', '?')}")
-                self.status_metrics["FPS"].set(f"{data.get('fps', 0)}")
-                self.status_metrics["Mem (MB)"].set(f"{data.get('mem_mb', 0):.2f}")
-                self.status_metrics["Tx (MB/s)"].set(f"{data.get('tx_rate_mbps', 0):.3f}")
+                mode = data.get("mode") or data.get("data", {}).get("mode")
+                size_block = data.get("logical_size", {})
+                width = size_block.get("width", data.get("w", "?"))
+                height = size_block.get("height", data.get("h", "?"))
+                fps_target = data.get("fps_target", data.get("fps", 0))
+                memory_mb = data.get("memory_mb", data.get("mem_mb", 0.0))
+                tx_rate = data.get("tx_rate_mbps", 0.0)
+
+                self.status_metrics["Mode"].set(mode or "?")
+                self.status_metrics["Size"].set(f"{width}x{height}")
+                self.status_metrics["FPS"].set(f"{fps_target}")
+                self.status_metrics["Mem (MB)"].set(f"{memory_mb:.2f}")
+                self.status_metrics["Tx (MB/s)"].set(f"{tx_rate:.3f}")
         except Empty:
             pass
         finally:
@@ -358,8 +374,11 @@ def main():
     if ctrl_addr == DEFAULT_CTRL_ADDR:
         ctrl_addr = _lookup(configs, ("gui", "pub_address"), ctrl_addr)
         ctrl_addr = _lookup(configs, ("node", "ctrl_address"), ctrl_addr)
+    ctrl_addr = str(ctrl_addr)
 
-    health_sub_addr = _lookup(configs, ("node", "pub_address"), DEFAULT_HEALTH_ADDR)
+    health_sub_addr = str(_lookup(configs, ("node", "pub_address"), DEFAULT_HEALTH_ADDR))
+
+    node_id = str(_lookup(configs, ("node", "id"), "animation"))
 
     root = tk.Tk()
     try:
@@ -369,7 +388,13 @@ def main():
     except Exception:
         pass
 
-    app = MochiGUI(root, ctrl_addr=str(ctrl_addr), health_sub_addr=str(health_sub_addr), logger=logger)
+    app = MochiGUI(
+        root,
+        ctrl_addr=ctrl_addr,
+        health_sub_addr=health_sub_addr,
+        node_id=node_id,
+        logger=logger,
+    )
     if not root.winfo_exists():
         return
 

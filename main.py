@@ -103,6 +103,7 @@ def run_host():
     xpub_addr = str(broker_cfg.get("frontend_addr") or node_cfg.get("pub_address") or DEFAULT_XPUB)
     xsub_addr = str(broker_cfg.get("backend_addr") or os.environ.get("MOCHI_BROKER_XSUB") or DEFAULT_XSUB)
     ctrl_addr = str(node_cfg.get("ctrl_address") or DEFAULT_CTRL)
+    node_id = str(node_cfg.get("id") or os.environ.get("MOCHI_NODE_ID") or "animation")
 
     broker_process: Optional[subprocess.Popen] = None
     plugin_process: Optional[subprocess.Popen] = None
@@ -113,6 +114,7 @@ def run_host():
             "MOCHI_BROKER_XPUB": xpub_addr,
             "MOCHI_BROKER_XSUB": xsub_addr,
             "MOCHI_NODE_CTRL_ADDR": ctrl_addr,
+            "MOCHI_NODE_ID": node_id,
         }
         plugin_process = launch_animation_node(extra_env=plugin_env)
         print(f"Animation Node plugin started with PID: {plugin_process.pid}")
