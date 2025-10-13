@@ -10,7 +10,7 @@ The host reads `config.yaml` and launches a broker plus the animation node. Key 
 - **Broker backend (`broker.backend_addr`)** – XSUB side, all publishers connect here.
 - **Control (`node.ctrl_address`)** – PUSH/PULL channel for textual commands.
 
-The host propagates the chosen addresses to plugins via environment variables so they do not need to hard-code ports.
+The host propagates the chosen addresses to plugins via environment variables so they do not need to hard-code ports. Control messages can be targeted to a specific node by prefixing commands with `node <id>`, for example `node animation mode on solid_color`.
 
 ## Topic Naming
 
@@ -21,6 +21,8 @@ sys.<area>.<name>        # host/broker signals
 node.<id>.<signal>       # required per-node topics
 ext.<feature>.<signal>   # optional cross-node channels
 ```
+
+The host monitor subscribes to `node.*` topics and exposes the latest health/meta/event state over a REP socket (see `monitor.rep_address` in `config.yaml`). Clients can issue `GET health`, `GET meta`, or `GET event <node_id>` requests to retrieve cached data without maintaining their own subscriptions.
 
 ### Required Topics (`node.<id>.*`)
 

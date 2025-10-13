@@ -120,9 +120,41 @@ class MochiGUI:
             col += 2
         status_frame.grid_columnconfigure(11, weight=1)
 
-        # Row 1: MochiScript selection
+        # Row 1: Nodes overview and controls
+        self.node_data: dict[str, dict] = {}
+        self.selected_node: str | None = None
+
+        nodes_frame = ttk.LabelFrame(outer, text="Nodes")
+        nodes_frame.grid(row=1, column=0, sticky="nsew", pady=4)
+        columns = ("node", "mode", "size", "fps", "mem", "tx")
+        self.node_table = ttk.Treeview(nodes_frame, columns=columns, show="headings", height=4)
+        headings = {
+            "node": "Node",
+            "mode": "Mode",
+            "size": "Size",
+            "fps": "FPS",
+            "mem": "Mem (MB)",
+            "tx": "Tx (MB/s)",
+        }
+        for col in columns:
+            self.node_table.heading(col, text=headings[col])
+            self.node_table.column(col, anchor=tk.W, stretch=True, width=90)
+        self.node_table.pack(fill=tk.BOTH, expand=True, padx=6, pady=(6, 2))
+        self.node_table.bind("<<TreeviewSelect>>", self._on_node_select)
+
+        node_ctrl = ttk.Frame(nodes_frame)
+        node_ctrl.pack(fill=tk.X, padx=6, pady=(0, 6))
+        ttk.Label(node_ctrl, text="Mode:").pack(side=tk.LEFT)
+        self.node_mode_var = tk.StringVar(value="")
+        node_entry = ttk.Entry(node_ctrl, textvariable=self.node_mode_var, width=24)
+        node_entry.pack(side=tk.LEFT, padx=(4, 8))
+        ttk.Button(node_ctrl, text="Turn On", command=self.command_mode_on).pack(side=tk.LEFT, padx=2)
+        ttk.Button(node_ctrl, text="Turn Off", command=self.command_mode_off).pack(side=tk.LEFT, padx=2)
+        ttk.Button(node_ctrl, text="Reset", command=self.command_mode_reset).pack(side=tk.LEFT, padx=2)
+
+        # Row 2: MochiScript selection
         mscript_frame = ttk.LabelFrame(outer, text="MochiScript Control (.mscript)")
-        mscript_frame.grid(row=1, column=0, sticky="ew", pady=4)
+        mscript_frame.grid(row=2, column=0, sticky="ew", pady=4)
 
         self.mscript_var = tk.StringVar()
         try:
@@ -143,27 +175,39 @@ class MochiGUI:
         ttk.Button(mscript_frame, text="Stop", command=self.stop_script).grid(row=0, column=2, padx=6, pady=6)
         mscript_frame.grid_columnconfigure(0, weight=1)
 
-        # Row 2: Color picker
+        # Row 3: Color picker
         color_row = ttk.LabelFrame(outer, text="Color Control")
-        color_row.grid(row=2, column=0, sticky="ew", pady=4)
+        color_row.grid(row=3, column=0, sticky="ew", pady=4)
         self.color_preview = tk.Canvas(color_row, width=32, height=20, highlightthickness=1, highlightbackground="#888")
         self.color_preview.grid(row=0, column=0, padx=(8, 4), pady=6)
         ttk.Button(color_row, text="Pick Color…", command=self.pick_color).grid(row=0, column=1, padx=6, pady=6, sticky="w")
         self.rgb_var = tk.StringVar(value="255 120 40")
         ttk.Entry(color_row, textvariable=self.rgb_var, width=12).grid(row=0, column=2, padx=6, pady=6, sticky="w")
         ttk.Button(color_row, text="Send", command=self.send_color_from_entry).grid(row=0, column=3, padx=6, pady=6)
+        ttk.Label(color_row, text="Target:").grid(row=0, column=4, padx=(12, 4), pady=6, sticky="w")
+        self.color_target_var = tk.StringVar(value="current")
+        self.color_target_combo = ttk.Combobox(
+            color_row,
+            textvariable=self.color_target_var,
+            values=("current", "solid_color"),
+            state="readonly",
+            width=12,
+        )
+        self.color_target_combo.grid(row=0, column=5, padx=6, pady=6, sticky="w")
+        self.color_target_combo.current(0)
+        color_row.grid_columnconfigure(6, weight=1)
 
-        # Row 3: Matrix size
+        # Row 4: Matrix size
         size_row = ttk.LabelFrame(outer, text="Matrix Size (WxH)")
-        size_row.grid(row=3, column=0, sticky="ew", pady=4)
+        size_row.grid(row=4, column=0, sticky="ew", pady=4)
         self.size_var = tk.StringVar(value="64x64")
         ttk.Entry(size_row, textvariable=self.size_var, width=10).grid(row=0, column=0, padx=6, pady=6)
         ttk.Button(size_row, text="Apply", command=self.send_size).grid(row=0, column=1, padx=6, pady=6)
         ttk.Label(size_row, text="Example: 64x32").grid(row=0, column=2, padx=6, pady=6)
 
-        # Row 4: Raw command
+        # Row 5: Raw command
         raw = ttk.LabelFrame(outer, text="Raw Command")
-        raw.grid(row=4, column=0, sticky="ew", pady=4)
+        raw.grid(row=5, column=0, sticky="ew", pady=4)
         self.cmd_var = tk.StringVar(value="")
         entry = ttk.Entry(raw, textvariable=self.cmd_var)
         entry.grid(row=0, column=0, padx=6, pady=6, sticky="ew")
@@ -173,16 +217,16 @@ class MochiGUI:
         )
         raw.grid_columnconfigure(0, weight=1)
 
-        # Row 5: Launchers
+        # Row 6: Launchers
         launch_frame = ttk.LabelFrame(outer, text="Launch Tools")
-        launch_frame.grid(row=5, column=0, sticky="ew", pady=4)
+        launch_frame.grid(row=6, column=0, sticky="ew", pady=4)
         ttk.Button(launch_frame, text="Launch Virtual Display", command=self.launch_vdisplay).pack(side=tk.LEFT, padx=6, pady=6)
         ttk.Button(launch_frame, text="Launch Performance Monitor", command=self.launch_perf_monitor).pack(side=tk.LEFT, padx=6, pady=6)
         ttk.Button(launch_frame, text="Launch Sprite Editor", command=self.launch_sprite_editor).pack(side=tk.LEFT, padx=6, pady=6)
 
-        # Row 6: Footer
+        # Row 7: Footer
         footer = ttk.Frame(outer)
-        footer.grid(row=6, column=0, sticky="ew", pady=(8, 0))
+        footer.grid(row=7, column=0, sticky="ew", pady=(8, 0))
         self.status = tk.StringVar(value="Ready")
         ttk.Label(footer, textvariable=self.status).pack(side=tk.LEFT)
         ttk.Button(footer, text="Quit Node", command=lambda: self.send("quit")).pack(side=tk.RIGHT)
@@ -225,6 +269,17 @@ class MochiGUI:
             self.status.set(f"Error: {exc}")
             self.logger.error(f"Failed to send command: {exc}")
 
+    def _send_node_command(self, command: str, *, require_selection: bool = False) -> bool:
+        node_id = self._selected_node_id()
+        if node_id is None:
+            node_id = self.node_id
+            if require_selection:
+                messagebox.showwarning("No node", "Select a node to control.")
+                return False
+        msg = f"node {node_id} {command}"
+        self.send(msg)
+        return True
+
     def pick_color(self) -> None:
         rgb_tuple, _ = colorchooser.askcolor(title="Choose Bars Color")
         if not rgb_tuple:
@@ -232,7 +287,7 @@ class MochiGUI:
         r, g, b = (int(rgb_tuple[0]), int(rgb_tuple[1]), int(rgb_tuple[2]))
         self.rgb_var.set(f"{r} {g} {b}")
         self._set_preview_color(r, g, b)
-        self.send(f"color {r} {g} {b}")
+        self._send_color_command(r, g, b)
 
     def send_color_from_entry(self) -> None:
         try:
@@ -244,11 +299,90 @@ class MochiGUI:
             messagebox.showerror("Invalid color", "Enter RGB as three integers: e.g. 255 120 40")
             return
         self._set_preview_color(r, g, b)
-        self.send(f"color {r} {g} {b}")
+        self._send_color_command(r, g, b)
+
+    def _selected_node_id(self) -> str | None:
+        selection = self.node_table.selection()
+        if not selection:
+            return None
+        return selection[0]
+
+    def command_mode_on(self) -> None:
+        mode = self.node_mode_var.get().strip()
+        if not mode:
+            messagebox.showwarning("No mode", "Enter a mode name to activate.")
+            return
+        self._send_node_command(f"mode on {mode}", require_selection=True)
+
+    def command_mode_off(self) -> None:
+        if not self._send_node_command("mode off", require_selection=True):
+            return
+
+    def command_mode_reset(self) -> None:
+        mode = self.node_mode_var.get().strip()
+        if mode:
+            self._send_node_command(f"mode reset {mode}", require_selection=True)
+        else:
+            self._send_node_command("mode reset", require_selection=True)
+
+    def _on_node_select(self, _event=None) -> None:
+        node_id = self._selected_node_id()
+        if not node_id:
+            return
+        self.selected_node = node_id
+        data = self.node_data.get(node_id, {})
+        mode = data.get("mode") or ""
+        self.node_mode_var.set(mode)
+
+    def _update_node_row(self, data: dict) -> None:
+        node_id = str(data.get("node_id", self.node_id))
+        size_block = data.get("logical_size", {})
+        width = size_block.get("width", data.get("w", "?"))
+        height = size_block.get("height", data.get("h", "?"))
+        mode = data.get("mode") or data.get("data", {}).get("mode") or ""
+        fps_target = data.get("fps_target", data.get("fps", 0))
+        memory_mb = float(data.get("memory_mb", data.get("mem_mb", 0.0)) or 0.0)
+        tx_rate = float(data.get("tx_rate_mbps", 0.0) or 0.0)
+
+        values = (
+            node_id,
+            mode,
+            f"{width}x{height}",
+            f"{fps_target}",
+            f"{memory_mb:.2f}",
+            f"{tx_rate:.3f}",
+        )
+
+        if node_id in self.node_data:
+            self.node_table.item(node_id, values=values)
+        else:
+            self.node_table.insert("", tk.END, iid=node_id, values=values)
+
+        self.node_data[node_id] = {
+            "mode": mode,
+            "size": f"{width}x{height}",
+            "fps": fps_target,
+            "memory_mb": memory_mb,
+            "tx": tx_rate,
+        }
+
+        if not self.node_table.selection():
+            self.node_table.selection_set(node_id)
+
+        if node_id in self.node_table.selection():
+            self.node_mode_var.set(mode)
 
     def _set_preview_color(self, r: int, g: int, b: int) -> None:
         self.color_preview.delete("all")
         self.color_preview.create_rectangle(0, 0, 32, 20, fill=f"#{r:02x}{g:02x}{b:02x}", outline="")
+
+    def _send_color_command(self, r: int, g: int, b: int) -> None:
+        target = (self.color_target_var.get() or "current").lower()
+        if target != "current":
+            command = f"color {target} {r} {g} {b}"
+        else:
+            command = f"color {r} {g} {b}"
+        self._send_node_command(command)
 
     def send_size(self) -> None:
         s = self.size_var.get().lower().strip()
@@ -263,7 +397,7 @@ class MochiGUI:
         except Exception:
             messagebox.showerror("Invalid size", "Width and height must be positive integers.")
             return
-        self.send(f"size {w_i}x{h_i}")
+        self._send_node_command(f"size {w_i}x{h_i}")
 
     def launch_vdisplay(self) -> None:
         script = GUI_DIR / "mochi_vdisplay.py"
@@ -349,6 +483,8 @@ class MochiGUI:
                 self.status_metrics["FPS"].set(f"{fps_target}")
                 self.status_metrics["Mem (MB)"].set(f"{memory_mb:.2f}")
                 self.status_metrics["Tx (MB/s)"].set(f"{tx_rate:.3f}")
+
+                self._update_node_row(data)
         except Empty:
             pass
         finally:

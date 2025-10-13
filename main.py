@@ -7,6 +7,7 @@ broker) and spawning plugin processes such as the animation node.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -16,14 +17,17 @@ from typing import Optional
 
 import yaml
 
+from core.host_monitor import HostMonitor
+from core.plugin_registry import PluginProcess, load_plugin_specs
+
 PROJECT_ROOT = Path(__file__).resolve().parent
-ANIMATION_NODE_ENTRY = PROJECT_ROOT / "plugins" / "animation_node" / "main.py"
 BROKER_ENTRY = PROJECT_ROOT / "core" / "broker.py"
 ROOT_CONFIG = PROJECT_ROOT / "config.yaml"
 
 DEFAULT_XPUB = "tcp://127.0.0.1:5555"
 DEFAULT_XSUB = "tcp://127.0.0.1:5557"
 DEFAULT_CTRL = "tcp://127.0.0.1:5556"
+DEFAULT_MONITOR_REP = "tcp://127.0.0.1:5560"
 
 
 def _load_root_config() -> dict:
@@ -66,30 +70,6 @@ def launch_broker(
     )
 
 
-def launch_animation_node(
-    python_executable: Optional[str] = None,
-    *,
-    extra_env: Optional[dict[str, str]] = None,
-) -> subprocess.Popen:
-    """
-    Spawn the animation node plugin as a subprocess and return the handle.
-    """
-    python = python_executable or sys.executable
-    if not ANIMATION_NODE_ENTRY.exists():
-        raise FileNotFoundError(f"Animation node entry script missing: {ANIMATION_NODE_ENTRY}")
-
-    env = os.environ.copy()
-    if extra_env:
-        env.update(extra_env)
-
-    print(f"Launching Animation Node plugin from: {ANIMATION_NODE_ENTRY}")
-    return subprocess.Popen(
-        [python, str(ANIMATION_NODE_ENTRY)],
-        cwd=str(ANIMATION_NODE_ENTRY.parent),
-        env=env,
-    )
-
-
 def run_host():
     """
     Mochi Host Application
@@ -99,31 +79,63 @@ def run_host():
     config = _load_root_config()
     broker_cfg = config.get("broker", {}) or {}
     node_cfg = config.get("node", {}) or {}
+    monitor_cfg = config.get("monitor", {}) or {}
 
     xpub_addr = str(broker_cfg.get("frontend_addr") or node_cfg.get("pub_address") or DEFAULT_XPUB)
     xsub_addr = str(broker_cfg.get("backend_addr") or os.environ.get("MOCHI_BROKER_XSUB") or DEFAULT_XSUB)
     ctrl_addr = str(node_cfg.get("ctrl_address") or DEFAULT_CTRL)
     node_id = str(node_cfg.get("id") or os.environ.get("MOCHI_NODE_ID") or "animation")
+    monitor_rep = str(monitor_cfg.get("rep_address") or DEFAULT_MONITOR_REP)
 
     broker_process: Optional[subprocess.Popen] = None
-    plugin_process: Optional[subprocess.Popen] = None
+    plugin_processes: list[PluginProcess] = []
+
+    plugin_specs = load_plugin_specs(config, PROJECT_ROOT)
+    if not plugin_specs:
+        print("No plugins defined in config; host will still run broker and monitor.")
+
+    monitor = HostMonitor(frontend_addr=xpub_addr, rep_addr=monitor_rep)
+    monitor.start()
+    print(f"Host monitor listening on {monitor_rep}")
 
     try:
         broker_process = launch_broker(xpub_addr=xpub_addr, xsub_addr=xsub_addr)
-        plugin_env = {
-            "MOCHI_BROKER_XPUB": xpub_addr,
-            "MOCHI_BROKER_XSUB": xsub_addr,
-            "MOCHI_NODE_CTRL_ADDR": ctrl_addr,
-            "MOCHI_NODE_ID": node_id,
-        }
-        plugin_process = launch_animation_node(extra_env=plugin_env)
-        print(f"Animation Node plugin started with PID: {plugin_process.pid}")
+        for spec in plugin_specs:
+            env = os.environ.copy()
+            env.update({
+                "MOCHI_BROKER_XPUB": xpub_addr,
+                "MOCHI_BROKER_XSUB": xsub_addr,
+                "MOCHI_HOST_MONITOR_REP": monitor_rep,
+            })
+            if spec.id:
+                env.setdefault("MOCHI_NODE_ID", spec.id)
+            if spec.id == node_id:
+                env.setdefault("MOCHI_NODE_CTRL_ADDR", ctrl_addr)
+            if spec.env:
+                env.update({k: str(v) for k, v in spec.env.items()})
+            if spec.config_key:
+                cfg_payload = config.get(spec.config_key, {}) or {}
+                env["MOCHI_PLUGIN_CONFIG_JSON"] = json.dumps({spec.config_key: cfg_payload})
 
-        # Keep the host running, monitoring the plugin
+            entry = spec.entry
+            if not entry.exists():
+                raise FileNotFoundError(f"Plugin entry script missing: {entry}")
+
+            process = subprocess.Popen(
+                spec.command(),
+                cwd=str(spec.cwd),
+                env=env,
+            )
+            plugin_processes.append(PluginProcess(spec, process))
+            print(f"Plugin '{spec.id}' started with PID: {process.pid}")
+
+        # Keep the host running, monitoring plugins
         while True:
             time.sleep(5)
-            if plugin_process.poll() is not None:
-                print("Animation Node plugin has terminated.")
+            dead = [pp for pp in plugin_processes if pp.poll() is not None]
+            if dead:
+                for pp in dead:
+                    print(f"Plugin '{pp.spec.id}' exited with code {pp.poll()}")
                 break
     except KeyboardInterrupt:
         print("Host interrupted; shutting down.")
@@ -132,14 +144,15 @@ def run_host():
     except Exception as exc:
         print(f"An error occurred while running the host: {exc}")
     finally:
-        if plugin_process and plugin_process.poll() is None:
-            print("Shutting down Animation Node plugin...")
-            plugin_process.terminate()
-            try:
-                plugin_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                print("Plugin did not exit promptly; forcing shutdown.")
-                plugin_process.kill()
+        for plugin_proc in plugin_processes:
+            if plugin_proc.poll() is None:
+                print(f"Shutting down plugin '{plugin_proc.spec.id}'...")
+                plugin_proc.terminate()
+                try:
+                    plugin_proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    print(f"Plugin '{plugin_proc.spec.id}' did not exit promptly; forcing shutdown.")
+                    plugin_proc.kill()
 
         if broker_process and broker_process.poll() is None:
             print("Shutting down Mochi broker...")
@@ -149,6 +162,9 @@ def run_host():
             except subprocess.TimeoutExpired:
                 print("Broker did not exit promptly; forcing shutdown.")
                 broker_process.kill()
+
+        monitor.stop()
+        monitor.join(timeout=2)
 
 
 def main():

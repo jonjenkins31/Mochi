@@ -41,6 +41,16 @@ from plugin_core.mscript_engine import MscriptScript
 from plugin_core import zmq_manager  # This will be the plugin's own ZMQ handling.
 from core import describe_node_catalog, make_node_topics
 
+
+def _merge_dicts(base: dict, overlay: dict) -> dict:
+    merged = dict(base)
+    for key, value in overlay.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_dicts(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
 class AnimationNode:
     """Manages the state and logic for rendering animations."""
 
@@ -64,22 +74,90 @@ class AnimationNode:
         self.default_script = config.get("default_script")
 
         self.anim: Animation | None = None
-        self.current_mode = None
+        self.current_mode: str | None = None
+        self.current_mode_name: str | None = None
         self.keyframes: dict[int, Animation] = {}
         self.script: MscriptScript | None = None
         self._event_queue: SimpleQueue[dict] = SimpleQueue()
+        self._solid_color_rgb: tuple[int, int, int] = (173, 216, 230)
 
-        self._install_fallback()
+        self._install_fallback(source="system", emit_event=True)
         self._load_default_script()
 
     # ------------------------------------------------------------------
     # Helpers
-    def _install_fallback(self):
-        light_blue = (173, 216, 230)
-        self.anim = SolidColorAnimation(self.w, self.h, color=light_blue)
-        self.current_mode = "solid_color"
-        self.logger.info(f"Defaulting to solid color {light_blue}")
-        self.enqueue_event("mode.changed", mode=self.current_mode, reason="fallback")
+    def _install_fallback(self, *, source: str = "system", emit_event: bool = False):
+        fallback = SolidColorAnimation(self.w, self.h, color=self._solid_color_rgb)
+        if emit_event:
+            self._set_animation(
+                fallback,
+                base_name="solid_color",
+                label="solid_color",
+                source=source,
+                event_type="mode.changed",
+                extra={"reason": "fallback"},
+            )
+        else:
+            self.anim = fallback
+            self.current_mode = "solid_color"
+            self.current_mode_name = "solid_color"
+        self.logger.info(f"Defaulting to solid color {self._solid_color_rgb}")
+
+    def _set_animation(
+        self,
+        animation: Animation,
+        *,
+        base_name: str,
+        label: str,
+        source: str,
+        event_type: str = "mode.changed",
+        extra: dict | None = None,
+    ) -> None:
+        self.anim = animation
+        self.current_mode_name = base_name
+        self.current_mode = label
+        if isinstance(animation, SolidColorAnimation):
+            self._solid_color_rgb = tuple(int(c) for c in animation.color)
+        if event_type:
+            payload = {"mode": label, "base": base_name, "source": source}
+            if extra:
+                payload.update(extra)
+            self.enqueue_event(event_type, **payload)
+
+    def activate_mode(self, name: str, *, source: str = "ctrl", label: str | None = None) -> bool:
+        name = (name or "").strip()
+        if not name:
+            self.enqueue_event("mode.error", message="No mode specified", source=source)
+            self.logger.warning("Mode activation requested without a name")
+            return False
+        try:
+            animation = create_animation(name, self.w, self.h)
+        except Exception as exc:
+            self.enqueue_event("mode.error", mode=name, message=str(exc), source=source)
+            self.logger.error(f"Failed to activate mode '{name}': {exc}")
+            return False
+        if isinstance(animation, SolidColorAnimation):
+            animation.set_color(self._solid_color_rgb)
+        label = label or name
+        self._set_animation(animation, base_name=name, label=label, source=source)
+        return True
+
+    def deactivate_mode(self, *, source: str = "ctrl") -> None:
+        previous = self.current_mode or "?"
+        self._install_fallback(source=source, emit_event=True)
+        self.enqueue_event("mode.disabled", previous_mode=previous, source=source)
+
+    def reset_mode(self, name: str | None = None, *, source: str = "ctrl") -> bool:
+        target = (name or self.current_mode_name or "").strip()
+        if not target:
+            self.enqueue_event("mode.error", message="No mode available to reset", source=source)
+            self.logger.warning("Reset requested without an active mode")
+            return False
+        self.enqueue_event("mode.reset", mode=target, source=source)
+        if target.lower() == "solid_color":
+            self._install_fallback(source=source, emit_event=True)
+            return True
+        return self.activate_mode(target, source=source)
 
     def _load_default_script(self):
         if not self.default_script:
@@ -153,31 +231,96 @@ class AnimationNode:
         parts = msg.strip().split()
         if not parts:
             return
+        first = parts[0].lower()
+        if first == "node":
+            if len(parts) < 3:
+                self.logger.warning(f"Ctrl: malformed node command: {msg}")
+                return
+            target_node = parts[1].lower()
+            if target_node != self.node_id.lower():
+                self.logger.debug("Ctrl: ignoring command for node '%s'", target_node)
+                return
+            parts = parts[2:]
+        elif first == self.node_id.lower():
+            parts = parts[1:]
+
+        if not parts:
+            self.logger.debug(f"Ctrl: no command after node prefix in '{msg}'")
+            return
         cmd = parts[0].lower()
         self.logger.info(f"Ctrl: Received command: {msg}")
 
         try:
-            if cmd == "mode" and len(parts) >= 2:
-                name = " ".join(parts[1:])
-                new = create_animation(name, self.w, self.h)
-                self.anim, self.current_mode = new, name
-                self.enqueue_event("mode.changed", mode=name, source="ctrl")
-                self.logger.info(f"Ctrl: mode -> {name}")
+            if cmd == "mode":
+                if len(parts) == 1:
+                    self.logger.info(f"Ctrl: current mode -> {self.current_mode}")
+                    return
+                action = parts[1].lower()
+                if action in {"on", "enable"}:
+                    target = " ".join(parts[2:]) if len(parts) >= 3 else (self.current_mode_name or "")
+                    if not target:
+                        self.enqueue_event("mode.error", message="Mode on requested without a target", source="ctrl")
+                        self.logger.warning("Mode on requested without a target")
+                        return
+                    self.activate_mode(target, source="ctrl")
+                elif action in {"off", "disable"}:
+                    self.deactivate_mode(source="ctrl")
+                elif action == "reset":
+                    target = " ".join(parts[2:]) if len(parts) >= 3 else None
+                    self.reset_mode(target, source="ctrl")
+                else:
+                    name = " ".join(parts[1:])
+                    self.activate_mode(name, source="ctrl")
             elif cmd == "size" and len(parts) == 2 and "x" in parts[1].lower():
                 w_str, h_str = parts[1].lower().split("x", 1)
                 new_w, new_h = int(w_str), int(h_str)
                 self.w, self.h = new_w, new_h
                 self.enqueue_event("size.changed", width=new_w, height=new_h, source="ctrl")
                 self.logger.info(f"Ctrl: resized to {new_w}x{new_h}")
-                if self.current_mode:
-                    new_anim = create_animation(self.current_mode, new_w, new_h)
-                    self.anim = new_anim
-                    self.logger.info(f"Reloaded animation '{self.current_mode}' with new size.")
-            elif cmd == "color" and len(parts) == 4 and self.anim:
-                r, g, b = map(int, parts[1:])
-                if hasattr(self.anim, "set_color"):
-                    self.anim.set_color((r, g, b))
-                    self.enqueue_event("color.changed", rgb=(r, g, b), source="ctrl")
+                if self.current_mode_name:
+                    # Recreate the current mode with the new dimensions
+                    label = self.current_mode or self.current_mode_name
+                    self.activate_mode(self.current_mode_name, source="ctrl", label=label)
+                else:
+                    self._install_fallback(source="ctrl", emit_event=True)
+            elif cmd == "color":
+                color_args = parts[1:]
+                target_mode = None
+
+                def _is_int(val: str) -> bool:
+                    try:
+                        int(val)
+                        return True
+                    except ValueError:
+                        return False
+
+                if color_args and not _is_int(color_args[0]):
+                    target_mode = color_args.pop(0).lower()
+                if len(color_args) != 3:
+                    self.enqueue_event("color.error", message="Color command expects three components", source="ctrl")
+                    self.logger.warning(f"Ctrl: invalid color command args: {color_args}")
+                    return
+                try:
+                    rgb = tuple(max(0, min(255, int(c))) for c in color_args)
+                except ValueError:
+                    self.enqueue_event("color.error", message="Color components must be integers", source="ctrl")
+                    self.logger.warning(f"Ctrl: invalid color values: {color_args}")
+                    return
+
+                if target_mode in {"solid", "solid_color", "solidcolor", "fallback"}:
+                    self._solid_color_rgb = rgb
+                    if isinstance(self.anim, SolidColorAnimation):
+                        self.anim.set_color(rgb)
+                    self.enqueue_event("color.changed", rgb=rgb, target="solid_color", source="ctrl")
+                    return
+
+                if self.anim and hasattr(self.anim, "set_color"):
+                    self.anim.set_color(rgb)
+                    if isinstance(self.anim, SolidColorAnimation):
+                        self._solid_color_rgb = rgb
+                    self.enqueue_event("color.changed", rgb=rgb, source="ctrl")
+                else:
+                    self.logger.warning("Ctrl: color command ignored; current animation has no set_color")
             elif cmd == "play" and len(parts) >= 2:
                 script_rel = " ".join(parts[1:])
                 path = os.path.join(self.project_root, script_rel)
@@ -242,9 +385,8 @@ class AnimationNode:
         if key_int is not None:
             self.keyframes[key_int] = new_anim
 
-        self.anim = new_anim
-        self.current_mode = f"{name}[{key_int}]" if key_int is not None else name
-        self.enqueue_event("mode.changed", mode=self.current_mode, source="script")
+        label = f"{name}[{key_int}]" if key_int is not None else name
+        self._set_animation(new_anim, base_name=name, label=label, source="script")
 
     def update(self, timestamp):
         """Update the active script."""
@@ -269,11 +411,14 @@ class SolidColorAnimation(Animation):
     """A simple fallback animation that fills the screen with a solid color."""
     def __init__(self, w, h, color=(0, 0, 0)):
         super().__init__(w, h)
-        self.color = color
+        self.set_color(color)
 
     def render_into(self, t: float, pixel_buf: bytearray):
         frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))
         frame[:, :] = self.color
+
+    def set_color(self, color: tuple[int, int, int] | list[int]):
+        self.color = tuple(max(0, min(255, int(c))) for c in color)
 
 def main():
     """The main function for the Mochi node."""
@@ -288,6 +433,16 @@ def main():
     except Exception as e:
         logger.error(f"Cannot load config.yaml: {e}")
         return
+
+    config = config or {}
+    env_cfg_raw = os.environ.get("MOCHI_PLUGIN_CONFIG_JSON")
+    if env_cfg_raw:
+        try:
+            env_cfg = json.loads(env_cfg_raw)
+            if isinstance(env_cfg, dict):
+                config = _merge_dicts(config, env_cfg)
+        except json.JSONDecodeError as exc:
+            logger.warning(f"Invalid MOCHI_PLUGIN_CONFIG_JSON: {exc}")
 
     node_config = config.get("node", {})
 

@@ -9,6 +9,16 @@ node:
   ctrl_address: "tcp://127.0.0.1:5556"
   optional_topics: []
 
+plugins:
+  - id: "animation"
+    type: "animation_node"
+    entry: "plugins/animation_node/main.py"
+    cwd: "plugins/animation_node"
+    config_key: "node"
+
+monitor:
+  rep_address: "tcp://127.0.0.1:5560"
+
 gui:
   ctrl_address: "tcp://127.0.0.1:5556"
 
