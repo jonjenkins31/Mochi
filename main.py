@@ -116,10 +116,12 @@ def run_host():
             if spec.config_key:
                 cfg_payload = config.get(spec.config_key, {}) or {}
                 env["MOCHI_PLUGIN_CONFIG_JSON"] = json.dumps({spec.config_key: cfg_payload})
-
-            entry = spec.entry
-            if not entry.exists():
-                raise FileNotFoundError(f"Plugin entry script missing: {entry}")
+            if spec.module:
+                existing = env.get("PYTHONPATH")
+                if existing:
+                    env["PYTHONPATH"] = os.pathsep.join([str(PROJECT_ROOT), existing])
+                else:
+                    env["PYTHONPATH"] = str(PROJECT_ROOT)
 
             process = subprocess.Popen(
                 spec.command(),

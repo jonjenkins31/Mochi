@@ -12,6 +12,16 @@ from .topics import (
 )
 from .plugin_registry import PluginSpec, PluginProcess, load_plugin_specs
 from .host_monitor import HostMonitor
+from .messages import (
+    Msg,
+    build,
+    TOPIC_STT_TEXT,
+    TOPIC_LLM_REPLY,
+    TOPIC_TTS_SAY,
+    TOPIC_TTS_DONE,
+    TOPIC_ANIM_EVENT,
+    TOPIC_SYS_CMD,
+)
 
 __all__ = [
     "NodeTopics",
@@ -26,4 +36,12 @@ __all__ = [
     "PluginProcess",
     "load_plugin_specs",
     "HostMonitor",
+    "Msg",
+    "build",
+    "TOPIC_STT_TEXT",
+    "TOPIC_LLM_REPLY",
+    "TOPIC_TTS_SAY",
+    "TOPIC_TTS_DONE",
+    "TOPIC_ANIM_EVENT",
+    "TOPIC_SYS_CMD",
 ]

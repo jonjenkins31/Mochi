@@ -1,4 +1,3 @@
-python_version == "3.12.6"
 
 # =============================================================================
 # JP01 Voice LLM Demo — Environment & Dependency Setup
@@ -73,3 +72,4 @@ pillow
 pyyaml
 numpy
 moviepy
+imageio

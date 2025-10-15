@@ -7,6 +7,6 @@ K[1]: 'assets/video/mochi enhance/split_0_0_restored.mp4'
 [Resources end]
 
 [Main start]
-MEDIA K[1]
+MEDIA K[1] D[5.0]
 
 [Main end]

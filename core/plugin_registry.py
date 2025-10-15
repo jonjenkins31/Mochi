@@ -14,8 +14,9 @@ class PluginSpec:
     """Describes how to launch a plugin as a subprocess."""
 
     id: str
-    entry: Path
     cwd: Path
+    entry: Optional[Path] = None
+    module: Optional[str] = None
     config_key: Optional[str] = None
     type: Optional[str] = None
     env: Optional[Dict[str, str]] = None
@@ -23,7 +24,12 @@ class PluginSpec:
 
     def command(self, python_executable: Optional[str] = None) -> list[str]:
         python = python_executable or sys.executable
-        cmd = [python, str(self.entry)]
+        if self.module:
+            cmd = [python, "-m", self.module]
+        elif self.entry:
+            cmd = [python, str(self.entry)]
+        else:
+            raise ValueError(f"Plugin '{self.id}' missing module/entry")
         if self.args:
             cmd.extend(map(str, self.args))
         return cmd
@@ -52,12 +58,22 @@ class PluginProcess:
 def load_plugin_specs(config: dict, project_root: Path) -> list[PluginSpec]:
     specs: list[PluginSpec] = []
     for item in config.get("plugins", []) or []:
-        entry = Path(project_root, item.get("entry", "")).resolve()
-        cwd = Path(project_root, item.get("cwd", entry.parent)).resolve()
+        entry_value = item.get("entry")
+        module_value = item.get("module")
+        entry_path = Path(project_root, entry_value).resolve() if entry_value else None
+        if entry_path is None and not module_value:
+            raise ValueError(f"Plugin config for '{item}' missing 'entry' or 'module'")
+        if "cwd" in item and item["cwd"] is not None:
+            cwd = Path(project_root, item["cwd"]).resolve()
+        elif entry_path is not None:
+            cwd = entry_path.parent
+        else:
+            cwd = project_root
         spec = PluginSpec(
             id=str(item.get("id")),
-            entry=entry,
             cwd=cwd,
+            entry=entry_path,
+            module=item.get("module"),
             config_key=item.get("config_key"),
             type=item.get("type"),
             args=item.get("args"),

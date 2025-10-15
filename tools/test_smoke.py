@@ -31,19 +31,21 @@ def main() -> int:
     ok = True
     for plugin in config.get("plugins", []) or []:
         entry = plugin.get("entry")
+        module = plugin.get("module")
         pid = plugin.get("id")
         if not pid:
             print("Plugin entry missing 'id'")
             ok = False
             continue
-        if not entry:
-            print(f"Plugin '{pid}' missing 'entry'")
+        if not entry and not module:
+            print(f"Plugin '{pid}' missing 'entry' or 'module'")
             ok = False
             continue
-        entry_path = (project_root / entry).resolve()
-        if not entry_path.exists():
-            print(f"Plugin '{pid}' entry not found: {entry_path}")
-            ok = False
+        if entry:
+            entry_path = (project_root / entry).resolve()
+            if not entry_path.exists():
+                print(f"Plugin '{pid}' entry not found: {entry_path}")
+                ok = False
         cwd = plugin.get("cwd")
         if cwd:
             cwd_path = (project_root / cwd).resolve()

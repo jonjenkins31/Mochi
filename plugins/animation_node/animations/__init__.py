@@ -13,9 +13,12 @@ from typing import Dict, Type, List
 from plugin_core.mochi_animations import Animation
 # Import modules to allow for registration and reloading
 from . import bitmap_handler
+from . import gif_handler
+from . import image_handler
 from . import media_handler
 from . import sprite_handler
 from . import math_handler
+from . import video_handler
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,15 @@ class _AnimationFactory:
     """A singleton factory that registers and creates animations."""
     def __init__(self):
         self._registry: Dict[str, Type[Animation]] = {}
-        self._handler_modules = [bitmap_handler, media_handler, sprite_handler, math_handler]
+        self._handler_modules = [
+            bitmap_handler,
+            gif_handler,
+            image_handler,
+            media_handler,
+            sprite_handler,
+            math_handler,
+            video_handler,
+        ]
         self._register_handlers()
 
     def _register_handlers(self):
@@ -32,9 +43,12 @@ class _AnimationFactory:
         # It's better to access the name via the class property to avoid errors
         # if the handler isn't a class with a 'name' attribute.
         self._registry[bitmap_handler.BitmapHandler.name] = bitmap_handler.BitmapHandler
+        self._registry[gif_handler.GifHandler.name] = gif_handler.GifHandler
+        self._registry[image_handler.ImageHandler.name] = image_handler.ImageHandler
         self._registry[media_handler.MediaHandler.name] = media_handler.MediaHandler
         self._registry[sprite_handler.SpriteHandler.name] = sprite_handler.SpriteHandler
         self._registry[math_handler.MathHandler.name] = math_handler.MathHandler
+        self._registry[video_handler.VideoHandler.name] = video_handler.VideoHandler
 
     def list_names(self) -> List[str]:
         """Returns a list of all registered animation command names."""

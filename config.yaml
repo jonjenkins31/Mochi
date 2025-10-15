@@ -12,7 +12,7 @@ node:
 plugins:
   - id: "animation"
     type: "animation_node"
-    entry: "plugins/animation_node/main.py"
+    module: "plugins.animation_node.main"
     cwd: "plugins/animation_node"
     config_key: "node"
 

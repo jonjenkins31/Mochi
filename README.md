@@ -21,6 +21,9 @@ cd Mochi
 python -m venv .venv
 source .venv/bin/activate      # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
+
+# For video playback support (mp4, mov, etc.) install moviepy and ensure ffmpeg is available
+pip install moviepy imageio-ffmpeg
 ```
 
 ### Run the Host & Plugins
@@ -59,6 +62,9 @@ sock.connect("tcp://127.0.0.1:5560")
 sock.send_string("GET health")
 print(sock.recv_string())
 PY
+
+# Or use the helper CLI (pretty printing supported)
+python tools/monitor_cli.py --pretty GET health
 ```
 
 The GUI discovers node health broadcasts automatically. Select a node in the table to send `mode on`, `mode off`, `mode reset`, or size commands. The color picker can target either the active animation (`current`) or the fallback solid color (`solid_color`), which updates the plugin’s stored fallback palette.
@@ -83,6 +89,7 @@ For a description of the ZeroMQ addresses and topics, see [docs/messaging.md](do
 - Use `core.make_node_topics(<node_id>)` to compute your required PUB/SUB topics and call `describe_node_catalog` to publish a `meta` announcement when the plugin starts.
 - Emit health metrics (`node.<id>.health`) and event payloads (`node.<id>.event`) to keep tooling in sync.
 - Extend `config.yaml` by appending a block to the `plugins:` list. At minimum provide an `id`, `entry`, and `cwd`. Optional `config_key` fields let the host inject a config section into the plugin via `MOCHI_PLUGIN_CONFIG_JSON`.
+  - Instead of `entry` you can specify `module` (e.g., `module: "plugins.animation_node.main"`) and the host will launch it via `python -m ...` with the project root on `PYTHONPATH`.
 
 The existing animation node is a good template: it maintains its own control loop, queues structured events, and publishes frames through the broker so multiple subscribers can consume them without extra wiring.
 

@@ -42,7 +42,7 @@ Optional or feature-specific channels live under the `ext.` namespace. Common pl
 - `ext.stt.text`
 - `ext.llm.reply`
 
-Plugins can declare optional topics in configuration (`node.optional_topics`) or via the `MOCHI_NODE_OPTIONAL_TOPICS` environment variable. They are surfaced in the meta payload for discovery.
+Standard shared topics defined in `core/messages.py` include `stt.text`, `llm.reply`, `tts.say`, `tts.done`, `anim.event`, and `system.cmd`. Plugins can declare optional topics in configuration (`node.optional_topics`) or via the `MOCHI_NODE_OPTIONAL_TOPICS` environment variable. They are surfaced in the meta payload for discovery.
 
 ## Payload Shapes
 
@@ -76,6 +76,19 @@ Plugins can declare optional topics in configuration (`node.optional_topics`) or
 ```
 
 - **Meta:** Produced via `describe_node_catalog(...)`, including addresses, logical size, FPS, and optional topics.
+
+Cross-service messages (e.g., STT → LLM → TTS) use the shared `Msg` envelope defined in `core/messages.py`:
+
+```
+{
+  "id": "f0ad...",
+  "ts": 1700000000.1,
+  "source": "llm",
+  "kind": "assistant",
+  "text": "Hello there!",
+  "meta": {"in_reply_to": "..."}
+}
+```
 
 ## Using the Helpers
 
