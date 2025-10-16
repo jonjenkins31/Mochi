@@ -2,6 +2,24 @@
 
 import os
 import re
+from pathlib import Path
+from typing import Optional
+
+try:
+    from PIL import Image, ImageSequence
+except Exception:  # pragma: no cover - optional dependency
+    Image = None  # type: ignore[assignment]
+    ImageSequence = None  # type: ignore[assignment]
+
+try:
+    import imageio.v3 as imageio_v3
+except Exception:  # pragma: no cover - optional dependency
+    imageio_v3 = None  # type: ignore[assignment]
+
+try:
+    import imageio_ffmpeg
+except Exception:  # pragma: no cover - optional dependency
+    imageio_ffmpeg = None  # type: ignore[assignment]
 
 # Import base classes from the new neutral location
 from .mochi_animations import Script, Command
@@ -78,6 +96,7 @@ class MscriptScript(Script):
         parser = _MscriptParser(path)
         self._instructions = parser.instructions
         self._resources = parser.resources
+        self._asset_root = Path(path).resolve().parent.parent
         
         self._program_counter = 0
         self._wait_until = 0.0
@@ -96,12 +115,19 @@ class MscriptScript(Script):
             self._program_counter += 1
 
             cmd_name = instruction['command']
-            args = instruction['args'].copy()
+            raw_args = instruction['args']
+            args = raw_args.copy()
+
+            duration_token = args.pop('D', None)
+            wait_after_command = self._parse_duration_token(duration_token, cmd_name, raw_args)
+            if wait_after_command is None and cmd_name == 'MEDIA':
+                wait_after_command = self._auto_duration_for_command(raw_args)
 
             # Handle WAIT command for timing control
             if cmd_name == 'WAIT':
-                wait_duration = float(args.get('D', 0.0))
-                self._wait_until = t + wait_duration
+                wait_duration = self._coerce_float(duration_token)
+                if wait_duration is not None and wait_duration > 0:
+                    self._wait_until = t + wait_duration
                 # Stop processing for this frame and wait
                 return due_commands
 
@@ -118,4 +144,111 @@ class MscriptScript(Script):
             
             due_commands.append(Command(name=cmd_name, args=args))
 
+            if wait_after_command is not None and wait_after_command > 0:
+                self._wait_until = t + wait_after_command
+                return due_commands
+
         return due_commands
+
+    # ------------------------------------------------------------------ helpers
+    def _coerce_float(self, value) -> Optional[float]:
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _parse_duration_token(self, token, cmd_name: str, raw_args: dict) -> Optional[float]:
+        if token is None:
+            return None
+
+        # Accept numeric tokens directly
+        duration = self._coerce_float(token)
+        if duration is not None:
+            return duration
+
+        token_str = str(token).strip().lower()
+        if token_str in {"auto", "asset"}:
+            return self._auto_duration_for_command(raw_args)
+        return None
+
+    def _auto_duration_for_command(self, raw_args: dict) -> Optional[float]:
+        key_raw = raw_args.get('K')
+        if key_raw is None:
+            return None
+        try:
+            key = int(key_raw)
+        except (TypeError, ValueError):
+            return None
+        resource = self._resources.get(key)
+        if not resource:
+            return None
+        full_path = self._resolve_resource_path(resource)
+        if not full_path:
+            return None
+        suffix = full_path.suffix.lower()
+        if suffix in {".mp4", ".mov", ".mkv", ".avi", ".webm"}:
+            return self._video_duration(full_path)
+        if suffix in {".gif", ".apng"}:
+            return self._gif_duration(full_path)
+        return None
+
+    def _resolve_resource_path(self, resource: str) -> Optional[Path]:
+        path = Path(resource)
+        if path.is_absolute():
+            return path if path.exists() else None
+        candidate = (self._asset_root / path).resolve()
+        if candidate.exists():
+            return candidate
+        return None
+
+    def _video_duration(self, path: Path) -> Optional[float]:
+        # Try imageio ffmpeg probe first
+        if imageio_ffmpeg is not None:
+            try:
+                meta = imageio_ffmpeg.probe(str(path))
+                duration_val = meta.get("duration")
+                if duration_val:
+                    return float(duration_val)
+            except Exception:
+                pass
+
+        if imageio_v3 is not None:
+            for plugin in ("FFMPEG", None):
+                try:
+                    meta = imageio_v3.immeta(str(path), plugin=plugin) if plugin else imageio_v3.immeta(str(path))
+                except Exception:
+                    continue
+                duration_val = meta.get("duration")
+                if duration_val is not None:
+                    try:
+                        return float(duration_val)
+                    except (TypeError, ValueError):
+                        pass
+                fps = meta.get("fps") or meta.get("framerate")
+                nframes = meta.get("nframes")
+                video_block = meta.get("video") or {}
+                if not nframes:
+                    nframes = video_block.get("nframes")
+                if not fps:
+                    fps = video_block.get("fps")
+                try:
+                    if fps and nframes:
+                        fps_val = float(fps[0] / fps[1]) if isinstance(fps, (tuple, list)) else float(fps)
+                        return float(nframes) / fps_val if fps_val > 0 else None
+                except (TypeError, ValueError, ZeroDivisionError):
+                    continue
+        return None
+
+    def _gif_duration(self, path: Path) -> Optional[float]:
+        if Image is None or ImageSequence is None:
+            return None
+        try:
+            with Image.open(str(path)) as img:
+                total_ms = 0
+                for frame in ImageSequence.Iterator(img):
+                    total_ms += int(frame.info.get("duration", 100))
+                return total_ms / 1000.0 if total_ms > 0 else None
+        except Exception:
+            return None

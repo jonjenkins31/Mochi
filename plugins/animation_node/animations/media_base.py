@@ -26,6 +26,7 @@ class DecodedMediaAnimation(Animation):
         self._letterbox = (0, 0, 0)
         self._loop = self.DEFAULT_LOOP
         self.speed = self.DEFAULT_SPEED
+        self._start_time: float | None = None
 
     # ------------------------------------------------------------------ hooks
     def decode(
@@ -47,6 +48,7 @@ class DecodedMediaAnimation(Animation):
         self.asset_path = kw.get("asset_path")
         self.fit_mode = kw.get("fit", self.DEFAULT_FIT)
         self._letterbox = normalize_letterbox_color(kw.get("BG"))
+        self._start_time = None
 
         if self.supports_loop:
             self._loop = bool(kw.get("loop", self.DEFAULT_LOOP))
@@ -87,27 +89,33 @@ class DecodedMediaAnimation(Animation):
         if not frames or not frames.frames:
             out_buf[:] = b"\x00" * len(out_buf)
             return
-
-        frame_idx = self._select_frame_index(frames, t)
+        elapsed_ms = self._elapsed_ms(t)
+        frame_idx = self._select_frame_index(frames, elapsed_ms)
         frame = frames.frames[frame_idx]
 
         frame_np = np.frombuffer(out_buf, dtype=np.uint8).reshape((self.h, self.w, 3))
         frame_np[:, :] = np.asarray(frame)
 
-    def _select_frame_index(self, frames: MediaFrames, t: float) -> int:
+    def _elapsed_ms(self, t: float) -> int:
+        if self._start_time is None:
+            self._start_time = t
+        elapsed = max(0.0, t - self._start_time)
+        speed = self.speed if self.supports_speed else 1.0
+        return int(elapsed * 1000.0 * speed)
+
+    def _select_frame_index(self, frames: MediaFrames, elapsed_ms: int) -> int:
         if frames.frame_count <= 1:
             return 0
 
-        elapsed = int(t * 1000.0 * (self.speed if self.supports_speed else 1.0))
         total_duration = frames.total_duration
 
         if self._loop and total_duration > 0:
-            elapsed %= total_duration
+            elapsed_ms %= total_duration
 
         current_duration = 0
         for idx, duration in enumerate(frames.durations_ms):
             dur = duration if duration > 0 else 100
-            if elapsed < current_duration + dur:
+            if elapsed_ms < current_duration + dur:
                 return idx
             current_duration += dur
 
