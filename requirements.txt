@@ -73,3 +73,5 @@ pyyaml
 numpy
 moviepy
 imageio
+PySide6
+psutil
