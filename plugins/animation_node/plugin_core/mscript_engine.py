@@ -96,7 +96,9 @@ class MscriptScript(Script):
         parser = _MscriptParser(path)
         self._instructions = parser.instructions
         self._resources = parser.resources
-        self._asset_root = Path(path).resolve().parent.parent
+        # The asset root should be the project root, not the assets directory itself.
+        # Assuming mscript files are always in assets/mscripts/.
+        self._asset_root = Path(path).resolve().parent.parent.parent
         
         self._program_counter = 0
         self._wait_until = 0.0
@@ -198,7 +200,7 @@ class MscriptScript(Script):
         path = Path(resource)
         if path.is_absolute():
             return path if path.exists() else None
-        candidate = (self._asset_root / path).resolve()
+        candidate = self._asset_root / path
         if candidate.exists():
             return candidate
         return None

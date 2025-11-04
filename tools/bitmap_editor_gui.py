@@ -80,7 +80,7 @@ class BitmapAnimationViewer:
         paths = filedialog.askopenfilenames(
             title="Select Bitmap JSON Frame(s)",
             filetypes=[("JSON files", "*.json")],
-            initialdir=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'assets', 'bitmaps'))
+            initialdir=os.path.abspath(os.path.join(PROJECT_ROOT, 'assets', 'bitmaps'))
         )
         if not paths:
             return

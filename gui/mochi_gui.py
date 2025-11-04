@@ -24,8 +24,7 @@ import zmq
 GUI_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = GUI_DIR.parent
 TOOLS_DIR = PROJECT_ROOT / "tools"
-PLUGIN_ROOT = PROJECT_ROOT / "plugins" / "animation_node"
-MSCRIPTS_DIR = PLUGIN_ROOT / "mscripts"
+MSCRIPTS_DIR = PROJECT_ROOT / "assets" / "mscripts"
 CONFIG_PATHS = [
     PROJECT_ROOT / "config.yaml",
     PROJECT_ROOT / "plugins" / "animation_node" / "config.yaml",
@@ -249,9 +248,9 @@ class MochiGUI:
         if script_name:
             script_path = MSCRIPTS_DIR / script_name
             if not script_path.exists():
-                messagebox.showerror("Script Missing", f"Could not find {script_path}")
+                messagebox.showerror("Script Missing", f"Could not find script at: {script_path}")
                 return
-            relative = f"mscripts/{script_name}"
+            relative = script_path.relative_to(PROJECT_ROOT).as_posix()
             self.send(f"play {relative}")
 
     def stop_script(self) -> None:
@@ -438,13 +437,13 @@ class MochiGUI:
         sub = self.ctx.socket(zmq.SUB)
         sub.setsockopt(zmq.RCVHWM, 1)
         try:
+            # Subscribe to ALL node health topics
+            topic_prefix = b"node."
+            sub.setsockopt(zmq.SUBSCRIBE, topic_prefix)
             sub.connect(self.health_sub_addr)
-            topic = self.node_topics.health
-            sub.setsockopt(zmq.SUBSCRIBE, topic)
             self.logger.info(
-                "Health subscriber connected -> %s topic=%s",
-                self.health_sub_addr,
-                topic.decode("utf-8"),
+                "Health subscriber connected -> %s topic_prefix=%s",
+                self.health_sub_addr, topic_prefix.decode("utf-8")
             )
         except Exception as exc:
             self.logger.error(f"Failed to connect health subscriber: {exc}")

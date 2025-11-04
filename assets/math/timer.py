@@ -25,12 +25,21 @@ class Timer(Animation):
         self.countdown_end_time = 0
         self.timer_running = False
         self.fg = (255, 255, 255)  # Default to white
+        self.initial_display_time = 0.0 # New: Store initial time for display
 
     def on_enter(self, **kwargs):
         # The 'FG' argument is now expected as a list of integers.
         fg_color = kwargs.get("FG")
         if fg_color and isinstance(fg_color, list):
             self.fg = tuple(fg_color)
+        
+        # New: Handle initial display time 'D'
+        initial_time_d = kwargs.get("D")
+        if initial_time_d is not None:
+            try:
+                self.initial_display_time = float(initial_time_d)
+            except ValueError:
+                print(f"Warning: Could not parse initial time D: {initial_time_d}")
 
     def on_event(self, event: str, **kwargs):
         if event.lower() == "start":
@@ -55,6 +64,9 @@ class Timer(Animation):
 
             minutes = int(remaining_time / 60)
             seconds = int(remaining_time % 60)
+        elif self.initial_display_time > 0: # New: Display initial time if timer not running
+            minutes = int(self.initial_display_time / 60)
+            seconds = int(self.initial_display_time % 60)
 
         self._draw_timer(frame, minutes, seconds)
 

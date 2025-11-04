@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -45,7 +47,19 @@ class DecodedMediaAnimation(Animation):
     # ---------------------------------------------------------------- lifecycle
     def on_enter(self, **kw):
         super().on_enter(**kw)
-        self.asset_path = kw.get("asset_path")
+        asset_value = kw.get("asset_path")
+        resolve_dir = kw.get("resolve_dir")
+
+        asset_path: str | None
+        if asset_value is None:
+            asset_path = None
+        else:
+            asset_path_obj = Path(asset_value)
+            if not asset_path_obj.is_absolute() and resolve_dir:
+                asset_path_obj = Path(resolve_dir) / asset_path_obj
+            asset_path = os.fspath(asset_path_obj)
+
+        self.asset_path = asset_path
         self.fit_mode = kw.get("fit", self.DEFAULT_FIT)
         self._letterbox = normalize_letterbox_color(kw.get("BG"))
         self._start_time = None

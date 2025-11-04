@@ -41,7 +41,7 @@ except ImportError as exc:  # pragma: no cover - optional dependency
     ) from exc
 
 
-DEFAULT_IMAGE = Path("plugins/animation_node/assets/video/player/tv1.png")
+DEFAULT_IMAGE = Path("assets/media/player/tv1.png")
 DEFAULT_SCREEN_BBOX = (425, 289, 150, 150)  # left, top, width, height for tv1 artwork
 
 GUI_DIR = Path(__file__).resolve().parent

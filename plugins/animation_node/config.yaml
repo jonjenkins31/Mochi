@@ -8,7 +8,7 @@ node:
   pub_address: "tcp://127.0.0.1:5555"
   pub_backend_address: "tcp://127.0.0.1:5557"
   ctrl_address: "tcp://127.0.0.1:5556"
-  default_script: "mscripts/demo_wink.mscript"
+  default_script: "assets/mscripts/demo_wink.mscript"
   optional_topics: []
 
 gui:
@@ -20,7 +20,7 @@ display:
   poll_ms: 5
 
 display_player:
-  image: "plugins/animation_node/assets/video/player/tv1.png"
+  image: "assets/media/player/tv1.png"
   scale: 1.0
   opacity: 1.0
   topmost: true
@@ -34,7 +34,7 @@ display_player:
 
 display_players:
   tv1:
-    image: "plugins/animation_node/assets/video/player/tv1.png"
+    image: "assets/media/player/tv1.png"
     screen_bbox: [425, 289, 150, 150]
     topmost: true
     drag: true
@@ -43,7 +43,7 @@ display_players:
       sub_address: "tcp://127.0.0.1:5555"
       poll_ms: 10
   tv1_static:
-    image: "plugins/animation_node/assets/video/player/tv1.png"
+    image: "assets/media/player/tv1.png"
     screen_bbox: [425, 289, 150, 150]
     stream:
       enabled: false

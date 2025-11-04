@@ -284,7 +284,7 @@ class SpriteEditor:
         return sections
 
     def load_script(self):
-        script_path = filedialog.askopenfilename(title="Select MochiScript File", filetypes=[("MochiScript files", "*.mscript")], initialdir="mscripts")
+        script_path = filedialog.askopenfilename(title="Select MochiScript File", filetypes=[("MochiScript files", "*.mscript")], initialdir=os.path.join(PROJECT_ROOT, "assets", "mscripts"))
         if not script_path: return
         
         try:
@@ -498,7 +498,7 @@ class SpriteEditor:
             title="Save MochiScript As",
             defaultextension=".mscript",
             filetypes=[("MochiScript files", "*.mscript")],
-            initialdir="mscripts"
+            initialdir=os.path.join(PROJECT_ROOT, "assets", "mscripts")
         )
         if not script_path: return
         self.current_script_path = script_path

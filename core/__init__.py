@@ -22,6 +22,7 @@ from .messages import (
     TOPIC_ANIM_EVENT,
     TOPIC_SYS_CMD,
 )
+from . import zmq_manager
 
 __all__ = [
     "NodeTopics",
@@ -44,4 +45,5 @@ __all__ = [
     "TOPIC_TTS_DONE",
     "TOPIC_ANIM_EVENT",
     "TOPIC_SYS_CMD",
+    "zmq_manager",
 ]
