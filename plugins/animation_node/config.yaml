@@ -18,3 +18,32 @@ display:
   sub_address: "tcp://127.0.0.1:5555"
   zoom: 4  # The pixel scaling factor for the virtual display window.
   poll_ms: 5
+
+display_player:
+  image: "plugins/animation_node/assets/video/player/tv1.png"
+  scale: 1.0
+  opacity: 1.0
+  topmost: true
+  drag: true
+  screen_bbox: [425, 289, 150, 150]
+  stream:
+    enabled: true
+    sub_address: "tcp://127.0.0.1:5555"
+    node_id: "animation"
+    poll_ms: 10
+
+display_players:
+  tv1:
+    image: "plugins/animation_node/assets/video/player/tv1.png"
+    screen_bbox: [425, 289, 150, 150]
+    topmost: true
+    drag: true
+    stream:
+      enabled: true
+      sub_address: "tcp://127.0.0.1:5555"
+      poll_ms: 10
+  tv1_static:
+    image: "plugins/animation_node/assets/video/player/tv1.png"
+    screen_bbox: [425, 289, 150, 150]
+    stream:
+      enabled: false
