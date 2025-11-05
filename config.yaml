@@ -9,12 +9,43 @@ node:
   ctrl_address: "tcp://127.0.0.1:5556"
   optional_topics: []
 
+llm:
+  node:
+    id: "llm"
+    fps: 20
+    pub_address: "tcp://127.0.0.1:5555"
+    pub_backend_address: "tcp://127.0.0.1:5557"
+    ctrl_address: "tcp://127.0.0.1:5558"
+    sub_address: "tcp://127.0.0.1:5555"
+    subscribe_topics:
+      - ext.stt.text
+      - stt.text
+    publish_topics:
+      - ext.llm.reply
+      - llm.reply
+    model: "gemma3:12b"
+    system_prompt: "You are Mochi, a cheerful assistant who speaks concisely."
+    ollama_host: "http://localhost:11434"
+    ollama_timeout: 40
+
 plugins:
   - id: "animation"
     type: "animation_node"
-    module: "plugins.animation_node.main"
+    module: "plugins.animation_node.node"
     cwd: "plugins/animation_node"
     config_key: "node"
+    enabled: true
+  - id: "llm"
+    type: "llm_node"
+    module: "plugins.llm_node.node"
+    cwd: "plugins/llm_node"
+    config_key: "llm"
+    enabled: true
+  - id: "mochi_gui"
+    type: "gui"
+    entry: "gui/mochi_gui.py"
+    cwd: "gui"
+    enabled: false
 
 monitor:
   rep_address: "tcp://127.0.0.1:5560"

@@ -36,6 +36,11 @@ python main.py
 
 Keep `main.py` running in its own terminal. It will show broker/animation node logs and forward Ctrl+C requests to shut down both processes cleanly.
 
+To inspect or adjust which plugins launch, use the new CLI helpers:
+
+The host loads plugin enable/disable state from `config.yaml`. Set `enabled: true`
+for any plugin you want launched automatically when `main.py` runs.
+
 ### Launch Supporting Tools
 
 With the host running you can start any of the GUI helpers from another terminal (with the virtual environment activated):
@@ -49,6 +54,12 @@ python gui/mochi_vdisplay.py
 
 # Console CLI to send quick commands.
 python gui/control_cli.py play mscripts/demo_wink.mscript
+
+# Publish a text message onto stt.text (useful for the LLM node).
+python tools/publish_stt.py "hello there"
+
+# Lightweight chat window for live conversations with the LLM node.
+python gui/llm_chat_gui.py
 ```
 
 The host monitor caches node health/meta/event messages and is reachable at the `monitor.rep_address` defined in `config.yaml`. For example:
@@ -85,11 +96,12 @@ For a description of the ZeroMQ addresses and topics, see [docs/messaging.md](do
 
 ## Developing Plugins
 
-- Place plugin code under `plugins/<your_plugin>/` and provide an entry script similar to `plugins/animation_node/main.py`.
+- Place plugin code under `plugins/<your_plugin>/` and provide an entry script similar to `plugins/animation_node/node.py`.
 - Use `core.make_node_topics(<node_id>)` to compute your required PUB/SUB topics and call `describe_node_catalog` to publish a `meta` announcement when the plugin starts.
 - Emit health metrics (`node.<id>.health`) and event payloads (`node.<id>.event`) to keep tooling in sync.
 - Extend `config.yaml` by appending a block to the `plugins:` list. At minimum provide an `id`, `entry`, and `cwd`. Optional `config_key` fields let the host inject a config section into the plugin via `MOCHI_PLUGIN_CONFIG_JSON`.
-  - Instead of `entry` you can specify `module` (e.g., `module: "plugins.animation_node.main"`) and the host will launch it via `python -m ...` with the project root on `PYTHONPATH`.
+  - Instead of `entry` you can specify `module` (e.g., `module: "plugins.animation_node.node"`) and the host will launch it via `python -m ...` with the project root on `PYTHONPATH`.
+  - Toggle the `enabled` flag to decide whether the host starts a plugin automatically.
 
 The existing animation node is a good template: it maintains its own control loop, queues structured events, and publishes frames through the broker so multiple subscribers can consume them without extra wiring.
 

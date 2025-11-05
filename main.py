@@ -91,8 +91,9 @@ def run_host():
     plugin_processes: list[PluginProcess] = []
 
     plugin_specs = load_plugin_specs(config, PROJECT_ROOT)
+    plugin_specs = [spec for spec in plugin_specs if spec.enabled]
     if not plugin_specs:
-        print("No plugins defined in config; host will still run broker and monitor.")
+        print("No plugins scheduled to launch (all disabled in config). Host will start broker/monitor only.")
 
     monitor = HostMonitor(frontend_addr=xpub_addr, rep_addr=monitor_rep)
     monitor.start()

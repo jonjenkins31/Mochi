@@ -1,0 +1,274 @@
+"""Gemma-powered LLM node for Mochi."""
+
+from __future__ import annotations
+
+import datetime as dt
+import os
+from typing import Iterable, Sequence
+
+import zmq
+
+from core import EXT_LLM_REPLY, EXT_STT_TEXT
+from core.messages import (
+    Msg,
+    TOPIC_LLM_REPLY,
+    TOPIC_STT_TEXT,
+    build,
+)
+from core.node_base import MochiNodeBase
+
+from .ollama_client import OllamaClient
+from plugins.node_template import (
+    PROJECT_ROOT,
+    build_optional_topics,
+    load_config,
+    setup_logging,
+)
+
+DEFAULT_SUBSCRIBE_TOPICS: tuple[bytes, ...] = (EXT_STT_TEXT, TOPIC_STT_TEXT)
+DEFAULT_PUBLISH_TOPICS: tuple[bytes, ...] = (EXT_LLM_REPLY, TOPIC_LLM_REPLY)
+
+
+class LLMNode(MochiNodeBase):
+    """Listens for STT text and responds with LLM replies via Ollama."""
+
+    def __init__(
+        self,
+        node_id: str,
+        config: dict,
+        project_root: str,
+        optional_topics: Sequence[bytes] | None = None,
+    ):
+        super().__init__(node_id, config, project_root, optional_topics)
+
+        self._bus_sub_address = config.get("sub_address") or self.pub_addr
+        self._subscribe_topics = self._normalize_topics(
+            config.get("subscribe_topics"), defaults=DEFAULT_SUBSCRIBE_TOPICS
+        )
+        self._publish_topics = self._normalize_topics(
+            config.get("publish_topics"), defaults=DEFAULT_PUBLISH_TOPICS
+        )
+        if not self._publish_topics:
+            raise ValueError("LLM node must publish to at least one topic.")
+
+        ollama_host = config.get("ollama_host", "http://localhost:11434")
+        timeout_s = float(config.get("ollama_timeout", 30))
+        self.model = config.get("model", "gemma3:12b")
+        self.system_prompt = config.get("system_prompt", "").strip()
+
+        self._ollama = OllamaClient(
+            base_url=ollama_host,
+            model=self.model,
+            timeout=timeout_s,
+            logger=self.logger,
+        )
+
+        self._sub_socket = self._ctx.socket(zmq.SUB)
+        self._sub_socket.setsockopt(zmq.LINGER, 0)
+        for topic in self._subscribe_topics:
+            self._sub_socket.setsockopt(zmq.SUBSCRIBE, topic)
+        self._sub_socket.connect(self._bus_sub_address)
+
+        self._messages_processed = 0
+        self._last_request_ts = 0.0
+        self._last_reply_text: str | None = None
+
+        self.logger.info(
+            "LLM node ready (model=%s, host=%s, subscribe=%s, publish=%s)",
+            self.model,
+            ollama_host,
+            [t.decode("utf-8", errors="ignore") for t in self._subscribe_topics],
+            [t.decode("utf-8", errors="ignore") for t in self._publish_topics],
+        )
+
+    # ------------------------------------------------------------------ helpers
+    def _normalize_topics(
+        self,
+        values: Iterable[bytes | str] | None,
+        *,
+        defaults: Sequence[bytes],
+    ) -> tuple[bytes, ...]:
+        topics: list[bytes] = []
+        for entry in values or defaults:
+            if isinstance(entry, bytes):
+                topic = entry
+            else:
+                topic = entry.encode("utf-8")
+            topic = topic.strip()
+            if topic:
+                topics.append(topic)
+        # Deduplicate while preserving order
+        seen: set[bytes] = set()
+        deduped: list[bytes] = []
+        for topic in topics:
+            if topic not in seen:
+                deduped.append(topic)
+                seen.add(topic)
+        return tuple(deduped)
+
+    def _quick_reply(self, text: str) -> str | None:
+        lowered = text.lower().strip()
+        if not lowered:
+            return None
+        if "time" in lowered:
+            return dt.datetime.now().strftime("The time is %H:%M:%S.")
+        if lowered.startswith("echo "):
+            return text[5:]
+        if lowered in {"hi", "hello"}:
+            return "Hello! How can I help?"
+        return None
+
+    def _generate_reply(self, text: str) -> str:
+        quick = self._quick_reply(text)
+        if quick is not None:
+            return quick
+
+        response = self._ollama.generate(text, system_prompt=self.system_prompt or None)
+        if response:
+            return response
+        return "I'm sorry, I couldn't generate a response right now."
+
+    def _send_reply(self, reply: str, *, request: Msg) -> None:
+        message = build(
+            source=self.node_id,
+            kind="assistant",
+            text=reply,
+            request_id=request.id,
+        )
+        payload = message.to_json()
+
+        if not self._pub_socket:
+            self.logger.warning("Publish socket not ready; dropping reply")
+            return
+
+        for topic in self._publish_topics:
+            try:
+                self._pub_socket.send_multipart([topic, payload], copy=True)
+            except Exception as exc:
+                self.logger.error("Failed to publish reply on %s: %s", topic, exc, exc_info=True)
+
+        self.enqueue_event(
+            "llm.reply",
+            request_id=request.id,
+            text=reply,
+            topics=[t.decode("utf-8", errors="ignore") for t in self._publish_topics],
+        )
+
+    # ------------------------------------------------------------------ MochiNodeBase hooks
+    def _update_tick(self, timestamp: float) -> None:
+        while True:
+            try:
+                topic, payload = self._sub_socket.recv_multipart(flags=zmq.NOBLOCK)
+            except zmq.Again:
+                break
+            except Exception as exc:
+                self.logger.error("Error receiving STT message: %s", exc, exc_info=True)
+                break
+
+            if topic not in self._subscribe_topics:
+                continue
+
+            try:
+                msg = Msg.from_json(payload)
+            except Exception as exc:
+                self.logger.warning("Discarding malformed STT payload: %s", exc)
+                continue
+
+            self._last_request_ts = timestamp
+            self._messages_processed += 1
+            self.enqueue_event("llm.request", request_id=msg.id, text=msg.text)
+
+            reply = self._generate_reply(msg.text)
+            self._last_reply_text = reply
+            self._send_reply(reply, request=msg)
+
+    def _render_tick(self, timestamp: float):  # type: ignore[override]
+        return None
+
+    def _process_node_command(self, command: str, parts: list[str]) -> None:
+        if not parts:
+            return
+        action = parts[0].lower()
+        if action == "model" and len(parts) >= 2:
+            new_model = parts[1]
+            self.model = new_model
+            self._ollama.set_model(new_model)
+            self.enqueue_event("llm.config.model", model=new_model)
+            self.logger.info("Model switched to %s", new_model)
+        elif action == "system":
+            prompt = " ".join(parts[1:]).strip()
+            self.system_prompt = prompt
+            self.enqueue_event("llm.config.system_prompt", length=len(prompt))
+            self.logger.info("System prompt updated (%d chars)", len(prompt))
+        elif action == "status":
+            self.logger.info(
+                "Model=%s system_prompt_len=%d processed=%d",
+                self.model,
+                len(self.system_prompt),
+                self._messages_processed,
+            )
+        else:
+            self.logger.warning("Unknown LLM command: %s", command)
+
+    # ------------------------------------------------------------------ metadata
+    def get_health_details(self) -> dict:
+        return {
+            "logical_size": {"width": 0, "height": 0},
+            "model": self.model,
+            "messages_processed": self._messages_processed,
+            "last_request_ts": self._last_request_ts,
+        }
+
+    def get_meta_details(self) -> dict:
+        return {
+            "description": "Gemma LLM node",
+            "subscribe_topics": [
+                topic.decode("utf-8", errors="ignore") for topic in self._subscribe_topics
+            ],
+            "publish_topics": [
+                topic.decode("utf-8", errors="ignore") for topic in self._publish_topics
+            ],
+        }
+
+    # ------------------------------------------------------------------ teardown
+    def on_shutdown(self) -> None:
+        try:
+            self._sub_socket.close(linger=0)
+        except Exception:
+            pass
+        self.logger.info("LLM node shutdown complete.")
+
+
+def _resolve_node_config(raw_config: dict) -> dict:
+    node_config: dict = {}
+    llm_section = raw_config.get("llm")
+    if isinstance(llm_section, dict):
+        node_config = llm_section.get("node") or llm_section
+    if not node_config:
+        node_config = raw_config.get("node", {}) or {}
+    return node_config
+
+
+def main() -> None:
+    logger = setup_logging("LLMNode")
+    config = load_config(logger=logger)
+    node_config = _resolve_node_config(config)
+
+    node_id = os.environ.get("MOCHI_NODE_ID") or node_config.get("id") or "llm"
+    optional_topics = build_optional_topics(
+        node_config,
+        logger=logger,
+        extra=DEFAULT_PUBLISH_TOPICS,
+    )
+
+    node = LLMNode(
+        node_id=node_id,
+        config=node_config,
+        project_root=str(PROJECT_ROOT),
+        optional_topics=optional_topics or None,
+    )
+    node.run()
+
+
+if __name__ == "__main__":
+    main()

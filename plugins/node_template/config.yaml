@@ -1,0 +1,12 @@
+# Example configuration bundle for a Mochi node plugin.
+
+node:
+  id: "template"
+  fps: 30
+  pub_address: "tcp://127.0.0.1:5555"
+  pub_backend_address: "tcp://127.0.0.1:5557"
+  ctrl_address: "tcp://127.0.0.1:5556"
+  optional_topics: []
+
+# Additional sections can be added for node-specific settings. New plugins are
+# encouraged to copy this file and tailor it to their needs.

@@ -21,6 +21,7 @@ class PluginSpec:
     type: Optional[str] = None
     env: Optional[Dict[str, str]] = None
     args: Optional[Iterable[str]] = None
+    enabled: bool = True
 
     def command(self, python_executable: Optional[str] = None) -> list[str]:
         python = python_executable or sys.executable
@@ -78,6 +79,7 @@ def load_plugin_specs(config: dict, project_root: Path) -> list[PluginSpec]:
             type=item.get("type"),
             args=item.get("args"),
             env=item.get("env"),
+            enabled=bool(item.get("enabled", True)),
         )
         specs.append(spec)
     return specs

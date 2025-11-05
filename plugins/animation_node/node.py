@@ -1,7 +1,7 @@
-# plugins/animation_node/main.py
+# plugins/animation_node/node.py
 
 """
-The main entry point for the Mochi Animation Node plugin.
+The entry point for the Mochi Animation Node plugin.
 
 This script initializes the node, loads its configuration, and runs the main
 loop that renders animations and processes commands received via ZMQ.
