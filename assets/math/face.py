@@ -2,7 +2,7 @@
 # Mochi-style face (eyes + pupils + occasional blink + simple mouth VU).
 import math, random, time
 import numpy as np
-from core.mochi_animations import Animation, clamp8
+from plugin_core.mochi_animations import Animation, clamp8
 
 
 class Face(Animation):

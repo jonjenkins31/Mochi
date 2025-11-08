@@ -2,8 +2,8 @@
 # A Python/NumPy recreation of the testFillScreen pattern from Adafruit GFX.
 
 import numpy as np
-from core.mochi_animations import Animation
-from core.gfx import parse_color
+from plugin_core.mochi_animations import Animation
+from plugin_core.gfx import parse_color
 
 class TestFillScreen(Animation):
     name = "test_fill_screen"

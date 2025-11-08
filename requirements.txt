@@ -1,4 +1,77 @@
+
+# =============================================================================
+# JP01 Voice LLM Demo — Environment & Dependency Setup
+# =============================================================================
+# Purpose:
+#   Unified environment for the JP01 Voice LLM Demo integrating:
+#   - STT  : pywhispercpp + webrtcvad + sounddevice
+#   - LLM  : Ollama (local model, e.g. gemma3:4b)
+#   - TTS  : Kokoro (KPipeline)
+#   - LED  : Mochi face / animation (via EventBus)
+#
+# -----------------------------------------------------------------------------
+# Virtual Environment Setup (macOS)
+# -----------------------------------------------------------------------------
+#   # Install pyenv (if not yet installed)
+#   brew install pyenv portaudio ffmpeg libsndfile
+#
+#   # Create project folder
+#   mkdir -p ~/dev/voice-llm-demo && cd ~/dev/voice-llm-demo
+#
+#   # Set Python version (3.13.x recommended)
+#   pyenv install 3.12.6 -s
+#   pyenv local 3.12.6
+#
+#   # Create and activate a virtual environment
+#   python -m venv .venv
+#   source .venv/bin/activate
+#
+#   # Upgrade pip/wheel/setuptools
+#   python -m pip install --upgrade pip wheel setuptools
+#
+# -----------------------------------------------------------------------------
+# Homebrew Prerequisites (macOS)
+# -----------------------------------------------------------------------------
+#   # Required for sounddevice and audio support
+#   brew install portaudio libsndfile ffmpeg
+#
+#   # Optional (useful for testing and debugging audio/TTS)
+#   brew install sox espeak-ng
+#
+#   # Verify installation
+#   brew list portaudio libsndfile ffmpeg
+# -----------------------------------------------------------------------------
+#
+# -----------------------------------------------------------------------------
+# Dependency Installation
+# -----------------------------------------------------------------------------
+#   # Install all project requirements
+#   pip install -r requirements.txt
+#
+#   # Optional: Verify imports
+#   python - <<'PY'
+#   import importlib
+#   for m in ["sounddevice","numpy","webrtcvad","pywhispercpp","ollama","kokoro"]:
+#       importlib.import_module(m)
+#   print("✅ All core modules loaded")
+#   PY
+#
+# -----------------------------------------------------------------------------
+# Notes
+# -----------------------------------------------------------------------------
+# - Kokoro provides local TTS via the KPipeline API (pip package: kokoro)
+# - pywhispercpp uses Metal acceleration on Apple Silicon automatically
+# - speexdsp is only required on Linux (helps with VAD/resampling)
+# - Use `ollama pull gemma3:4b` and `ollama serve &` before running the app
+# - Set VS Code interpreter: Command Palette → "Python: Select Interpreter" → .venv/bin/python
+#
+# ============================================================================= 
+
 pyzmq
 pillow
 pyyaml
 numpy
+moviepy
+imageio
+PySide6
+psutil
