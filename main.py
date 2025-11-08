@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -77,14 +77,12 @@ def run_host():
     """
     print("Starting Mochi Host...")
     config = _load_root_config()
-    broker_cfg = config.get("broker", {}) or {}
-    node_cfg = config.get("node", {}) or {}
-    monitor_cfg = config.get("monitor", {}) or {}
+    infra_cfg = config.get("infrastructure", {}) or {}
+    broker_cfg = infra_cfg.get("broker") or config.get("broker") or {}
+    monitor_cfg = infra_cfg.get("monitor") or config.get("monitor") or {}
 
-    xpub_addr = str(broker_cfg.get("frontend_addr") or node_cfg.get("pub_address") or DEFAULT_XPUB)
+    xpub_addr = str(broker_cfg.get("frontend_addr") or DEFAULT_XPUB)
     xsub_addr = str(broker_cfg.get("backend_addr") or os.environ.get("MOCHI_BROKER_XSUB") or DEFAULT_XSUB)
-    ctrl_addr = str(node_cfg.get("ctrl_address") or DEFAULT_CTRL)
-    node_id = str(node_cfg.get("id") or os.environ.get("MOCHI_NODE_ID") or "animation")
     monitor_rep = str(monitor_cfg.get("rep_address") or DEFAULT_MONITOR_REP)
 
     broker_process: Optional[subprocess.Popen] = None
@@ -108,15 +106,49 @@ def run_host():
                 "MOCHI_BROKER_XSUB": xsub_addr,
                 "MOCHI_HOST_MONITOR_REP": monitor_rep,
             })
-            if spec.id:
-                env.setdefault("MOCHI_NODE_ID", spec.id)
-            if spec.id == node_id:
-                env.setdefault("MOCHI_NODE_CTRL_ADDR", ctrl_addr)
+            cfg_payload = {}
+            node_cfg: dict[str, Any] = {}
+            if spec.config_path and spec.config_path.exists():
+                try:
+                    with spec.config_path.open("r", encoding="utf-8") as fh:
+                        cfg_payload = yaml.safe_load(fh) or {}
+                    if spec.config_key and isinstance(cfg_payload, dict):
+                        node_cfg = cfg_payload.get(spec.config_key, {}) or {}
+                    else:
+                        node_cfg = cfg_payload.get("node", {}) if isinstance(cfg_payload, dict) else {}
+                except Exception as exc:
+                    print(f"Warning: failed to load plugin config for '{spec.id}' ({spec.config_path}): {exc}")
+                    cfg_payload = {}
+                    node_cfg = {}
+            else:
+                node_cfg = {}
+
+            node_id = str(node_cfg.get("id") or spec.id or env.get("MOCHI_NODE_ID", ""))
+            if node_id:
+                env.setdefault("MOCHI_NODE_ID", node_id)
+
+            ctrl_addr = (
+                node_cfg.get("ctrl_address")
+                or node_cfg.get("transport", {}).get("ctrl")
+                or os.environ.get("MOCHI_NODE_CTRL_ADDR")
+                or DEFAULT_CTRL
+            )
+            env.setdefault("MOCHI_NODE_CTRL_ADDR", str(ctrl_addr))
+
+            optional_topics = node_cfg.get("optional_topics")
+            if optional_topics:
+                if isinstance(optional_topics, (list, tuple)):
+                    env.setdefault("MOCHI_NODE_OPTIONAL_TOPICS", ",".join(str(t) for t in optional_topics))
+                elif isinstance(optional_topics, str):
+                    env.setdefault("MOCHI_NODE_OPTIONAL_TOPICS", optional_topics)
+
+            if cfg_payload:
+                try:
+                    env["MOCHI_PLUGIN_CONFIG_JSON"] = json.dumps(cfg_payload)
+                except TypeError as exc:
+                    print(f"Warning: unable to serialise config for '{spec.id}' ({exc})")
             if spec.env:
                 env.update({k: str(v) for k, v in spec.env.items()})
-            if spec.config_key:
-                cfg_payload = config.get(spec.config_key, {}) or {}
-                env["MOCHI_PLUGIN_CONFIG_JSON"] = json.dumps({spec.config_key: cfg_payload})
             if spec.module:
                 existing = env.get("PYTHONPATH")
                 if existing:

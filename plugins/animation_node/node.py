@@ -50,10 +50,12 @@ class AnimationNode(MochiNodeBase):
 
     def __init__(self, node_id: str, config: dict, project_root: str, optional_topics: Sequence[bytes] | None = None):
         super().__init__(node_id, config, project_root, optional_topics)
-        
-        self.w = config.get("logical_width", 64)
-        self.h = config.get("logical_height", 64)
+
+        size_cfg = config.get("logical_size") or {}
+        self.w = size_cfg.get("width", config.get("logical_width", 64))
+        self.h = size_cfg.get("height", config.get("logical_height", 64))
         self.default_script = config.get("default_script")
+        self.capabilities = config.get("capabilities", {})
 
         self.anim: Animation | None = None
         self.current_mode: str | None = None
@@ -86,6 +88,7 @@ class AnimationNode(MochiNodeBase):
     def get_meta_details(self) -> dict:
         return {
             "logical_size": {"width": self.w, "height": self.h},
+            "capabilities": self.capabilities,
         }
 
     # ------------------------------------------------------------------

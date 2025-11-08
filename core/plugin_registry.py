@@ -22,6 +22,7 @@ class PluginSpec:
     env: Optional[Dict[str, str]] = None
     args: Optional[Iterable[str]] = None
     enabled: bool = True
+    config_path: Optional[Path] = None
 
     def command(self, python_executable: Optional[str] = None) -> list[str]:
         python = python_executable or sys.executable
@@ -70,6 +71,10 @@ def load_plugin_specs(config: dict, project_root: Path) -> list[PluginSpec]:
             cwd = entry_path.parent
         else:
             cwd = project_root
+        config_path_value = item.get("config_path")
+        config_path = None
+        if config_path_value:
+            config_path = Path(project_root, config_path_value).resolve()
         spec = PluginSpec(
             id=str(item.get("id")),
             cwd=cwd,
@@ -80,6 +85,7 @@ def load_plugin_specs(config: dict, project_root: Path) -> list[PluginSpec]:
             args=item.get("args"),
             env=item.get("env"),
             enabled=bool(item.get("enabled", True)),
+            config_path=config_path,
         )
         specs.append(spec)
     return specs

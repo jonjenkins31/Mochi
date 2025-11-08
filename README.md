@@ -55,9 +55,6 @@ python gui/mochi_vdisplay.py
 # Console CLI to send quick commands.
 python gui/control_cli.py play mscripts/demo_wink.mscript
 
-# Publish a text message onto stt.text (useful for the LLM node).
-python tools/publish_stt.py "hello there"
-
 # Lightweight chat window for live conversations with the LLM node.
 python gui/llm_chat_gui.py
 ```
@@ -80,6 +77,12 @@ python tools/monitor_cli.py --pretty GET health
 
 The GUI discovers node health broadcasts automatically. Select a node in the table to send `mode on`, `mode off`, `mode reset`, or size commands. The color picker can target either the active animation (`current`) or the fallback solid color (`solid_color`), which updates the plugin’s stored fallback palette.
 
+### Configuration Layout
+
+- `config.yaml` (project root) controls infrastructure (broker, monitor, GUI/display helpers) and lists plugins. Each plugin entry references its own configuration file via `config_path`.
+- `plugins/<node>/config.yaml` contains node-local settings: transport addresses, defaults, and a `capabilities` section that describes available controls/outputs for tooling. Node entry scripts load this file directly, and the host injects the same payload when launching them.
+- Update the plugin’s `enabled` flag in the root file to toggle whether it launches with the host.
+
 ### Control Commands
 
 Plugins receive text commands over the ZeroMQ control socket. You can target a specific node explicitly:
@@ -99,7 +102,8 @@ For a description of the ZeroMQ addresses and topics, see [docs/messaging.md](do
 - Place plugin code under `plugins/<your_plugin>/` and provide an entry script similar to `plugins/animation_node/node.py`.
 - Use `core.make_node_topics(<node_id>)` to compute your required PUB/SUB topics and call `describe_node_catalog` to publish a `meta` announcement when the plugin starts.
 - Emit health metrics (`node.<id>.health`) and event payloads (`node.<id>.event`) to keep tooling in sync.
-- Extend `config.yaml` by appending a block to the `plugins:` list. At minimum provide an `id`, `entry`, and `cwd`. Optional `config_key` fields let the host inject a config section into the plugin via `MOCHI_PLUGIN_CONFIG_JSON`.
+- Give each plugin a dedicated `config.yaml` alongside `node.py`. This is where you declare transport addresses, defaults, and a `capabilities` section for GUI metadata (controls, outputs, etc.).
+- Extend the root `config.yaml` by appending a block to the `plugins:` list. Provide an `id`, how to launch (`entry` or `module`), the working directory, and a `config_path` pointing to the plugin’s configuration file.
   - Instead of `entry` you can specify `module` (e.g., `module: "plugins.animation_node.node"`) and the host will launch it via `python -m ...` with the project root on `PYTHONPATH`.
   - Toggle the `enabled` flag to decide whether the host starts a plugin automatically.
 

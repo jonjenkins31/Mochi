@@ -5,20 +5,28 @@ node:
   fps: 20
   pub_address: "tcp://127.0.0.1:5555"
   pub_backend_address: "tcp://127.0.0.1:5557"
-  ctrl_address: "tcp://127.0.0.1:5556"
+  ctrl_address: "tcp://127.0.0.1:5558"
   sub_address: "tcp://127.0.0.1:5555"
-
-  # Topics to subscribe to for incoming user text.
   subscribe_topics:
     - ext.stt.text
     - stt.text
-
-  # Topics the node publishes assistant replies on.
   publish_topics:
     - ext.llm.reply
     - llm.reply
-
   model: "gemma3:12b"
   system_prompt: "You are Mochi, a cheerful assistant who speaks concisely."
   ollama_host: "http://localhost:11434"
   ollama_timeout: 40
+  capabilities:
+    controls:
+      - id: "prompt"
+        label: "Prompt"
+        type: "text"
+        topic: "ext.stt.text"
+        description: "Send a user prompt to the assistant."
+    outputs:
+      - id: "reply"
+        label: "Assistant Reply"
+        topics:
+          - "ext.llm.reply"
+          - "llm.reply"

@@ -32,6 +32,10 @@ class TemplateNode(MochiNodeBase):
     ):
         super().__init__(node_id, config, project_root, optional_topics)
         self._last_event_emit = 0.0
+        size_cfg = config.get("logical_size") or {}
+        self.w = size_cfg.get("width", config.get("logical_width", 0))
+        self.h = size_cfg.get("height", config.get("logical_height", 0))
+        self.capabilities = config.get("capabilities", {})
 
     # ------------------------------------------------------------------ required hooks
     def _update_tick(self, timestamp: float) -> None:
@@ -54,7 +58,7 @@ class TemplateNode(MochiNodeBase):
     # ------------------------------------------------------------------ metadata
     def get_health_details(self) -> dict:
         return {
-            "logical_size": {"width": 0, "height": 0},
+            "logical_size": {"width": self.w, "height": self.h},
             "status": "idle",
         }
 
@@ -62,6 +66,7 @@ class TemplateNode(MochiNodeBase):
         return {
             "description": "Template Mochi node",
             "project_root": self.project_root,
+            "capabilities": self.capabilities,
         }
 
     # ------------------------------------------------------------------ teardown

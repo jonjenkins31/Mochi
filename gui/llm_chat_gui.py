@@ -107,15 +107,10 @@ class LLMChatGUI:
 
     # ------------------------------------------------------------------ setup helpers
     def _setup_addresses(self):
-        broker_cfg = self.config.get("broker", {}) or {}
+        infra_cfg = self.config.get("infrastructure", {}) or {}
+        broker_cfg = infra_cfg.get("broker") or self.config.get("broker") or {}
         node_cfg = self.config.get("node", {}) or {}
-
-        llm_section = self.config.get("llm") or {}
-        if isinstance(llm_section, dict):
-            llm_node_cfg = llm_section.get("node", {}) or llm_section
-        else:
-            llm_node_cfg = {}
-
+        llm_node_cfg = node_cfg
         self.frontend_addr = str(
             broker_cfg.get("frontend_addr")
             or node_cfg.get("pub_address")

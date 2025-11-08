@@ -16,5 +16,5 @@ New nodes typically:
 
 1. Copy this directory to `plugins/<your_node_name>/`.
 2. Replace `TemplateNode` with your implementation.
-3. Update `config.yaml` defaults.
+3. Update `config.yaml` defaults (addresses, logical size, `capabilities`, etc.).
 4. Update `node.py` with your entry‐point logic (or replace it entirely).

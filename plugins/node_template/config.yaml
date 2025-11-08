@@ -3,10 +3,22 @@
 node:
   id: "template"
   fps: 30
+  logical_size:
+    width: 32
+    height: 32
   pub_address: "tcp://127.0.0.1:5555"
   pub_backend_address: "tcp://127.0.0.1:5557"
   ctrl_address: "tcp://127.0.0.1:5556"
   optional_topics: []
+  capabilities:
+    controls:
+      - id: "example"
+        label: "Example Control"
+        type: "command"
+        command: "example {value}"
+        input: "text"
+        description: "Template control description."
+    outputs: []
 
 # Additional sections can be added for node-specific settings. New plugins are
 # encouraged to copy this file and tailor it to their needs.

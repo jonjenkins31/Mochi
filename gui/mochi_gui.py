@@ -25,8 +25,9 @@ GUI_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = GUI_DIR.parent
 TOOLS_DIR = PROJECT_ROOT / "tools"
 MSCRIPTS_DIR = PROJECT_ROOT / "assets" / "mscripts"
+ROOT_CONFIG = PROJECT_ROOT / "config.yaml"
 CONFIG_PATHS = [
-    PROJECT_ROOT / "config.yaml",
+    ROOT_CONFIG,
     PROJECT_ROOT / "plugins" / "animation_node" / "config.yaml",
 ]
 
@@ -43,18 +44,21 @@ DEFAULT_HEALTH_ADDR = "tcp://127.0.0.1:5555"
 
 def _load_configs(logger: logging.Logger):
     configs = []
+    root_config: dict | None = None
     for path in CONFIG_PATHS:
         try:
             with path.open("r", encoding="utf-8") as fh:
                 data = yaml.safe_load(fh) or {}
             configs.append((path, data))
+            if path == ROOT_CONFIG:
+                root_config = data
         except FileNotFoundError:
             continue
         except yaml.YAMLError as exc:
             logger.warning(f"Cannot parse {path}: {exc}")
         except Exception as exc:
             logger.warning(f"Cannot read {path}: {exc}")
-    return configs
+    return configs, (root_config or {})
 
 
 def _lookup(configs, keys, default=None):
@@ -71,13 +75,22 @@ def _lookup(configs, keys, default=None):
 
 
 class MochiGUI:
-    def __init__(self, root, ctrl_addr: str, health_sub_addr: str, node_id: str, logger: logging.Logger):
+    def __init__(
+        self,
+        root,
+        ctrl_addr: str,
+        health_sub_addr: str,
+        node_id: str,
+        logger: logging.Logger,
+        configured_plugins: list[dict] | None = None,
+    ):
         self.root = root
         self.logger = logger
         root.title("Mochi Manual Control — Tk")
         self.ctrl_addr = ctrl_addr
         self.health_sub_addr = health_sub_addr
         self.node_id = node_id
+        self.configured_plugins = configured_plugins or []
         self.node_topics = make_node_topics(node_id)
         self._processes: list[subprocess.Popen] = []
 
@@ -150,6 +163,8 @@ class MochiGUI:
         ttk.Button(node_ctrl, text="Turn On", command=self.command_mode_on).pack(side=tk.LEFT, padx=2)
         ttk.Button(node_ctrl, text="Turn Off", command=self.command_mode_off).pack(side=tk.LEFT, padx=2)
         ttk.Button(node_ctrl, text="Reset", command=self.command_mode_reset).pack(side=tk.LEFT, padx=2)
+
+        self._populate_configured_nodes()
 
         # Row 2: MochiScript selection
         mscript_frame = ttk.LabelFrame(outer, text="MochiScript Control (.mscript)")
@@ -333,6 +348,47 @@ class MochiGUI:
         mode = data.get("mode") or ""
         self.node_mode_var.set(mode)
 
+    def _populate_configured_nodes(self) -> None:
+        default_select: str | None = None
+        for plugin in self.configured_plugins:
+            node_id = str(plugin.get("id") or "").strip()
+            if not node_id:
+                continue
+            plugin_type = (plugin.get("type") or "").lower()
+            module_field = str(plugin.get("module") or "")
+            if plugin_type and "node" not in plugin_type and not module_field.endswith(".node"):
+                continue
+            enabled = bool(plugin.get("enabled", True))
+            status = "disabled" if not enabled else "offline"
+            placeholder_values = (
+                node_id,
+                status,
+                "-",
+                "-" if enabled else "0",
+                "-",
+                "-",
+            )
+            if node_id not in self.node_data:
+                self.node_table.insert("", tk.END, iid=node_id, values=placeholder_values)
+            self.node_data.setdefault(node_id, {})
+            self.node_data[node_id].update({
+                "mode": status,
+                "size": "-",
+                "fps": 0,
+                "mem": 0.0,
+                "tx": 0.0,
+                "enabled": enabled,
+                "online": False,
+            })
+            if default_select is None and enabled:
+                default_select = node_id
+
+        if default_select:
+            self.node_table.selection_set(default_select)
+            self.node_table.focus(default_select)
+            self.selected_node = default_select
+            self.node_mode_var.set(self.node_data.get(default_select, {}).get("mode", ""))
+
     def _update_node_row(self, data: dict) -> None:
         node_id = str(data.get("node_id", self.node_id))
         size_block = data.get("logical_size", {})
@@ -357,13 +413,16 @@ class MochiGUI:
         else:
             self.node_table.insert("", tk.END, iid=node_id, values=values)
 
-        self.node_data[node_id] = {
+        entry = self.node_data.get(node_id, {}).copy()
+        entry.update({
             "mode": mode,
             "size": f"{width}x{height}",
             "fps": fps_target,
             "memory_mb": memory_mb,
             "tx": tx_rate,
-        }
+            "online": True,
+        })
+        self.node_data[node_id] = entry
 
         if not self.node_table.selection():
             self.node_table.selection_set(node_id)
@@ -504,16 +563,35 @@ class MochiGUI:
 def main():
     logger = setup_logger("MochiGUI")
 
-    configs = _load_configs(logger)
-    ctrl_addr = _lookup(configs, ("gui", "ctrl_address"), DEFAULT_CTRL_ADDR)
-    if ctrl_addr == DEFAULT_CTRL_ADDR:
-        ctrl_addr = _lookup(configs, ("gui", "pub_address"), ctrl_addr)
-        ctrl_addr = _lookup(configs, ("node", "ctrl_address"), ctrl_addr)
-    ctrl_addr = str(ctrl_addr)
+    configs, root_config = _load_configs(logger)
+    plugin_entries = list(root_config.get("plugins", []) or [])
 
-    health_sub_addr = str(_lookup(configs, ("node", "pub_address"), DEFAULT_HEALTH_ADDR))
+    ctrl_addr = _lookup(configs, ("infrastructure", "gui", "ctrl_address"), None)
+    if ctrl_addr is None:
+        ctrl_addr = _lookup(configs, ("gui", "ctrl_address"), None)
+    if ctrl_addr is None:
+        ctrl_addr = _lookup(configs, ("gui", "pub_address"), None)
+    if ctrl_addr is None:
+        ctrl_addr = _lookup(configs, ("node", "ctrl_address"), DEFAULT_CTRL_ADDR)
+    ctrl_addr = str(ctrl_addr or DEFAULT_CTRL_ADDR)
 
-    node_id = str(_lookup(configs, ("node", "id"), "animation"))
+    health_sub_addr = _lookup(
+        configs,
+        ("infrastructure", "display", "sub_address"),
+        _lookup(configs, ("node", "pub_address"), DEFAULT_HEALTH_ADDR),
+    )
+    health_sub_addr = str(health_sub_addr or DEFAULT_HEALTH_ADDR)
+
+    default_node_id = _lookup(configs, ("node", "id"), None)
+    if not default_node_id and plugin_entries:
+        for plugin in plugin_entries:
+            plugin_type = (plugin.get("type") or "").lower()
+            module_field = str(plugin.get("module") or "")
+            if "node" in plugin_type or module_field.endswith(".node"):
+                default_node_id = plugin.get("id")
+                if default_node_id:
+                    break
+    node_id = str(default_node_id or "animation")
 
     root = tk.Tk()
     try:
@@ -529,6 +607,7 @@ def main():
         health_sub_addr=health_sub_addr,
         node_id=node_id,
         logger=logger,
+        configured_plugins=plugin_entries,
     )
     if not root.winfo_exists():
         return

@@ -50,6 +50,7 @@ class LLMNode(MochiNodeBase):
         )
         if not self._publish_topics:
             raise ValueError("LLM node must publish to at least one topic.")
+        self.capabilities = config.get("capabilities", {})
 
         ollama_host = config.get("ollama_host", "http://localhost:11434")
         timeout_s = float(config.get("ollama_timeout", 30))
@@ -228,6 +229,7 @@ class LLMNode(MochiNodeBase):
             "publish_topics": [
                 topic.decode("utf-8", errors="ignore") for topic in self._publish_topics
             ],
+            "capabilities": self.capabilities,
         }
 
     # ------------------------------------------------------------------ teardown

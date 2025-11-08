@@ -18,8 +18,7 @@ Alternatively, launch the main Mochi host after setting `enabled: true` for the
 
 ```bash
 python main.py
-python tools/publish_stt.py "hello Mochi"
-# or open the chat GUI
+# then open the chat GUI
 python gui/llm_chat_gui.py
 ```
 

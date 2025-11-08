@@ -41,7 +41,7 @@ except ImportError as exc:  # pragma: no cover - optional dependency
     ) from exc
 
 
-DEFAULT_IMAGE = Path("assets/media/player/tv1.png")
+DEFAULT_IMAGE = Path("assets/video/player/tv1.png")
 DEFAULT_SCREEN_BBOX = (425, 289, 150, 150)  # left, top, width, height for tv1 artwork
 
 GUI_DIR = Path(__file__).resolve().parent
@@ -413,8 +413,13 @@ def main(argv: list[str] | None = None) -> int:
 
     image_path = _resolve_image(args.image or profile_data.get("image"))
     if not image_path.exists():
-        logger.error("Image not found: %s", image_path)
-        return 1
+        fallback = _resolve_image(str(DEFAULT_IMAGE))
+        if fallback.exists():
+            logger.warning("Image not found: %s; falling back to %s", image_path, fallback)
+            image_path = fallback
+        else:
+            logger.error("Image not found: %s (no fallback available)", image_path)
+            return 1
 
     scale = args.scale if args.scale is not None else float(profile_data.get("scale", 1.0))
     opacity = args.opacity if args.opacity is not None else float(profile_data.get("opacity", 1.0))
