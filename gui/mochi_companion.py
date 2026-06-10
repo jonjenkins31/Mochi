@@ -144,24 +144,28 @@ QMainWindow, QWidget {{
     letter-spacing: 0.05em;
     padding: 16px 20px 6px 20px;
 }}
+/* Sidebar nav items — full-width selection state matches
+   Wondershare's "selected fills the whole row" treatment. */
 QPushButton.sidebar_btn {{
     background: transparent;
     color: {TEXT_MAIN};
     text-align: left;
-    padding: 10px 20px;
+    padding: 12px 20px;
     border: none;
-    border-radius: 8px;
-    margin: 2px 8px;
+    border-radius: 0;
+    margin: 0;
     font-size: 14px;
     font-weight: 500;
 }}
 QPushButton.sidebar_btn:hover {{
-    background: {ACCENT_BG};
+    background: rgba(139, 92, 246, 0.06);
 }}
 QPushButton.sidebar_btn:checked {{
     background: {ACCENT_BG};
     color: {ACCENT_DARK};
     font-weight: 600;
+    border-left: 3px solid {ACCENT_DARK};
+    padding-left: 17px;
 }}
 
 /* Top bar */
@@ -1333,9 +1337,40 @@ class Sidebar(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
+        # Logo row: small purple mark + brand text.  Borrows the
+        # Wondershare layout (icon-mark on the left, brand text to
+        # the right).
+        logo_row = QFrame()
+        logo_row.setStyleSheet(f"background: {BG_SIDEBAR}; border: none;")
+        logo_layout = QHBoxLayout(logo_row)
+        logo_layout.setContentsMargins(20, 18, 20, 20)
+        logo_layout.setSpacing(10)
+
+        mark = QLabel("◆")
+        mark.setFixedSize(28, 28)
+        mark.setAlignment(Qt.AlignCenter)
+        mark.setStyleSheet(f"""
+            background: {ACCENT_DARK};
+            color: white;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 700;
+        """)
+        logo_layout.addWidget(mark)
+
         logo = QLabel("MOCHI")
         logo.setObjectName("sidebar_logo")
-        layout.addWidget(logo)
+        logo.setStyleSheet(f"""
+            background: transparent;
+            color: {TEXT_MAIN};
+            font-size: 18px;
+            font-weight: 700;
+            padding: 0;
+        """)
+        logo_layout.addWidget(logo)
+        logo_layout.addStretch()
+
+        layout.addWidget(logo_row)
 
         self._buttons: dict[str, QPushButton] = {}
         for label, icon in SIDEBAR_ITEMS:
