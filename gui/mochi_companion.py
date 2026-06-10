@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -59,6 +60,8 @@ GUI_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = GUI_DIR.parent
 CATALOG_PATH = PROJECT_ROOT / "assets" / "CATALOG.json"
 PACKS_DIR    = PROJECT_ROOT / "assets" / "packs"
+SKINS_DIR    = PROJECT_ROOT / "assets" / "skins"
+MINI_LAUNCHER = GUI_DIR / "mochi_vdisplay_player_qt.py"
 
 DEFAULT_CTRL_ADDR = "tcp://127.0.0.1:5556"
 
@@ -274,6 +277,77 @@ def load_catalog() -> dict:
         return json.loads(CATALOG_PATH.read_text())
     except Exception:  # noqa: BLE001
         return {"entries": []}
+
+
+def discover_skins() -> list[dict]:
+    """Walk assets/skins/<id>/meta.yaml + body.png and return one
+    summary dict per skin.  See docs/SKIN_CONVENTION.md.
+
+    A skin without a meta.yaml is skipped silently.  A meta.yaml
+    without a sibling body.png logs to the manifest's ``_warning``
+    field so the operator sees it in the picker.
+    """
+    if not SKINS_DIR.is_dir():
+        return []
+    try:
+        import yaml
+    except ImportError:
+        return []
+    skins: list[dict] = []
+    for child in sorted(SKINS_DIR.iterdir()):
+        if not child.is_dir():
+            continue
+        manifest = child / "meta.yaml"
+        body = child / "body.png"
+        if not manifest.is_file():
+            continue
+        try:
+            data = yaml.safe_load(manifest.read_text()) or {}
+        except Exception:  # noqa: BLE001
+            continue
+        if not isinstance(data, dict):
+            continue
+        data["_path"] = str(child)
+        data["_body_path"] = str(body)
+        data.setdefault("id", child.name)
+        data.setdefault("name", child.name)
+        if not body.is_file():
+            data["_warning"] = "body.png missing"
+        skins.append(data)
+    return skins
+
+
+def launch_mini_window(
+    skin_path: Path | None,
+    logger: logging.Logger,
+) -> subprocess.Popen | None:
+    """Spawn the frameless Qt overlay (mochi_vdisplay_player_qt.py)
+    as a subprocess so the companion stays interactive.
+
+    When ``skin_path`` is provided, we use its ``body.png``; the
+    launcher's existing --image flag is the bridge.  ``meta.yaml``'s
+    ``screen_bbox`` etc. aren't wired into the launcher CLI today —
+    follow-up commit adds --skin to the launcher so it reads the
+    whole meta in one go.  For now the existing ``--profile`` flag
+    + config.yaml ``display_players`` block continues to handle the
+    detailed settings until the launcher is updated.
+    """
+    if not MINI_LAUNCHER.is_file():
+        logger.warning("mini launcher missing: %s", MINI_LAUNCHER)
+        return None
+    cmd: list[str] = [sys.executable, str(MINI_LAUNCHER)]
+    if skin_path is not None:
+        body = skin_path / "body.png"
+        if body.is_file():
+            cmd.extend(["--image", str(body)])
+    try:
+        proc = subprocess.Popen(cmd, cwd=str(PROJECT_ROOT))
+        logger.info("launched mini window — pid=%d cmd=%s",
+                    proc.pid, " ".join(cmd))
+        return proc
+    except Exception as exc:  # noqa: BLE001
+        logger.error("mini launch failed: %s", exc)
+        return None
 
 
 def discover_packs() -> list[dict]:
@@ -774,6 +848,8 @@ class CompanionMain(QMainWindow):
         self.setStyleSheet(STYLESHEET)
 
         self.ctrl = CtrlBridge(ctrl_addr, self.logger)
+        self._mini_proc: subprocess.Popen | None = None
+        self._available_skins: list[dict] = discover_skins()
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -785,8 +861,45 @@ class CompanionMain(QMainWindow):
         self.sidebar.item_selected.connect(self._on_sidebar_select)
         h.addWidget(self.sidebar)
 
+        right = QVBoxLayout()
+        right.setContentsMargins(0, 0, 0, 0)
+        right.setSpacing(0)
+
+        # ── top toolbar (always visible, above the page stack) ────
+        toolbar = QFrame()
+        toolbar.setStyleSheet(
+            f"background: {BG_BASE}; border-bottom: 1px solid {BORDER};"
+        )
+        toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(20, 8, 20, 8)
+        toolbar_layout.setSpacing(8)
+        toolbar_layout.addStretch()
+        self.mini_btn = QPushButton(self._mini_button_label())
+        self.mini_btn.setCursor(Qt.PointingHandCursor)
+        self.mini_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {ACCENT_DARK};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 14px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background: {ACCENT};
+            }}
+        """)
+        self.mini_btn.clicked.connect(self._on_mini_toggle)
+        toolbar_layout.addWidget(self.mini_btn)
+        right.addWidget(toolbar)
+
         self.stack = QStackedWidget()
-        h.addWidget(self.stack, 1)
+        right.addWidget(self.stack, 1)
+
+        right_container = QWidget()
+        right_container.setLayout(right)
+        h.addWidget(right_container, 1)
 
         # Build pages
         self.pages: dict[str, QWidget] = {}
@@ -820,11 +933,10 @@ class CompanionMain(QMainWindow):
             "In-app sprite / bitmap / mscript editor.  Existing "
             "tools/*_editor_gui.py surfaces folded in here.",
         )
-        self.pages["Settings"] = StubPage(
-            "Settings", "Phase C",
-            "Skin picker (TV bezel + custom body frames), "
-            "personality dial, LLM mode toggle, broker addresses.",
-        )
+        # Settings page — minimal first version with skin list.
+        # Full picker (radio + preview) lands when there's >1 skin
+        # to choose between.
+        self.pages["Settings"] = self._build_settings_page()
 
         for name, page in self.pages.items():
             self.stack.addWidget(page)
@@ -835,6 +947,148 @@ class CompanionMain(QMainWindow):
         page = self.pages.get(label)
         if page is not None:
             self.stack.setCurrentWidget(page)
+
+    def _build_settings_page(self) -> QWidget:
+        """Minimal Settings — lists discovered skins.  Picker UI lands
+        when the operator has > 1 skin to choose between."""
+        page = QWidget()
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        tb = QHBoxLayout(topbar)
+        tb.setContentsMargins(28, 22, 28, 16)
+        title = QLabel("Settings")
+        title.setObjectName("page_title")
+        tb.addWidget(title)
+        tb.addStretch()
+        outer.addWidget(topbar)
+
+        body = QFrame()
+        body.setStyleSheet(f"background: {BG_BASE};")
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(28, 20, 28, 28)
+        body_layout.setSpacing(12)
+
+        heading = QLabel("Skins")
+        heading.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 16px; font-weight: 600;"
+        )
+        body_layout.addWidget(heading)
+
+        sub = QLabel(
+            "Body frames the mini window wears.  Drop folders under "
+            "<code>assets/skins/&lt;id&gt;/</code> with "
+            "<code>body.png</code> + <code>meta.yaml</code>.  See "
+            "<code>docs/SKIN_CONVENTION.md</code>."
+        )
+        sub.setTextFormat(Qt.RichText)
+        sub.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 12px;")
+        sub.setWordWrap(True)
+        body_layout.addWidget(sub)
+
+        if not self._available_skins:
+            empty = QLabel("(no skins detected)")
+            empty.setStyleSheet(
+                f"color: {TEXT_MUTED}; font-size: 13px; "
+                f"padding: 12px 0;"
+            )
+            body_layout.addWidget(empty)
+        else:
+            for skin in self._available_skins:
+                row = QFrame()
+                row.setProperty("class", "card")
+                rl = QHBoxLayout(row)
+                rl.setContentsMargins(14, 12, 14, 12)
+                rl.setSpacing(12)
+                name = QLabel(skin.get("name", skin.get("id", "?")))
+                name.setStyleSheet(
+                    f"color: {TEXT_MAIN}; font-size: 13px; "
+                    f"font-weight: 600;"
+                )
+                rl.addWidget(name)
+                rl.addSpacing(12)
+                meta_bits = []
+                bbox = skin.get("screen_bbox")
+                if bbox:
+                    meta_bits.append(
+                        f"screen {bbox[2]}×{bbox[3]} @ "
+                        f"({bbox[0]}, {bbox[1]})"
+                    )
+                author = skin.get("author")
+                if author:
+                    meta_bits.append(f"by {author}")
+                if skin.get("_warning"):
+                    meta_bits.append(f"⚠ {skin['_warning']}")
+                meta = QLabel("  ·  ".join(meta_bits))
+                meta.setStyleSheet(
+                    f"color: {TEXT_MUTED}; font-size: 12px;"
+                )
+                rl.addWidget(meta)
+                rl.addStretch()
+                body_layout.addWidget(row)
+
+        body_layout.addStretch()
+        outer.addWidget(body)
+        return page
+
+    # ── mini-window toolbar control ──────────────────────────────
+
+    def _mini_button_label(self) -> str:
+        """Toggle text reflects current state."""
+        if self._mini_proc is not None and self._mini_proc.poll() is None:
+            return "Close Mini Window"
+        return "Open Mini Window"
+
+    def _refresh_mini_button(self) -> None:
+        self.mini_btn.setText(self._mini_button_label())
+
+    def _on_mini_toggle(self) -> None:
+        # If already running, kill it.
+        if self._mini_proc is not None and self._mini_proc.poll() is None:
+            self.logger.info("closing mini window (pid=%d)",
+                             self._mini_proc.pid)
+            self._mini_proc.terminate()
+            try:
+                self._mini_proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self._mini_proc.kill()
+            self._mini_proc = None
+            self._refresh_mini_button()
+            return
+        # Pick the first skin (operator-curated picker lands in
+        # Settings page later).  Fall back to launching with no skin,
+        # which uses the launcher's own DEFAULT_IMAGE.
+        skin = None
+        if self._available_skins:
+            skin = Path(self._available_skins[0]["_path"])
+        self._mini_proc = launch_mini_window(skin, self.logger)
+        self._refresh_mini_button()
+        # Poll once a second for the subprocess exiting so the button
+        # label catches up.
+        QTimer.singleShot(1500, self._poll_mini_status)
+
+    def _poll_mini_status(self) -> None:
+        if self._mini_proc is not None and self._mini_proc.poll() is not None:
+            # Process exited externally — reset state.
+            self.logger.info("mini window exited externally")
+            self._mini_proc = None
+            self._refresh_mini_button()
+            return
+        if self._mini_proc is not None:
+            QTimer.singleShot(1500, self._poll_mini_status)
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        # Clean up the subprocess on companion close.
+        if self._mini_proc is not None and self._mini_proc.poll() is None:
+            self._mini_proc.terminate()
+            try:
+                self._mini_proc.wait(timeout=1.5)
+            except subprocess.TimeoutExpired:
+                self._mini_proc.kill()
+        super().closeEvent(event)
 
 
 # ── entry point ────────────────────────────────────────────────────
