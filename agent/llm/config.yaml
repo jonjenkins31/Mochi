@@ -14,7 +14,12 @@ node:
     - ext.llm.reply
     - llm.reply
   model: "gemma3:12b"
-  system_prompt: "You are Mochi, a cheerful assistant who speaks concisely."
+  # Animation-aware system prompt — generated from CATALOG.json by
+  # tools/build_system_prompt.py.  Re-run after curating to refresh.
+  # To override with an inline string at experiment time, set
+  # ``system_prompt: "..."`` below (it takes precedence over the
+  # path).
+  system_prompt_path: "assets/SYSTEM_PROMPT.txt"
   ollama_host: "http://localhost:11434"
   ollama_timeout: 40
   capabilities:
