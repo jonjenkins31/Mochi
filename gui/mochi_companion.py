@@ -58,6 +58,7 @@ import zmq
 GUI_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = GUI_DIR.parent
 CATALOG_PATH = PROJECT_ROOT / "assets" / "CATALOG.json"
+PACKS_DIR    = PROJECT_ROOT / "assets" / "packs"
 
 DEFAULT_CTRL_ADDR = "tcp://127.0.0.1:5556"
 
@@ -275,6 +276,40 @@ def load_catalog() -> dict:
         return {"entries": []}
 
 
+def discover_packs() -> list[dict]:
+    """Walk assets/packs/<id>/pack.yaml and return one summary dict
+    per pack.  Empty list when no packs are authored yet — operator
+    is working on them; the surface is ready when they land.
+
+    See docs/PACK_CONVENTION.md for the schema.
+    """
+    if not PACKS_DIR.is_dir():
+        return []
+    try:
+        import yaml  # local import — yaml is in requirements
+    except ImportError:
+        return []
+    packs: list[dict] = []
+    for child in sorted(PACKS_DIR.iterdir()):
+        if not child.is_dir():
+            continue
+        manifest = child / "pack.yaml"
+        if not manifest.is_file():
+            continue
+        try:
+            data = yaml.safe_load(manifest.read_text()) or {}
+        except Exception:  # noqa: BLE001
+            continue
+        if not isinstance(data, dict):
+            continue
+        data["_path"] = str(child)
+        data.setdefault("id", child.name)
+        data.setdefault("name", child.name)
+        data.setdefault("slots", {})
+        packs.append(data)
+    return packs
+
+
 # ── widgets ────────────────────────────────────────────────────────
 
 def make_badge(mood: str) -> QLabel:
@@ -483,6 +518,144 @@ class LibraryPage(QWidget):
             self.ctrl.send(f"node animation mode on {name}")
 
 
+class PacksPage(QWidget):
+    """Pack browser — top-level character/style selection.
+
+    Empty state when ``assets/packs/`` has no pack.yaml files yet
+    (operator note 2026-06-10: "most stuff are one-offs... I am
+    working on the packs").  As packs land, this page populates with
+    pack cards; click → emotion-slot view (TODO when first pack exists).
+    """
+
+    def __init__(self, ctrl: CtrlBridge, parent: QWidget = None) -> None:
+        super().__init__(parent)
+        self.ctrl = ctrl
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # ── top bar ───────────────────────────────────────────────
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        topbar_layout = QHBoxLayout(topbar)
+        topbar_layout.setContentsMargins(28, 22, 28, 16)
+        title = QLabel("Packs")
+        title.setObjectName("page_title")
+        topbar_layout.addWidget(title)
+        topbar_layout.addStretch()
+        outer.addWidget(topbar)
+
+        # ── content area ──────────────────────────────────────────
+        content = QFrame()
+        content.setStyleSheet(f"background: {BG_BASE};")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(28, 20, 28, 28)
+        content_layout.setSpacing(16)
+
+        packs = discover_packs()
+        if not packs:
+            content_layout.addSpacing(40)
+            heading = QLabel("No packs yet")
+            heading.setStyleSheet(
+                f"color: {TEXT_MAIN}; font-size: 20px; "
+                f"font-weight: 600;"
+            )
+            heading.setAlignment(Qt.AlignHCenter)
+            content_layout.addWidget(heading)
+
+            content_layout.addSpacing(12)
+            sub = QLabel(
+                "Most of the current assets are one-offs (browse them on "
+                "the Library tab).\n\nWhen you add a pack folder under "
+                "<code>assets/packs/&lt;id&gt;/</code> with a "
+                "<code>pack.yaml</code>, it appears here.\n\n"
+                "See <code>docs/PACK_CONVENTION.md</code> for the format."
+            )
+            sub.setTextFormat(Qt.RichText)
+            sub.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 13px;")
+            sub.setAlignment(Qt.AlignHCenter)
+            sub.setWordWrap(True)
+            sub.setMaximumWidth(600)
+            container = QHBoxLayout()
+            container.addStretch()
+            container.addWidget(sub)
+            container.addStretch()
+            content_layout.addLayout(container)
+            content_layout.addStretch()
+        else:
+            # Pack cards — first version is name + slot count.  When a
+            # real pack exists with preview_slot, swap to thumbnails.
+            grid = QGridLayout()
+            grid.setContentsMargins(0, 0, 0, 0)
+            grid.setSpacing(16)
+            grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+            for i, pack in enumerate(packs):
+                card = self._make_pack_card(pack)
+                r, c = divmod(i, 4)
+                grid.addWidget(card, r, c)
+            content_layout.addLayout(grid)
+            content_layout.addStretch()
+
+        outer.addWidget(content)
+
+    def _make_pack_card(self, pack: dict) -> QFrame:
+        card = QFrame()
+        card.setProperty("class", "card")
+        card.setObjectName("card")
+        card.setCursor(Qt.PointingHandCursor)
+        card.setFixedSize(240, 220)
+        card.mousePressEvent = lambda _e, p=pack: self._on_pack_click(p)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(8)
+
+        preview = QLabel(pack.get("name", "")[:1].upper())
+        preview.setAlignment(Qt.AlignCenter)
+        preview.setStyleSheet(f"""
+            background: {ACCENT_BG};
+            color: {ACCENT_DARK};
+            border-radius: 6px;
+            font-size: 44px;
+            font-weight: 700;
+            min-height: 100px;
+        """)
+        layout.addWidget(preview)
+
+        title = QLabel(pack.get("name", pack.get("id", "?")))
+        title.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 14px; font-weight: 600;"
+        )
+        layout.addWidget(title)
+
+        slots = pack.get("slots", {}) or {}
+        slot_count = len(slots) if isinstance(slots, dict) else 0
+        author = pack.get("author", "")
+        meta = QLabel(f"{slot_count} slots  ·  {author}")
+        meta.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 12px;")
+        layout.addWidget(meta)
+
+        return card
+
+    def _on_pack_click(self, pack: dict) -> None:
+        # Pack detail view lands in a follow-up commit when we have a
+        # real pack to design against.  For now, log + fire the pack's
+        # default slot if one is defined.
+        default_slot = pack.get("default_slot")
+        slots = pack.get("slots", {}) or {}
+        if default_slot and default_slot in slots:
+            slot_file = slots[default_slot]
+            if isinstance(slot_file, list):
+                slot_file = slot_file[0] if slot_file else None
+            if slot_file:
+                # Use the bare filename; the animation node's existing
+                # mode resolver picks it up via the catalog or its own
+                # animations/__init__.py registration.
+                stem = Path(str(slot_file)).stem
+                self.ctrl.send(f"node animation mode on {stem}")
+
+
 class StubPage(QWidget):
     """Placeholder for tabs not yet wired (Home, Scenes, Triggers,
     Schedule, Editors, Settings)."""
@@ -530,6 +703,7 @@ class StubPage(QWidget):
 SIDEBAR_ITEMS: list[tuple[str, str]] = [
     ("Home",     "🏠"),
     ("Library",  "📚"),
+    ("Packs",    "🎭"),
     ("Scenes",   "🎬"),
     ("Triggers", "⚡"),
     ("Schedule", "🕐"),
@@ -623,6 +797,7 @@ class CompanionMain(QMainWindow):
             "character does the rest.",
         )
         self.pages["Library"] = LibraryPage(self.ctrl)
+        self.pages["Packs"] = PacksPage(self.ctrl)
         self.pages["Scenes"] = StubPage(
             "Scenes", "Phase B",
             "Curated bundles of idle pool + reaction pool + triggers."
