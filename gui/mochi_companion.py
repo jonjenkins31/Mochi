@@ -731,52 +731,102 @@ class LibraryPage(QWidget):
 
 
 class PacksPage(QWidget):
-    """Pack browser — top-level character/style selection.
+    """Pack browser with stacked card-grid → detail view.
 
     Empty state when ``assets/packs/`` has no pack.yaml files yet
-    (operator note 2026-06-10: "most stuff are one-offs... I am
-    working on the packs").  As packs land, this page populates with
-    pack cards; click → emotion-slot view (TODO when first pack exists).
+    (operator: "most stuff are one-offs... I am working on the
+    packs").  As packs land, this page populates with pack cards;
+    click → slot-by-slot detail view with a Set Active button.
+
+    Active pack persists to ``assets/packs/active.txt`` (single line,
+    pack id).  The animation node / LLM picker / reaction button row
+    (when wired) read from this file to know which pack to use.
     """
+
+    ACTIVE_FILE = PACKS_DIR / "active.txt"
 
     def __init__(self, ctrl: CtrlBridge, parent: QWidget = None) -> None:
         super().__init__(parent)
         self.ctrl = ctrl
+        self._packs = discover_packs()
+        self._active_id = self._read_active()
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        # ── top bar ───────────────────────────────────────────────
-        topbar = QFrame()
-        topbar.setObjectName("topbar")
-        topbar_layout = QHBoxLayout(topbar)
-        topbar_layout.setContentsMargins(28, 22, 28, 16)
-        title = QLabel("Packs")
-        title.setObjectName("page_title")
-        topbar_layout.addWidget(title)
-        topbar_layout.addStretch()
-        outer.addWidget(topbar)
+        # ── top bar (with back button — hidden on the grid view) ──
+        self._topbar = QFrame()
+        self._topbar.setObjectName("topbar")
+        tb = QHBoxLayout(self._topbar)
+        tb.setContentsMargins(28, 22, 28, 16)
+        self._back_btn = QPushButton("← Packs")
+        self._back_btn.setCursor(Qt.PointingHandCursor)
+        self._back_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {ACCENT_DARK};
+                border: none;
+                padding: 4px 8px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{ color: {ACCENT}; }}
+        """)
+        self._back_btn.clicked.connect(self._show_grid)
+        self._back_btn.setVisible(False)
+        tb.addWidget(self._back_btn)
+        self._title = QLabel("Packs")
+        self._title.setObjectName("page_title")
+        tb.addWidget(self._title)
+        tb.addStretch()
+        outer.addWidget(self._topbar)
 
-        # ── content area ──────────────────────────────────────────
-        content = QFrame()
-        content.setStyleSheet(f"background: {BG_BASE};")
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(28, 20, 28, 28)
-        content_layout.setSpacing(16)
+        # ── stacked content ──────────────────────────────────────
+        self._stack = QStackedWidget()
+        self._grid_page = self._build_grid_page()
+        self._stack.addWidget(self._grid_page)
+        # Detail page is built on demand per click.
+        outer.addWidget(self._stack)
 
-        packs = discover_packs()
-        if not packs:
-            content_layout.addSpacing(40)
+    # ── persistence ───────────────────────────────────────────────
+
+    def _read_active(self) -> str | None:
+        try:
+            if self.ACTIVE_FILE.is_file():
+                txt = self.ACTIVE_FILE.read_text().strip()
+                return txt or None
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
+    def _write_active(self, pack_id: str) -> None:
+        try:
+            self.ACTIVE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            self.ACTIVE_FILE.write_text(pack_id + "\n")
+            self._active_id = pack_id
+        except Exception as exc:  # noqa: BLE001
+            print(f"[packs] failed to persist active.txt: {exc}")
+
+    # ── grid page ────────────────────────────────────────────────
+
+    def _build_grid_page(self) -> QWidget:
+        page = QFrame()
+        page.setStyleSheet(f"background: {BG_BASE};")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(28, 20, 28, 28)
+        layout.setSpacing(16)
+
+        if not self._packs:
+            layout.addSpacing(40)
             heading = QLabel("No packs yet")
             heading.setStyleSheet(
                 f"color: {TEXT_MAIN}; font-size: 20px; "
                 f"font-weight: 600;"
             )
             heading.setAlignment(Qt.AlignHCenter)
-            content_layout.addWidget(heading)
-
-            content_layout.addSpacing(12)
+            layout.addWidget(heading)
+            layout.addSpacing(12)
             sub = QLabel(
                 "Most of the current assets are one-offs (browse them on "
                 "the Library tab).\n\nWhen you add a pack folder under "
@@ -789,27 +839,25 @@ class PacksPage(QWidget):
             sub.setAlignment(Qt.AlignHCenter)
             sub.setWordWrap(True)
             sub.setMaximumWidth(600)
-            container = QHBoxLayout()
-            container.addStretch()
-            container.addWidget(sub)
-            container.addStretch()
-            content_layout.addLayout(container)
-            content_layout.addStretch()
-        else:
-            # Pack cards — first version is name + slot count.  When a
-            # real pack exists with preview_slot, swap to thumbnails.
-            grid = QGridLayout()
-            grid.setContentsMargins(0, 0, 0, 0)
-            grid.setSpacing(16)
-            grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-            for i, pack in enumerate(packs):
-                card = self._make_pack_card(pack)
-                r, c = divmod(i, 4)
-                grid.addWidget(card, r, c)
-            content_layout.addLayout(grid)
-            content_layout.addStretch()
+            row = QHBoxLayout()
+            row.addStretch()
+            row.addWidget(sub)
+            row.addStretch()
+            layout.addLayout(row)
+            layout.addStretch()
+            return page
 
-        outer.addWidget(content)
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(16)
+        grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        for i, pack in enumerate(self._packs):
+            card = self._make_pack_card(pack)
+            r, c = divmod(i, 4)
+            grid.addWidget(card, r, c)
+        layout.addLayout(grid)
+        layout.addStretch()
+        return page
 
     def _make_pack_card(self, pack: dict) -> QFrame:
         card = QFrame()
@@ -817,7 +865,7 @@ class PacksPage(QWidget):
         card.setObjectName("card")
         card.setCursor(Qt.PointingHandCursor)
         card.setFixedSize(240, 220)
-        card.mousePressEvent = lambda _e, p=pack: self._on_pack_click(p)
+        card.mousePressEvent = lambda _e, p=pack: self._show_detail(p)
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(14, 14, 14, 14)
@@ -835,11 +883,28 @@ class PacksPage(QWidget):
         """)
         layout.addWidget(preview)
 
+        # Title row with "Active" badge if this is the chosen pack.
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
         title = QLabel(pack.get("name", pack.get("id", "?")))
         title.setStyleSheet(
             f"color: {TEXT_MAIN}; font-size: 14px; font-weight: 600;"
         )
-        layout.addWidget(title)
+        title_row.addWidget(title)
+        title_row.addStretch()
+        if pack.get("id") == self._active_id:
+            badge = QLabel("ACTIVE")
+            badge.setStyleSheet(f"""
+                background: {ACCENT_DARK};
+                color: white;
+                border-radius: 4px;
+                padding: 2px 8px;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 0.05em;
+            """)
+            title_row.addWidget(badge)
+        layout.addLayout(title_row)
 
         slots = pack.get("slots", {}) or {}
         slot_count = len(slots) if isinstance(slots, dict) else 0
@@ -850,22 +915,219 @@ class PacksPage(QWidget):
 
         return card
 
-    def _on_pack_click(self, pack: dict) -> None:
-        # Pack detail view lands in a follow-up commit when we have a
-        # real pack to design against.  For now, log + fire the pack's
-        # default slot if one is defined.
-        default_slot = pack.get("default_slot")
+    # ── detail page ───────────────────────────────────────────────
+
+    def _show_detail(self, pack: dict) -> None:
+        """Build + push the slot grid for this pack onto the stack."""
+        # Remove any previous detail page so memory doesn't leak.
+        while self._stack.count() > 1:
+            old = self._stack.widget(1)
+            self._stack.removeWidget(old)
+            old.deleteLater()
+
+        detail = self._build_detail_page(pack)
+        self._stack.addWidget(detail)
+        self._stack.setCurrentIndex(1)
+        self._title.setText(pack.get("name", pack.get("id", "?")))
+        self._back_btn.setVisible(True)
+
+    def _show_grid(self) -> None:
+        self._stack.setCurrentIndex(0)
+        self._title.setText("Packs")
+        self._back_btn.setVisible(False)
+
+    def _build_detail_page(self, pack: dict) -> QWidget:
+        page = QFrame()
+        page.setStyleSheet(f"background: {BG_BASE};")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(28, 20, 28, 28)
+        layout.setSpacing(16)
+
+        # Header row: description + "Set Active" action
+        header = QHBoxLayout()
+        info_col = QVBoxLayout()
+        info_col.setSpacing(4)
+        desc = pack.get("description") or "No description provided."
+        desc_lbl = QLabel(desc.strip())
+        desc_lbl.setWordWrap(True)
+        desc_lbl.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 13px;"
+        )
+        info_col.addWidget(desc_lbl)
+        meta_bits = []
+        if pack.get("author"):
+            meta_bits.append(f"by {pack['author']}")
+        if pack.get("license"):
+            meta_bits.append(pack["license"])
+        if pack.get("default_adapter"):
+            meta_bits.append(f"adapter: {pack['default_adapter']}")
+        meta = QLabel("  ·  ".join(meta_bits))
+        meta.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 12px;"
+        )
+        info_col.addWidget(meta)
+        header.addLayout(info_col, 1)
+
+        action_col = QVBoxLayout()
+        active_btn = QPushButton(
+            "Active" if pack.get("id") == self._active_id
+            else "Set Active"
+        )
+        active_btn.setCursor(Qt.PointingHandCursor)
+        active_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {ACCENT_DARK};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{ background: {ACCENT}; }}
+            QPushButton:disabled {{
+                background: {BORDER}; color: {TEXT_MUTED};
+            }}
+        """)
+        active_btn.setEnabled(pack.get("id") != self._active_id)
+        active_btn.clicked.connect(
+            lambda: self._on_set_active(pack)
+        )
+        action_col.addWidget(active_btn)
+        action_col.addStretch()
+        header.addLayout(action_col)
+
+        layout.addLayout(header)
+
+        # Slot grid — each slot is a clickable card
         slots = pack.get("slots", {}) or {}
-        if default_slot and default_slot in slots:
-            slot_file = slots[default_slot]
-            if isinstance(slot_file, list):
-                slot_file = slot_file[0] if slot_file else None
-            if slot_file:
-                # Use the bare filename; the animation node's existing
-                # mode resolver picks it up via the catalog or its own
-                # animations/__init__.py registration.
-                stem = Path(str(slot_file)).stem
-                self.ctrl.send(f"node animation mode on {stem}")
+        if not isinstance(slots, dict) or not slots:
+            empty = QLabel("This pack has no slots defined.")
+            empty.setStyleSheet(
+                f"color: {TEXT_MUTED}; font-size: 13px; "
+                f"padding: 20px 0;"
+            )
+            layout.addWidget(empty)
+            layout.addStretch()
+            return page
+
+        section_label = QLabel("SLOTS")
+        section_label.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 11px; "
+            f"font-weight: 700; letter-spacing: 0.06em; "
+            f"padding-top: 8px;"
+        )
+        layout.addWidget(section_label)
+
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(12)
+        grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+
+        default_slot = pack.get("default_slot")
+        for i, (slot_name, slot_value) in enumerate(slots.items()):
+            card = self._make_slot_card(
+                pack, slot_name, slot_value,
+                is_default=(slot_name == default_slot),
+            )
+            r, c = divmod(i, 5)
+            grid.addWidget(card, r, c)
+        layout.addLayout(grid)
+        layout.addStretch()
+        return page
+
+    def _make_slot_card(
+        self,
+        pack: dict,
+        slot_name: str,
+        slot_value,
+        *,
+        is_default: bool,
+    ) -> QFrame:
+        card = QFrame()
+        card.setProperty("class", "card")
+        card.setObjectName("card")
+        card.setCursor(Qt.PointingHandCursor)
+        card.setFixedSize(180, 160)
+        card.mousePressEvent = lambda _e: self._fire_slot(pack, slot_name, slot_value)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(6)
+
+        # Show the slot's animation filename as a small preview
+        file_label = QLabel(self._summarise_slot_value(slot_value))
+        file_label.setAlignment(Qt.AlignCenter)
+        file_label.setWordWrap(True)
+        file_label.setStyleSheet(f"""
+            background: {ACCENT_BG};
+            color: {ACCENT_DARK};
+            border-radius: 6px;
+            padding: 18px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            min-height: 70px;
+        """)
+        layout.addWidget(file_label)
+
+        name_lbl = QLabel(slot_name)
+        name_lbl.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 13px; font-weight: 600;"
+        )
+        layout.addWidget(name_lbl)
+
+        if is_default:
+            badge = QLabel("default")
+            badge.setStyleSheet(
+                f"color: {ACCENT_DARK}; font-size: 10px; "
+                f"font-weight: 600; letter-spacing: 0.04em;"
+            )
+            layout.addWidget(badge)
+
+        return card
+
+    @staticmethod
+    def _summarise_slot_value(slot_value) -> str:
+        """Render a slot's value (filename / list / dict) compactly."""
+        if isinstance(slot_value, str):
+            return Path(slot_value).name
+        if isinstance(slot_value, list):
+            return f"{len(slot_value)} variants"
+        if isinstance(slot_value, dict):
+            f = slot_value.get("file") or slot_value.get("name")
+            return Path(str(f)).name if f else "dict"
+        return str(slot_value)
+
+    def _fire_slot(self, pack: dict, slot_name: str, slot_value) -> None:
+        """Fire the slot's animation through the ctrl socket.
+
+        Picks the bare filename stem so the animation node's existing
+        mode resolver handles dispatch (same path used by the Library
+        page).
+        """
+        if isinstance(slot_value, list):
+            slot_value = slot_value[0] if slot_value else None
+        if isinstance(slot_value, dict):
+            slot_value = slot_value.get("file") or slot_value.get("name")
+        if not slot_value:
+            return
+        stem = Path(str(slot_value)).stem
+        self.ctrl.send(f"node animation mode on {stem}")
+
+    def _on_set_active(self, pack: dict) -> None:
+        pack_id = pack.get("id")
+        if not pack_id:
+            return
+        self._write_active(pack_id)
+        # Rebuild the grid so the active-badge updates, then re-show
+        # the detail page so the "Active" button reflects state.
+        new_grid = self._build_grid_page()
+        old_grid = self._stack.widget(0)
+        self._stack.removeWidget(old_grid)
+        old_grid.deleteLater()
+        self._stack.insertWidget(0, new_grid)
+        self._grid_page = new_grid
+        self._show_detail(pack)
 
 
 class LearnPage(QWidget):
