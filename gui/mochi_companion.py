@@ -484,6 +484,7 @@ class LibraryPage(QWidget):
         self.entries = self.catalog.get("entries", [])
         self._current_mood = "all"
         self._current_type = "all"
+        self._current_curation = "all"   # all | curated | uncurated
         self._search_text = ""
         # (note: _current_type initialised here is consumed by
         # _filtered() once the Type filter row + _select_type are in
@@ -527,12 +528,25 @@ class LibraryPage(QWidget):
 
         self._mood_buttons: dict[str, QPushButton] = {}
         self._type_buttons: dict[str, QPushButton] = {}
+        self._curation_buttons: dict[str, QPushButton] = {}
 
         outer.addWidget(self._build_filter_row(
             "Mood", moods, self._mood_buttons, self._select_mood,
         ))
         outer.addWidget(self._build_filter_row(
             "Type", types, self._type_buttons, self._select_type,
+        ))
+        # Curation chip row — operator uses to find what still needs
+        # a hand-edit on its sidecar.  "Curated" means the operator
+        # has touched the sidecar beyond the auto-scaffolded stub;
+        # heuristic: any sidecar that has at least one curation field
+        # set (we approximate via ``author`` populated, since the
+        # scaffolder leaves author commented-out).
+        outer.addWidget(self._build_filter_row(
+            "Curation",
+            ["all", "curated", "uncurated"],
+            self._curation_buttons,
+            self._select_curation,
             border_bottom=True,
         ))
 
@@ -612,6 +626,20 @@ class LibraryPage(QWidget):
         self._current_type = type_
         self._rebuild_grid()
 
+    def _select_curation(self, curation: str) -> None:
+        for c, btn in self._curation_buttons.items():
+            btn.setChecked(c == curation)
+        self._current_curation = curation
+        self._rebuild_grid()
+
+    @staticmethod
+    def _is_curated(entry: dict) -> bool:
+        """Heuristic: the sidecar has been hand-touched (operator
+        added a curation field).  The scaffolder leaves ``author``
+        commented out, so a populated ``author`` is the simplest
+        proxy.  Once more reliable curation markers exist, refine."""
+        return bool(entry.get("author"))
+
     def _filtered(self) -> list[dict]:
         results = []
         for e in self.entries:
@@ -620,6 +648,10 @@ class LibraryPage(QWidget):
                 continue
             if (self._current_type != "all"
                     and e.get("type") != self._current_type):
+                continue
+            if self._current_curation == "curated" and not self._is_curated(e):
+                continue
+            if self._current_curation == "uncurated" and self._is_curated(e):
                 continue
             if self._search_text:
                 hay = " ".join([
