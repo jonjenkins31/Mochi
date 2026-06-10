@@ -175,17 +175,18 @@ QPushButton.sidebar_btn:checked {{
     border-bottom: 1px solid {BORDER};
 }}
 #page_title {{
-    font-size: 22px;
+    font-size: 28px;
     font-weight: 700;
     color: {TEXT_MAIN};
+    padding-bottom: 4px;
 }}
 
 QPushButton.tab_btn {{
     background: transparent;
     color: {TEXT_MUTED};
     border: none;
-    padding: 10px 14px;
-    margin-right: 4px;
+    padding: 12px 18px 14px 18px;
+    margin-right: 2px;
     font-size: 14px;
     font-weight: 500;
 }}
@@ -194,8 +195,9 @@ QPushButton.tab_btn:hover {{
 }}
 QPushButton.tab_btn:checked {{
     color: {ACCENT_DARK};
-    border-bottom: 2px solid {ACCENT_DARK};
-    font-weight: 600;
+    border-bottom: 3px solid {ACCENT_DARK};
+    font-weight: 700;
+    padding-bottom: 11px;
 }}
 
 QLineEdit#search {{
