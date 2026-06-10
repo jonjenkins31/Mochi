@@ -26,6 +26,45 @@
   },
   "entries": [
     {
+      "name": "Happy Blink",
+      "type": "animations",
+      "path": "assets/animations/happy_blink.json",
+      "size_b": 359,
+      "category": "eye_animation",
+      "mood": "happy",
+      "tags": [
+        "eyes",
+        "blink",
+        "happy",
+        "expressive",
+        "default"
+      ],
+      "hint": "Quick happy eye blink \u2014 use for short positive reactions.",
+      "has_sidecar": true,
+      "author": "Mochi project",
+      "license": "MIT",
+      "ideal_size": [
+        64,
+        64
+      ],
+      "framing": "fit",
+      "playback_speed": 1.0,
+      "loop": true,
+      "type_props": {
+        "blink_interval_ms": 3500,
+        "pupil_color": [
+          255,
+          255,
+          255
+        ],
+        "bg_color": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
       "name": "closed",
       "type": "animations",
       "path": "assets/animations/closed.json",
@@ -36,21 +75,8 @@
         "neutral",
         "animations"
       ],
-      "hint": "Neutral eye animation (closed)."
-    },
-    {
-      "name": "happy_blink",
-      "type": "animations",
-      "path": "assets/animations/happy_blink.json",
-      "size_b": 359,
-      "category": "eye_animation",
-      "mood": "happy",
-      "tags": [
-        "happy",
-        "animations",
-        "blink"
-      ],
-      "hint": "Happy eye animation (happy_blink)."
+      "hint": "Neutral eye animation (closed).",
+      "has_sidecar": false
     },
     {
       "name": "look_down",
@@ -64,7 +90,8 @@
         "animations",
         "look"
       ],
-      "hint": "Curious eye animation (look_down)."
+      "hint": "Curious eye animation (look_down).",
+      "has_sidecar": false
     },
     {
       "name": "look_up",
@@ -78,7 +105,8 @@
         "animations",
         "look"
       ],
-      "hint": "Curious eye animation (look_up)."
+      "hint": "Curious eye animation (look_up).",
+      "has_sidecar": false
     },
     {
       "name": "neutral_blink",
@@ -92,7 +120,8 @@
         "animations",
         "blink"
       ],
-      "hint": "Neutral eye animation (neutral_blink)."
+      "hint": "Neutral eye animation (neutral_blink).",
+      "has_sidecar": false
     },
     {
       "name": "sad_blink",
@@ -106,7 +135,8 @@
         "animations",
         "blink"
       ],
-      "hint": "Sad eye animation (sad_blink)."
+      "hint": "Sad eye animation (sad_blink).",
+      "has_sidecar": false
     },
     {
       "name": "2",
@@ -119,7 +149,8 @@
         "neutral",
         "bitmaps"
       ],
-      "hint": "1-bit bitmap: 2."
+      "hint": "1-bit bitmap: 2.",
+      "has_sidecar": false
     },
     {
       "name": "eye_sprites",
@@ -133,7 +164,8 @@
         "bitmaps",
         "eye"
       ],
-      "hint": "1-bit bitmap: eye_sprites."
+      "hint": "1-bit bitmap: eye_sprites.",
+      "has_sidecar": false
     },
     {
       "name": "test_bitmap_data",
@@ -147,7 +179,8 @@
         "bitmaps",
         "test"
       ],
-      "hint": "1-bit bitmap: test_bitmap_data."
+      "hint": "1-bit bitmap: test_bitmap_data.",
+      "has_sidecar": false
     },
     {
       "name": "wink_closed",
@@ -161,7 +194,8 @@
         "bitmaps",
         "wink"
       ],
-      "hint": "1-bit bitmap: wink_closed."
+      "hint": "1-bit bitmap: wink_closed.",
+      "has_sidecar": false
     },
     {
       "name": "wink_open",
@@ -175,7 +209,8 @@
         "bitmaps",
         "wink"
       ],
-      "hint": "1-bit bitmap: wink_open."
+      "hint": "1-bit bitmap: wink_open.",
+      "has_sidecar": false
     },
     {
       "name": "patric_emotes",
@@ -188,7 +223,8 @@
         "neutral",
         "bmps"
       ],
-      "hint": "bmps: patric_emotes."
+      "hint": "bmps: patric_emotes.",
+      "has_sidecar": false
     },
     {
       "name": "random_emotes",
@@ -201,7 +237,8 @@
         "neutral",
         "bmps"
       ],
-      "hint": "bmps: random_emotes."
+      "hint": "bmps: random_emotes.",
+      "has_sidecar": false
     },
     {
       "name": "0ec670a21628ecaae848577da077c3cec95888f1r1-264-264_00",
@@ -214,7 +251,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (0ec670a21628ecaae848577da077c3cec95888f1r1-264-264_00)."
+      "hint": "Neutral GIF clip (0ec670a21628ecaae848577da077c3cec95888f1r1-264-264_00).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynBg",
@@ -228,7 +266,8 @@
         "gifs",
         "bg"
       ],
-      "hint": "Neutral GIF clip (ChasmDaltynBg)."
+      "hint": "Neutral GIF clip (ChasmDaltynBg).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynChest",
@@ -241,7 +280,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ChasmDaltynChest)."
+      "hint": "Neutral GIF clip (ChasmDaltynChest).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynCrouch",
@@ -255,7 +295,8 @@
         "gifs",
         "crouch"
       ],
-      "hint": "Defensive GIF clip (ChasmDaltynCrouch)."
+      "hint": "Defensive GIF clip (ChasmDaltynCrouch).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynFight",
@@ -269,7 +310,8 @@
         "gifs",
         "fight"
       ],
-      "hint": "Angry GIF clip (ChasmDaltynFight)."
+      "hint": "Angry GIF clip (ChasmDaltynFight).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynKnife",
@@ -283,7 +325,8 @@
         "gifs",
         "knife"
       ],
-      "hint": "Angry GIF clip (ChasmDaltynKnife)."
+      "hint": "Angry GIF clip (ChasmDaltynKnife).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynPunch",
@@ -297,7 +340,8 @@
         "gifs",
         "punch"
       ],
-      "hint": "Angry GIF clip (ChasmDaltynPunch)."
+      "hint": "Angry GIF clip (ChasmDaltynPunch).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynRun",
@@ -311,7 +355,8 @@
         "gifs",
         "run"
       ],
-      "hint": "Energetic GIF clip (ChasmDaltynRun)."
+      "hint": "Energetic GIF clip (ChasmDaltynRun).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynShield",
@@ -325,7 +370,8 @@
         "gifs",
         "shield"
       ],
-      "hint": "Defensive GIF clip (ChasmDaltynShield)."
+      "hint": "Defensive GIF clip (ChasmDaltynShield).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynSlash",
@@ -338,7 +384,8 @@
         "angry",
         "gifs"
       ],
-      "hint": "Angry GIF clip (ChasmDaltynSlash)."
+      "hint": "Angry GIF clip (ChasmDaltynSlash).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynSword",
@@ -352,7 +399,8 @@
         "gifs",
         "sword"
       ],
-      "hint": "Angry GIF clip (ChasmDaltynSword)."
+      "hint": "Angry GIF clip (ChasmDaltynSword).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmDaltynWhip",
@@ -366,7 +414,8 @@
         "gifs",
         "whip"
       ],
-      "hint": "Neutral GIF clip (ChasmDaltynWhip)."
+      "hint": "Neutral GIF clip (ChasmDaltynWhip).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmGoblin",
@@ -380,7 +429,8 @@
         "gifs",
         "goblin"
       ],
-      "hint": "Neutral GIF clip (ChasmGoblin)."
+      "hint": "Neutral GIF clip (ChasmGoblin).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmMonster1",
@@ -394,7 +444,8 @@
         "gifs",
         "monster"
       ],
-      "hint": "Neutral GIF clip (ChasmMonster1)."
+      "hint": "Neutral GIF clip (ChasmMonster1).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmMonster2",
@@ -408,7 +459,8 @@
         "gifs",
         "monster"
       ],
-      "hint": "Neutral GIF clip (ChasmMonster2)."
+      "hint": "Neutral GIF clip (ChasmMonster2).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmMonster3",
@@ -422,7 +474,8 @@
         "gifs",
         "monster"
       ],
-      "hint": "Neutral GIF clip (ChasmMonster3)."
+      "hint": "Neutral GIF clip (ChasmMonster3).",
+      "has_sidecar": false
     },
     {
       "name": "ChasmOldMan",
@@ -435,7 +488,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ChasmOldMan)."
+      "hint": "Neutral GIF clip (ChasmOldMan).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun1",
@@ -450,7 +504,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun1)."
+      "hint": "Energetic GIF clip (DinoRun1).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun10",
@@ -465,7 +520,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun10)."
+      "hint": "Energetic GIF clip (DinoRun10).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun11",
@@ -480,7 +536,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun11)."
+      "hint": "Energetic GIF clip (DinoRun11).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun2",
@@ -495,7 +552,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun2)."
+      "hint": "Energetic GIF clip (DinoRun2).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun3",
@@ -510,7 +568,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun3)."
+      "hint": "Energetic GIF clip (DinoRun3).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun6",
@@ -525,7 +584,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun6)."
+      "hint": "Energetic GIF clip (DinoRun6).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun7",
@@ -540,7 +600,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun7)."
+      "hint": "Energetic GIF clip (DinoRun7).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun7-2",
@@ -555,7 +616,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun7-2)."
+      "hint": "Energetic GIF clip (DinoRun7-2).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun9-1",
@@ -570,7 +632,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun9-1)."
+      "hint": "Energetic GIF clip (DinoRun9-1).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun9-2",
@@ -585,7 +648,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun9-2)."
+      "hint": "Energetic GIF clip (DinoRun9-2).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun9-3",
@@ -600,7 +664,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun9-3)."
+      "hint": "Energetic GIF clip (DinoRun9-3).",
+      "has_sidecar": false
     },
     {
       "name": "DinoRun9-4",
@@ -615,7 +680,8 @@
         "run",
         "dino"
       ],
-      "hint": "Energetic GIF clip (DinoRun9-4)."
+      "hint": "Energetic GIF clip (DinoRun9-4).",
+      "has_sidecar": false
     },
     {
       "name": "Eyes_Gif",
@@ -629,7 +695,8 @@
         "gifs",
         "eye"
       ],
-      "hint": "Neutral GIF clip (Eyes_Gif)."
+      "hint": "Neutral GIF clip (Eyes_Gif).",
+      "has_sidecar": false
     },
     {
       "name": "GIF MEGA Arduino Eyes Only (copy)",
@@ -643,7 +710,8 @@
         "gifs",
         "eye"
       ],
-      "hint": "Neutral GIF clip (GIF MEGA Arduino Eyes Only (copy))."
+      "hint": "Neutral GIF clip (GIF MEGA Arduino Eyes Only (copy)).",
+      "has_sidecar": false
     },
     {
       "name": "RIVE_big_smile_animation",
@@ -657,7 +725,8 @@
         "gifs",
         "smile"
       ],
-      "hint": "Happy GIF clip (RIVE_big_smile_animation)."
+      "hint": "Happy GIF clip (RIVE_big_smile_animation).",
+      "has_sidecar": false
     },
     {
       "name": "RIVE_big_smile_animation_4x",
@@ -671,7 +740,8 @@
         "gifs",
         "smile"
       ],
-      "hint": "Happy GIF clip (RIVE_big_smile_animation_4x)."
+      "hint": "Happy GIF clip (RIVE_big_smile_animation_4x).",
+      "has_sidecar": false
     },
     {
       "name": "TinyFlex",
@@ -684,7 +754,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (TinyFlex)."
+      "hint": "Neutral GIF clip (TinyFlex).",
+      "has_sidecar": false
     },
     {
       "name": "cloud-network",
@@ -697,7 +768,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (cloud-network)."
+      "hint": "Neutral GIF clip (cloud-network).",
+      "has_sidecar": false
     },
     {
       "name": "cloudy",
@@ -710,7 +782,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (cloudy)."
+      "hint": "Neutral GIF clip (cloudy).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-crop",
@@ -723,7 +796,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-crop)."
+      "hint": "Neutral GIF clip (ezgif.com-crop).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize",
@@ -736,7 +810,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize)."
+      "hint": "Neutral GIF clip (ezgif.com-resize).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize-10",
@@ -749,7 +824,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize-10)."
+      "hint": "Neutral GIF clip (ezgif.com-resize-10).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize-2",
@@ -762,7 +838,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize-2)."
+      "hint": "Neutral GIF clip (ezgif.com-resize-2).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize-3",
@@ -775,7 +852,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize-3)."
+      "hint": "Neutral GIF clip (ezgif.com-resize-3).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize-4",
@@ -788,7 +866,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize-4)."
+      "hint": "Neutral GIF clip (ezgif.com-resize-4).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize-5",
@@ -801,7 +880,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize-5)."
+      "hint": "Neutral GIF clip (ezgif.com-resize-5).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize-6",
@@ -814,7 +894,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize-6)."
+      "hint": "Neutral GIF clip (ezgif.com-resize-6).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize-7",
@@ -827,7 +908,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize-7)."
+      "hint": "Neutral GIF clip (ezgif.com-resize-7).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize-8",
@@ -840,7 +922,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize-8)."
+      "hint": "Neutral GIF clip (ezgif.com-resize-8).",
+      "has_sidecar": false
     },
     {
       "name": "ezgif.com-resize-9",
@@ -853,7 +936,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (ezgif.com-resize-9)."
+      "hint": "Neutral GIF clip (ezgif.com-resize-9).",
+      "has_sidecar": false
     },
     {
       "name": "gearblue",
@@ -866,7 +950,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (gearblue)."
+      "hint": "Neutral GIF clip (gearblue).",
+      "has_sidecar": false
     },
     {
       "name": "gears",
@@ -879,7 +964,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (gears)."
+      "hint": "Neutral GIF clip (gears).",
+      "has_sidecar": false
     },
     {
       "name": "grimace",
@@ -892,7 +978,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (grimace)."
+      "hint": "Neutral GIF clip (grimace).",
+      "has_sidecar": false
     },
     {
       "name": "hail",
@@ -905,7 +992,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (hail)."
+      "hint": "Neutral GIF clip (hail).",
+      "has_sidecar": false
     },
     {
       "name": "happy",
@@ -918,7 +1006,8 @@
         "happy",
         "gifs"
       ],
-      "hint": "Happy GIF clip (happy)."
+      "hint": "Happy GIF clip (happy).",
+      "has_sidecar": false
     },
     {
       "name": "happy-2",
@@ -931,7 +1020,8 @@
         "happy",
         "gifs"
       ],
-      "hint": "Happy GIF clip (happy-2)."
+      "hint": "Happy GIF clip (happy-2).",
+      "has_sidecar": false
     },
     {
       "name": "happy-3",
@@ -944,7 +1034,8 @@
         "happy",
         "gifs"
       ],
-      "hint": "Happy GIF clip (happy-3)."
+      "hint": "Happy GIF clip (happy-3).",
+      "has_sidecar": false
     },
     {
       "name": "icons8-youtube",
@@ -957,7 +1048,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (icons8-youtube)."
+      "hint": "Neutral GIF clip (icons8-youtube).",
+      "has_sidecar": false
     },
     {
       "name": "icons8-youtube-2",
@@ -970,7 +1062,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (icons8-youtube-2)."
+      "hint": "Neutral GIF clip (icons8-youtube-2).",
+      "has_sidecar": false
     },
     {
       "name": "in-love",
@@ -983,7 +1076,8 @@
         "love",
         "gifs"
       ],
-      "hint": "Love GIF clip (in-love)."
+      "hint": "Love GIF clip (in-love).",
+      "has_sidecar": false
     },
     {
       "name": "lightnin",
@@ -996,7 +1090,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (lightnin)."
+      "hint": "Neutral GIF clip (lightnin).",
+      "has_sidecar": false
     },
     {
       "name": "pcloudrn",
@@ -1009,7 +1104,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (pcloudrn)."
+      "hint": "Neutral GIF clip (pcloudrn).",
+      "has_sidecar": false
     },
     {
       "name": "pcloudy",
@@ -1022,7 +1118,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (pcloudy)."
+      "hint": "Neutral GIF clip (pcloudy).",
+      "has_sidecar": false
     },
     {
       "name": "raining",
@@ -1036,7 +1133,8 @@
         "gifs",
         "rain"
       ],
-      "hint": "Neutral GIF clip (raining)."
+      "hint": "Neutral GIF clip (raining).",
+      "has_sidecar": false
     },
     {
       "name": "snow",
@@ -1050,7 +1148,8 @@
         "gifs",
         "snow"
       ],
-      "hint": "Neutral GIF clip (snow)."
+      "hint": "Neutral GIF clip (snow).",
+      "has_sidecar": false
     },
     {
       "name": "snowrain",
@@ -1065,7 +1164,8 @@
         "rain",
         "snow"
       ],
-      "hint": "Neutral GIF clip (snowrain)."
+      "hint": "Neutral GIF clip (snowrain).",
+      "has_sidecar": false
     },
     {
       "name": "sr5z2c0e19e9deaws3",
@@ -1078,7 +1178,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (sr5z2c0e19e9deaws3)."
+      "hint": "Neutral GIF clip (sr5z2c0e19e9deaws3).",
+      "has_sidecar": false
     },
     {
       "name": "storm",
@@ -1091,7 +1192,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (storm)."
+      "hint": "Neutral GIF clip (storm).",
+      "has_sidecar": false
     },
     {
       "name": "sunny",
@@ -1105,7 +1207,8 @@
         "gifs",
         "sun"
       ],
-      "hint": "Neutral GIF clip (sunny)."
+      "hint": "Neutral GIF clip (sunny).",
+      "has_sidecar": false
     },
     {
       "name": "tongue-out",
@@ -1119,7 +1222,8 @@
         "gifs",
         "tongue"
       ],
-      "hint": "Neutral GIF clip (tongue-out)."
+      "hint": "Neutral GIF clip (tongue-out).",
+      "has_sidecar": false
     },
     {
       "name": "work-in-progress",
@@ -1132,7 +1236,8 @@
         "neutral",
         "gifs"
       ],
-      "hint": "Neutral GIF clip (work-in-progress)."
+      "hint": "Neutral GIF clip (work-in-progress).",
+      "has_sidecar": false
     },
     {
       "name": "Jenkins logo 2",
@@ -1146,7 +1251,8 @@
         "icons",
         "logo"
       ],
-      "hint": "icons: Jenkins logo 2."
+      "hint": "icons: Jenkins logo 2.",
+      "has_sidecar": false
     },
     {
       "name": "Jenkins logo watermark png",
@@ -1160,7 +1266,8 @@
         "icons",
         "logo"
       ],
-      "hint": "icons: Jenkins logo watermark png."
+      "hint": "icons: Jenkins logo watermark png.",
+      "has_sidecar": false
     },
     {
       "name": "github_icon",
@@ -1173,7 +1280,8 @@
         "neutral",
         "icons"
       ],
-      "hint": "icons: github_icon."
+      "hint": "icons: github_icon.",
+      "has_sidecar": false
     },
     {
       "name": "youtube-switch-hero",
@@ -1186,7 +1294,8 @@
         "neutral",
         "icons"
       ],
-      "hint": "icons: youtube-switch-hero."
+      "hint": "icons: youtube-switch-hero.",
+      "has_sidecar": false
     },
     {
       "name": "bars",
@@ -1199,7 +1308,8 @@
         "neutral",
         "math"
       ],
-      "hint": "Procedural Python animation: bars."
+      "hint": "Procedural Python animation: bars.",
+      "has_sidecar": false
     },
     {
       "name": "daft_punk_inspired",
@@ -1212,7 +1322,8 @@
         "neutral",
         "math"
       ],
-      "hint": "Procedural Python animation: daft_punk_inspired."
+      "hint": "Procedural Python animation: daft_punk_inspired.",
+      "has_sidecar": false
     },
     {
       "name": "daft_punk_inspired_geometric",
@@ -1225,7 +1336,8 @@
         "neutral",
         "math"
       ],
-      "hint": "Procedural Python animation: daft_punk_inspired_geometric."
+      "hint": "Procedural Python animation: daft_punk_inspired_geometric.",
+      "has_sidecar": false
     },
     {
       "name": "daft_punk_inspired_pixel",
@@ -1238,7 +1350,8 @@
         "neutral",
         "math"
       ],
-      "hint": "Procedural Python animation: daft_punk_inspired_pixel."
+      "hint": "Procedural Python animation: daft_punk_inspired_pixel.",
+      "has_sidecar": false
     },
     {
       "name": "eyes",
@@ -1252,7 +1365,8 @@
         "math",
         "eye"
       ],
-      "hint": "Procedural Python animation: eyes."
+      "hint": "Procedural Python animation: eyes.",
+      "has_sidecar": false
     },
     {
       "name": "face",
@@ -1266,7 +1380,8 @@
         "math",
         "face"
       ],
-      "hint": "Procedural Python animation: face."
+      "hint": "Procedural Python animation: face.",
+      "has_sidecar": false
     },
     {
       "name": "face_2",
@@ -1280,7 +1395,8 @@
         "math",
         "face"
       ],
-      "hint": "Procedural Python animation: face_2."
+      "hint": "Procedural Python animation: face_2.",
+      "has_sidecar": false
     },
     {
       "name": "game_of_life",
@@ -1293,7 +1409,8 @@
         "neutral",
         "math"
       ],
-      "hint": "Procedural Python animation: game_of_life."
+      "hint": "Procedural Python animation: game_of_life.",
+      "has_sidecar": false
     },
     {
       "name": "game_of_life_2",
@@ -1306,7 +1423,8 @@
         "neutral",
         "math"
       ],
-      "hint": "Procedural Python animation: game_of_life_2."
+      "hint": "Procedural Python animation: game_of_life_2.",
+      "has_sidecar": false
     },
     {
       "name": "idle",
@@ -1320,7 +1438,8 @@
         "math",
         "idle"
       ],
-      "hint": "Procedural Python animation: idle."
+      "hint": "Procedural Python animation: idle.",
+      "has_sidecar": false
     },
     {
       "name": "logo_spotify",
@@ -1335,7 +1454,8 @@
         "logo",
         "spotify"
       ],
-      "hint": "Procedural Python animation: logo_spotify."
+      "hint": "Procedural Python animation: logo_spotify.",
+      "has_sidecar": false
     },
     {
       "name": "rainbow",
@@ -1350,7 +1470,8 @@
         "rain",
         "rainbow"
       ],
-      "hint": "Procedural Python animation: rainbow."
+      "hint": "Procedural Python animation: rainbow.",
+      "has_sidecar": false
     },
     {
       "name": "test_circles",
@@ -1364,7 +1485,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_circles."
+      "hint": "Procedural Python animation: test_circles.",
+      "has_sidecar": false
     },
     {
       "name": "test_fast_lines",
@@ -1378,7 +1500,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_fast_lines."
+      "hint": "Procedural Python animation: test_fast_lines.",
+      "has_sidecar": false
     },
     {
       "name": "test_fill_screen",
@@ -1392,7 +1515,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_fill_screen."
+      "hint": "Procedural Python animation: test_fill_screen.",
+      "has_sidecar": false
     },
     {
       "name": "test_filled_circles",
@@ -1406,7 +1530,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_filled_circles."
+      "hint": "Procedural Python animation: test_filled_circles.",
+      "has_sidecar": false
     },
     {
       "name": "test_filled_rects",
@@ -1420,7 +1545,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_filled_rects."
+      "hint": "Procedural Python animation: test_filled_rects.",
+      "has_sidecar": false
     },
     {
       "name": "test_filled_round_rects",
@@ -1434,7 +1560,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_filled_round_rects."
+      "hint": "Procedural Python animation: test_filled_round_rects.",
+      "has_sidecar": false
     },
     {
       "name": "test_filled_triangles",
@@ -1448,7 +1575,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_filled_triangles."
+      "hint": "Procedural Python animation: test_filled_triangles.",
+      "has_sidecar": false
     },
     {
       "name": "test_lines",
@@ -1462,7 +1590,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_lines."
+      "hint": "Procedural Python animation: test_lines.",
+      "has_sidecar": false
     },
     {
       "name": "test_rects",
@@ -1476,7 +1605,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_rects."
+      "hint": "Procedural Python animation: test_rects.",
+      "has_sidecar": false
     },
     {
       "name": "test_round_rects",
@@ -1490,7 +1620,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_round_rects."
+      "hint": "Procedural Python animation: test_round_rects.",
+      "has_sidecar": false
     },
     {
       "name": "test_text",
@@ -1504,7 +1635,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_text."
+      "hint": "Procedural Python animation: test_text.",
+      "has_sidecar": false
     },
     {
       "name": "test_triangles",
@@ -1518,7 +1650,8 @@
         "math",
         "test"
       ],
-      "hint": "Procedural Python animation: test_triangles."
+      "hint": "Procedural Python animation: test_triangles.",
+      "has_sidecar": false
     },
     {
       "name": "timer",
@@ -1531,7 +1664,8 @@
         "neutral",
         "math"
       ],
-      "hint": "Procedural Python animation: timer."
+      "hint": "Procedural Python animation: timer.",
+      "has_sidecar": false
     },
     {
       "name": "wave_scene",
@@ -1544,7 +1678,8 @@
         "neutral",
         "math"
       ],
-      "hint": "Procedural Python animation: wave_scene."
+      "hint": "Procedural Python animation: wave_scene.",
+      "has_sidecar": false
     },
     {
       "name": "demo_bitmap",
@@ -1558,7 +1693,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_bitmap."
+      "hint": "Scripted sequence: demo_bitmap.",
+      "has_sidecar": false
     },
     {
       "name": "demo_gif",
@@ -1572,7 +1708,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_gif."
+      "hint": "Scripted sequence: demo_gif.",
+      "has_sidecar": false
     },
     {
       "name": "demo_math_eyes_sequence",
@@ -1587,7 +1724,8 @@
         "eye",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_math_eyes_sequence."
+      "hint": "Scripted sequence: demo_math_eyes_sequence.",
+      "has_sidecar": false
     },
     {
       "name": "demo_math_game_of_life",
@@ -1601,7 +1739,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_math_game_of_life."
+      "hint": "Scripted sequence: demo_math_game_of_life.",
+      "has_sidecar": false
     },
     {
       "name": "demo_math_gfx",
@@ -1615,7 +1754,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_math_gfx."
+      "hint": "Scripted sequence: demo_math_gfx.",
+      "has_sidecar": false
     },
     {
       "name": "demo_math_rainbow",
@@ -1631,7 +1771,8 @@
         "rainbow",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_math_rainbow."
+      "hint": "Scripted sequence: demo_math_rainbow.",
+      "has_sidecar": false
     },
     {
       "name": "demo_math_timer",
@@ -1645,7 +1786,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_math_timer."
+      "hint": "Scripted sequence: demo_math_timer.",
+      "has_sidecar": false
     },
     {
       "name": "demo_math_wave_scene",
@@ -1659,7 +1801,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_math_wave_scene."
+      "hint": "Scripted sequence: demo_math_wave_scene.",
+      "has_sidecar": false
     },
     {
       "name": "demo_mochi_video",
@@ -1673,7 +1816,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_mochi_video."
+      "hint": "Scripted sequence: demo_mochi_video.",
+      "has_sidecar": false
     },
     {
       "name": "demo_sequence",
@@ -1687,7 +1831,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_sequence."
+      "hint": "Scripted sequence: demo_sequence.",
+      "has_sidecar": false
     },
     {
       "name": "demo_sprite",
@@ -1701,7 +1846,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_sprite."
+      "hint": "Scripted sequence: demo_sprite.",
+      "has_sidecar": false
     },
     {
       "name": "demo_sprite_ Patric Sprite",
@@ -1715,7 +1861,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_sprite_ Patric Sprite."
+      "hint": "Scripted sequence: demo_sprite_ Patric Sprite.",
+      "has_sidecar": false
     },
     {
       "name": "demo_timer",
@@ -1729,7 +1876,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_timer."
+      "hint": "Scripted sequence: demo_timer.",
+      "has_sidecar": false
     },
     {
       "name": "demo_timer_1_min_red",
@@ -1743,7 +1891,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_timer_1_min_red."
+      "hint": "Scripted sequence: demo_timer_1_min_red.",
+      "has_sidecar": false
     },
     {
       "name": "demo_timer_5_min_white",
@@ -1757,7 +1906,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_timer_5_min_white."
+      "hint": "Scripted sequence: demo_timer_5_min_white.",
+      "has_sidecar": false
     },
     {
       "name": "demo_timer_sequential",
@@ -1771,7 +1921,8 @@
         "mscripts",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_timer_sequential."
+      "hint": "Scripted sequence: demo_timer_sequential.",
+      "has_sidecar": false
     },
     {
       "name": "demo_wink",
@@ -1786,7 +1937,8 @@
         "wink",
         "demo"
       ],
-      "hint": "Scripted sequence: demo_wink."
+      "hint": "Scripted sequence: demo_wink.",
+      "has_sidecar": false
     },
     {
       "name": "mscript_rules",
@@ -1799,7 +1951,8 @@
         "neutral",
         "mscripts"
       ],
-      "hint": "Scripted sequence: mscript_rules."
+      "hint": "Scripted sequence: mscript_rules.",
+      "has_sidecar": false
     },
     {
       "name": "chrome16",
@@ -1812,7 +1965,8 @@
         "neutral",
         "png"
       ],
-      "hint": "Static PNG image: chrome16."
+      "hint": "Static PNG image: chrome16.",
+      "has_sidecar": false
     },
     {
       "name": "cloud-network",
@@ -1825,7 +1979,8 @@
         "neutral",
         "png"
       ],
-      "hint": "Static PNG image: cloud-network."
+      "hint": "Static PNG image: cloud-network.",
+      "has_sidecar": false
     },
     {
       "name": "colorwheel",
@@ -1838,7 +1993,8 @@
         "neutral",
         "png"
       ],
-      "hint": "Static PNG image: colorwheel."
+      "hint": "Static PNG image: colorwheel.",
+      "has_sidecar": false
     },
     {
       "name": "da0f0e6cb1d7f5f7d611600f3c141bc36f4cf95c",
@@ -1851,7 +2007,8 @@
         "neutral",
         "png"
       ],
-      "hint": "Static PNG image: da0f0e6cb1d7f5f7d611600f3c141bc36f4cf95c."
+      "hint": "Static PNG image: da0f0e6cb1d7f5f7d611600f3c141bc36f4cf95c.",
+      "has_sidecar": false
     },
     {
       "name": "pixelmatix",
@@ -1864,7 +2021,8 @@
         "neutral",
         "png"
       ],
-      "hint": "Static PNG image: pixelmatix."
+      "hint": "Static PNG image: pixelmatix.",
+      "has_sidecar": false
     },
     {
       "name": "youtube",
@@ -1877,7 +2035,8 @@
         "neutral",
         "png"
       ],
-      "hint": "Static PNG image: youtube."
+      "hint": "Static PNG image: youtube.",
+      "has_sidecar": false
     },
     {
       "name": "color_wheel",
@@ -1890,7 +2049,8 @@
         "neutral",
         "procedural"
       ],
-      "hint": "procedural: color_wheel."
+      "hint": "procedural: color_wheel.",
+      "has_sidecar": false
     },
     {
       "name": "cell_0_0",
@@ -1903,7 +2063,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_0_0)."
+      "hint": "Neutral video clip (cell_0_0).",
+      "has_sidecar": false
     },
     {
       "name": "cell_0_1",
@@ -1916,7 +2077,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_0_1)."
+      "hint": "Neutral video clip (cell_0_1).",
+      "has_sidecar": false
     },
     {
       "name": "cell_1_0",
@@ -1929,7 +2091,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_1_0)."
+      "hint": "Neutral video clip (cell_1_0).",
+      "has_sidecar": false
     },
     {
       "name": "cell_1_1",
@@ -1942,7 +2105,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_1_1)."
+      "hint": "Neutral video clip (cell_1_1).",
+      "has_sidecar": false
     },
     {
       "name": "cell_2_0",
@@ -1955,7 +2119,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_2_0)."
+      "hint": "Neutral video clip (cell_2_0).",
+      "has_sidecar": false
     },
     {
       "name": "cell_2_1",
@@ -1968,7 +2133,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_2_1)."
+      "hint": "Neutral video clip (cell_2_1).",
+      "has_sidecar": false
     },
     {
       "name": "cell_3_0",
@@ -1981,7 +2147,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_3_0)."
+      "hint": "Neutral video clip (cell_3_0).",
+      "has_sidecar": false
     },
     {
       "name": "cell_3_1",
@@ -1994,7 +2161,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_3_1)."
+      "hint": "Neutral video clip (cell_3_1).",
+      "has_sidecar": false
     },
     {
       "name": "cell_4_0",
@@ -2007,7 +2175,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_4_0)."
+      "hint": "Neutral video clip (cell_4_0).",
+      "has_sidecar": false
     },
     {
       "name": "cell_4_1",
@@ -2020,7 +2189,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (cell_4_1)."
+      "hint": "Neutral video clip (cell_4_1).",
+      "has_sidecar": false
     },
     {
       "name": "mochi",
@@ -2033,7 +2203,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (mochi)."
+      "hint": "Neutral video clip (mochi).",
+      "has_sidecar": false
     },
     {
       "name": "split_0_0",
@@ -2046,7 +2217,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_0_0)."
+      "hint": "Neutral video clip (split_0_0).",
+      "has_sidecar": false
     },
     {
       "name": "split_0_0_restored",
@@ -2059,7 +2231,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_0_0_restored)."
+      "hint": "Neutral video clip (split_0_0_restored).",
+      "has_sidecar": false
     },
     {
       "name": "split_0_1",
@@ -2072,7 +2245,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_0_1)."
+      "hint": "Neutral video clip (split_0_1).",
+      "has_sidecar": false
     },
     {
       "name": "split_0_1_restored",
@@ -2085,7 +2259,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_0_1_restored)."
+      "hint": "Neutral video clip (split_0_1_restored).",
+      "has_sidecar": false
     },
     {
       "name": "split_1_0",
@@ -2098,7 +2273,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_1_0)."
+      "hint": "Neutral video clip (split_1_0).",
+      "has_sidecar": false
     },
     {
       "name": "split_1_0_restored",
@@ -2111,7 +2287,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_1_0_restored)."
+      "hint": "Neutral video clip (split_1_0_restored).",
+      "has_sidecar": false
     },
     {
       "name": "split_1_1",
@@ -2124,7 +2301,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_1_1)."
+      "hint": "Neutral video clip (split_1_1).",
+      "has_sidecar": false
     },
     {
       "name": "split_1_1_restored",
@@ -2137,7 +2315,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_1_1_restored)."
+      "hint": "Neutral video clip (split_1_1_restored).",
+      "has_sidecar": false
     },
     {
       "name": "split_2_0",
@@ -2150,7 +2329,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_2_0)."
+      "hint": "Neutral video clip (split_2_0).",
+      "has_sidecar": false
     },
     {
       "name": "split_2_0_restored",
@@ -2163,7 +2343,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_2_0_restored)."
+      "hint": "Neutral video clip (split_2_0_restored).",
+      "has_sidecar": false
     },
     {
       "name": "split_2_1",
@@ -2176,7 +2357,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_2_1)."
+      "hint": "Neutral video clip (split_2_1).",
+      "has_sidecar": false
     },
     {
       "name": "split_2_1_restored",
@@ -2189,7 +2371,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_2_1_restored)."
+      "hint": "Neutral video clip (split_2_1_restored).",
+      "has_sidecar": false
     },
     {
       "name": "split_3_0",
@@ -2202,7 +2385,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_3_0)."
+      "hint": "Neutral video clip (split_3_0).",
+      "has_sidecar": false
     },
     {
       "name": "split_3_0_restored",
@@ -2215,7 +2399,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_3_0_restored)."
+      "hint": "Neutral video clip (split_3_0_restored).",
+      "has_sidecar": false
     },
     {
       "name": "split_3_1",
@@ -2228,7 +2413,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_3_1)."
+      "hint": "Neutral video clip (split_3_1).",
+      "has_sidecar": false
     },
     {
       "name": "split_3_1_restored",
@@ -2241,7 +2427,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_3_1_restored)."
+      "hint": "Neutral video clip (split_3_1_restored).",
+      "has_sidecar": false
     },
     {
       "name": "split_4_0",
@@ -2254,7 +2441,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_4_0)."
+      "hint": "Neutral video clip (split_4_0).",
+      "has_sidecar": false
     },
     {
       "name": "split_4_0_restored",
@@ -2267,7 +2455,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_4_0_restored)."
+      "hint": "Neutral video clip (split_4_0_restored).",
+      "has_sidecar": false
     },
     {
       "name": "split_4_1",
@@ -2280,7 +2469,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_4_1)."
+      "hint": "Neutral video clip (split_4_1).",
+      "has_sidecar": false
     },
     {
       "name": "split_4_1_restored",
@@ -2293,7 +2483,8 @@
         "neutral",
         "video"
       ],
-      "hint": "Neutral video clip (split_4_1_restored)."
+      "hint": "Neutral video clip (split_4_1_restored).",
+      "has_sidecar": false
     }
   ]
 }

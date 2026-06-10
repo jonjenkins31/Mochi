@@ -202,29 +202,84 @@ def _is_renderable(path: Path, type_: str) -> bool:
         return False
     if "__pycache__" in path.parts:
         return False
+    if path.name.endswith(".props.yaml"):
+        # Sidecars are not renderable themselves — handled separately.
+        return False
     exts = RENDERABLE_EXTENSIONS.get(type_, set())
     return path.suffix.lower() in exts
+
+
+def _sidecar_path(asset: Path) -> Path:
+    """Return the conventional sidecar path for an asset.
+
+    ``assets/gifs/happy.gif`` → ``assets/gifs/happy.props.yaml``
+    See docs/ASSET_PROPERTIES.md for the schema.
+    """
+    return asset.with_suffix(asset.suffix + ".props.yaml") if False else \
+           asset.with_name(asset.stem + ".props.yaml")
+
+
+def _load_sidecar(asset: Path) -> dict[str, Any]:
+    """Load the asset's `.props.yaml` sidecar if present.  Returns
+    an empty dict when the sidecar is missing, malformed, or yaml
+    isn't installed (build_catalog must still work in minimal envs).
+    """
+    sidecar = _sidecar_path(asset)
+    if not sidecar.is_file():
+        return {}
+    try:
+        import yaml  # noqa: PLC0415
+    except ImportError:
+        return {}
+    try:
+        data = yaml.safe_load(sidecar.read_text()) or {}
+    except Exception:  # noqa: BLE001
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def build_entry(asset: Path, type_: str) -> dict[str, Any]:
     rel = asset.relative_to(REPO_ROOT)
     stem = asset.stem
-    mood = _infer_mood(stem.lower())
-    tags = _infer_tags(asset.name, type_)
+    auto_mood = _infer_mood(stem.lower())
+    auto_tags = _infer_tags(asset.name, type_)
     try:
         size_b = asset.stat().st_size
     except OSError:
         size_b = 0
-    return {
+
+    # Auto-derived defaults — every field can be overridden by the
+    # sidecar.  See docs/ASSET_PROPERTIES.md for the full schema.
+    entry: dict[str, Any] = {
         "name":     stem,
         "type":     type_,
         "path":     str(rel),
         "size_b":   size_b,
         "category": TYPE_CATEGORIES.get(type_, "unknown"),
-        "mood":     mood,
-        "tags":     tags,
-        "hint":     _infer_hint(asset.name, type_, mood),
+        "mood":     auto_mood,
+        "tags":     auto_tags,
+        "hint":     _infer_hint(asset.name, type_, auto_mood),
     }
+
+    sidecar = _load_sidecar(asset)
+    if not sidecar:
+        entry["has_sidecar"] = False
+        return entry
+    entry["has_sidecar"] = True
+
+    # Curation overrides (sidecar wins).
+    for key in ("name", "mood", "hint", "tags",
+                "author", "license", "source_url",
+                "ideal_size", "framing", "playback_speed",
+                "loop", "duration_ms", "notes", "nsfw"):
+        if key in sidecar:
+            entry[key] = sidecar[key]
+
+    # Type-specific block lives under `type_props`.
+    if "type_props" in sidecar and isinstance(sidecar["type_props"], dict):
+        entry["type_props"] = sidecar["type_props"]
+
+    return entry
 
 
 def walk_assets(filter_type: str | None = None) -> list[dict[str, Any]]:
