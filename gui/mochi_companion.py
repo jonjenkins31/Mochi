@@ -45,7 +45,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, QSize, Signal, QTimer, QUrl
-from PySide6.QtGui import QFont, QIcon, QPixmap, QColor, QPalette
+from PySide6.QtGui import QFont, QIcon, QPixmap, QColor, QPalette, QDesktopServices
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QHBoxLayout, QVBoxLayout, QGridLayout, QFrame,
@@ -1591,6 +1591,23 @@ class CompanionMain(QMainWindow):
         toolbar_layout.setContentsMargins(20, 8, 20, 8)
         toolbar_layout.setSpacing(8)
         toolbar_layout.addStretch()
+
+        # ── community / promo / help icon row ────────────────────
+        # Borrows the Wondershare top-right chrome (avatar / gift /
+        # chat / headset).  Each opens an external URL in the
+        # default browser.  Hover label appears via setToolTip.
+        community_row = self._build_community_icons()
+        toolbar_layout.addWidget(community_row)
+
+        # Visual divider between community icons and the mini-window
+        # button.
+        divider = QFrame()
+        divider.setFixedSize(1, 24)
+        divider.setStyleSheet(f"background: {BORDER};")
+        toolbar_layout.addSpacing(6)
+        toolbar_layout.addWidget(divider)
+        toolbar_layout.addSpacing(6)
+
         self.mini_btn = QPushButton(self._mini_button_label())
         self.mini_btn.setCursor(Qt.PointingHandCursor)
         self.mini_btn.setStyleSheet(f"""
@@ -1673,6 +1690,58 @@ class CompanionMain(QMainWindow):
             return
         self.ctrl.send(f"node animation mode on {name}")
         self.logger.info("pin fired — %s", name)
+
+    # ── community / promo icon row ────────────────────────────────
+
+    COMMUNITY_LINKS: list[tuple[str, str, str]] = [
+        # (glyph, tooltip, url)
+        ("▶",  "Jenkins Robotics on YouTube",
+                "https://www.youtube.com/@JenkinsRobotics"),
+        ("♥",  "Support on Patreon",
+                "https://www.patreon.com/JenkinsRobotics"),
+        ("◯",  "Discord / community",
+                "https://www.youtube.com/@JenkinsRobotics"),
+        ("?",  "Help & docs",
+                "https://github.com/jonathanjenkins/Mochi"),
+    ]
+
+    def _build_community_icons(self) -> QWidget:
+        row = QFrame()
+        row.setStyleSheet(f"background: transparent;")
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(4)
+        for glyph, tooltip, url in self.COMMUNITY_LINKS:
+            btn = QPushButton(glyph)
+            btn.setFixedSize(30, 30)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setToolTip(tooltip)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: transparent;
+                    color: {TEXT_MUTED};
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    font-weight: 600;
+                }}
+                QPushButton:hover {{
+                    background: {ACCENT_BG};
+                    color: {ACCENT_DARK};
+                }}
+            """)
+            btn.clicked.connect(
+                lambda _checked=False, u=url: self._open_url(u)
+            )
+            row_layout.addWidget(btn)
+        return row
+
+    def _open_url(self, url: str) -> None:
+        try:
+            QDesktopServices.openUrl(QUrl(url))
+            self.logger.info("opened: %s", url)
+        except Exception as exc:  # noqa: BLE001
+            self.logger.error("failed to open %s: %s", url, exc)
 
     def _build_settings_page(self) -> QWidget:
         """Minimal Settings — lists discovered skins.  Picker UI lands
