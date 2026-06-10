@@ -1,22 +1,41 @@
 # animations/sprite_handler.py
 
-"""
-Sprite Handler: Displays individual sprites from a sprite sheet.
+"""Sprite Handler — sprite-sheet rendering (static + animated).
 
-Function:
-This handler is designed to work with sprite sheets, where a single image file
-contains multiple smaller images or frames. It is invoked for a 'SPRITE' command.
-It loads the sprite sheet from the asset_path and crops a single sprite from it
-using the coordinates provided in the SRC argument.
+TWO MODES depending on which kwargs are present:
 
-Inputs (via kwargs from Master Handler):
-- asset_path (str): Path to the sprite sheet image file.
-- SRC (str): A comma-separated string defining the source rectangle of the
-  sprite to display, in the format "x,y,w,h".
+A. STATIC (legacy, mscript-driven)
+   kwargs:
+     - asset_path      sheet image path
+     - SRC = "x,y,w,h" pixel rect to crop
 
-Output:
-- Renders the selected sprite, cropped from the main sprite sheet, into the
-  pixel buffer provided by the Mochi node.
+B. ANIMATED (new in 4/6 — sidecar / catalog driven)
+   kwargs:
+     - asset_path      sheet image path
+     - frame_size      [w, h] of each cell
+     - frame_count     total cells (animation length)
+     - grid            [cols, rows] (derived from sheet size if omitted)
+     - frame_rate_ms   ms per frame (default 100)
+     - start_frame     first cell in the animation loop (default 0)
+     - end_frame       last cell (default frame_count - 1)
+     - named_frame     name of a specific slot — overrides animation;
+                       renders one static cell
+     - named_frames    {name: cell_index, ...} lookup table
+
+Picks the right mode automatically: SRC present → static, otherwise
+grid kwargs → animated.
+
+Per docs/ASSET_PROPERTIES.md the sidecar's ``type_props`` block
+maps directly onto the animated kwargs above:
+
+    type_props:
+      frame_size: [64, 64]
+      frame_count: 12
+      grid: [4, 3]
+      frame_rate_ms: 100
+      named_frames:
+        idle: 0
+        walk_1: 1
 """
 
 import os
@@ -25,21 +44,35 @@ import numpy as np
 from plugin_core.mochi_animations import Animation
 from PIL import Image
 
+
 class SpriteHandler(Animation):
     name = "SPRITE"
 
     def __init__(self, w: int, h: int):
         super().__init__(w, h)
         self.sprite_sheet: Image.Image | None = None
+
+        # Static (SRC) mode
         self.sprite_coords: Tuple[int, int, int, int] | None = None
+
+        # Animated (grid) mode
+        self._frame_w: int = 0
+        self._frame_h: int = 0
+        self._frame_count: int = 0
+        self._cols: int = 1
+        self._rows: int = 1
+        self._frame_rate_ms: int = 100
+        self._start_frame: int = 0
+        self._end_frame: int = 0
+        self._fixed_index: int | None = None   # set by named_frame
 
     def on_enter(self, **kwargs) -> None:
         super().on_enter(**kwargs)
-        
+
         resolve_dir = kwargs.get("resolve_dir")
         asset_path = kwargs.get("asset_path")
-        src_rect_str = kwargs.get("SRC")
 
+        # Load the sheet first — both modes need it
         if asset_path:
             try:
                 if not os.path.isabs(asset_path) and resolve_dir:
@@ -48,36 +81,116 @@ class SpriteHandler(Animation):
             except FileNotFoundError as e:
                 print(f"Error loading sprite image: {e}")
                 self.sprite_sheet = None
-        
+
+        # ── STATIC (legacy) — SRC=x,y,w,h overrides everything ────
+        src_rect_str = kwargs.get("SRC")
         if src_rect_str:
             try:
-                coords = [int(c.strip()) for c in src_rect_str.split(',')]
+                coords = [int(c.strip()) for c in src_rect_str.split(",")]
                 if len(coords) == 4:
                     self.sprite_coords = tuple(coords)
                 else:
                     print(f"Warning: Invalid SRC format: {src_rect_str}")
             except (ValueError, AttributeError):
                 print(f"Warning: Could not parse SRC rect: {src_rect_str}")
-
-    def render_into(self, t: float, pixel_buf: bytearray):
-        if not self.sprite_sheet or not self.sprite_coords:
             return
 
-        frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape((self.h, self.w, 3))
-        if self.clear_on_frame:
-            frame[:, :] = (0, 0, 0)  # Clear to black
+        # ── ANIMATED (grid-driven) ────────────────────────────────
+        frame_size = kwargs.get("frame_size")
+        if not frame_size or not self.sprite_sheet:
+            return  # neither mode applicable — render_into will no-op
 
-        x, y, w, h = self.sprite_coords
-        
+        try:
+            self._frame_w = int(frame_size[0])
+            self._frame_h = int(frame_size[1])
+        except (TypeError, IndexError, ValueError):
+            return
+
+        self._frame_count = int(kwargs.get("frame_count", 0))
+        self._frame_rate_ms = int(kwargs.get("frame_rate_ms", 100))
+        self._start_frame = int(kwargs.get("start_frame", 0))
+        self._end_frame = int(
+            kwargs.get("end_frame", max(0, self._frame_count - 1))
+        )
+
+        # Derive grid (cols × rows) from sheet size when omitted
+        grid = kwargs.get("grid")
+        if grid and len(grid) == 2:
+            self._cols = max(1, int(grid[0]))
+            self._rows = max(1, int(grid[1]))
+        else:
+            sheet_w, sheet_h = self.sprite_sheet.size
+            self._cols = max(1, sheet_w // max(1, self._frame_w))
+            self._rows = max(1, sheet_h // max(1, self._frame_h))
+
+        # If frame_count wasn't given, infer from grid
+        if self._frame_count <= 0:
+            self._frame_count = self._cols * self._rows
+            self._end_frame = self._frame_count - 1
+
+        # named_frame: pin the renderer to one specific cell
+        named_frame = kwargs.get("named_frame")
+        named_frames = kwargs.get("named_frames") or {}
+        if named_frame and isinstance(named_frames, dict):
+            idx = named_frames.get(named_frame)
+            if isinstance(idx, int) and 0 <= idx < self._cols * self._rows:
+                self._fixed_index = idx
+
+    # ──────────────────────────────────────────────────────────────
+
+    def _cell_at_index(self, index: int) -> Tuple[int, int, int, int]:
+        """Return the (x, y, w, h) crop rect for cell ``index`` in
+        the grid.  Index wraps within the grid."""
+        n = max(1, self._cols * self._rows)
+        index = index % n
+        col = index % self._cols
+        row = index // self._cols
+        return (
+            col * self._frame_w,
+            row * self._frame_h,
+            self._frame_w,
+            self._frame_h,
+        )
+
+    def _current_index_for_time(self, t: float) -> int:
+        """Wrap t into the [start_frame, end_frame] loop."""
+        if self._frame_rate_ms <= 0 or self._frame_count <= 0:
+            return self._start_frame
+        loop_len = max(1, (self._end_frame - self._start_frame + 1))
+        elapsed_frames = int((t * 1000.0) / self._frame_rate_ms)
+        return self._start_frame + (elapsed_frames % loop_len)
+
+    # ──────────────────────────────────────────────────────────────
+
+    def render_into(self, t: float, pixel_buf: bytearray):
+        if not self.sprite_sheet:
+            return
+
+        # Pick the cell rect for THIS frame
+        if self.sprite_coords:
+            x, y, w, h = self.sprite_coords           # static SRC mode
+        elif self._fixed_index is not None:
+            x, y, w, h = self._cell_at_index(self._fixed_index)   # named slot
+        elif self._frame_w and self._frame_h:
+            idx = self._current_index_for_time(t)
+            x, y, w, h = self._cell_at_index(idx)     # animated mode
+        else:
+            return
+
+        frame = np.frombuffer(pixel_buf, dtype=np.uint8).reshape(
+            (self.h, self.w, 3)
+        )
+        if self.clear_on_frame:
+            frame[:, :] = (0, 0, 0)
+
         sprite_image = self.sprite_sheet.crop((x, y, x + w, y + h))
         sprite_array = np.array(sprite_image)
         img_h, img_w, _ = sprite_array.shape
 
-        # Center the sprite
+        # Center the sprite on the display
         start_x = (self.w - img_w) // 2
         start_y = (self.h - img_h) // 2
 
-        # --- NumPy-based Blitting ---
         dest_y_start = max(0, start_y)
         dest_y_end = min(self.h, start_y + img_h)
         dest_x_start = max(0, start_x)
@@ -89,9 +202,12 @@ class SpriteHandler(Animation):
         src_x_end = src_x_start + (dest_x_end - dest_x_start)
 
         if dest_y_start < dest_y_end and dest_x_start < dest_x_end:
-            # Ensure the source slice does not go out of bounds of the sprite array
             safe_src_y_end = min(sprite_array.shape[0], src_y_end)
             safe_src_x_end = min(sprite_array.shape[1], src_x_end)
-
-            frame[dest_y_start:dest_y_end, dest_x_start:dest_x_end] = \
-                sprite_array[src_y_start:safe_src_y_end, src_x_start:safe_src_x_end]
+            frame[
+                dest_y_start:dest_y_end,
+                dest_x_start:dest_x_end,
+            ] = sprite_array[
+                src_y_start:safe_src_y_end,
+                src_x_start:safe_src_x_end,
+            ]
