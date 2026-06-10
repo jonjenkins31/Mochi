@@ -437,47 +437,104 @@ def _thumb_path(entry: dict) -> Path:
     return THUMBS_DIR / f"{safe}.png"
 
 
+def _make_pill_badge(text: str, fg: str, bg: str) -> QLabel:
+    """Wondershare-style pill badge (NEW / AI / 4K / etc.)."""
+    label = QLabel(text)
+    label.setAlignment(Qt.AlignCenter)
+    label.setStyleSheet(f"""
+        background: {bg};
+        color: {fg};
+        border-radius: 4px;
+        padding: 2px 7px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    """)
+    return label
+
+
+def _card_badges_for(entry: dict) -> list[QLabel]:
+    """Decide which Wondershare-style pill badges a card gets,
+    based on the catalog/sidecar fields.  Returns a list of QLabels
+    so the caller can lay them out horizontally."""
+    badges: list[QLabel] = []
+    type_ = entry.get("type", "")
+    name = entry.get("name", "").lower()
+
+    # MOCHI badge — Mochi-themed video splits / mochi-named clips
+    if "mochi" in name or "mochi" in entry.get("path", "").lower():
+        badges.append(_make_pill_badge(
+            "MOCHI", "white", ACCENT_DARK,
+        ))
+    # AI badge — when the asset was an LLM-generated piece (heuristic
+    # via the operator's notes field someday; placeholder today)
+    if entry.get("ai_generated") is True:
+        badges.append(_make_pill_badge(
+            "AI", "white",
+            "qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            f"stop:0 {ACCENT_DARK}, stop:1 #ec4899)",
+        ))
+    # NEW badge — sidecars curated this session (when curated
+    # flag becomes a real signal)
+    if entry.get("nsfw") is True:
+        badges.append(_make_pill_badge(
+            "NSFW", "white", "#dc2626",
+        ))
+    # PACK badge — entry belongs to a pack (future signal once
+    # build_catalog merges PACKS.json)
+    if entry.get("pack"):
+        badges.append(_make_pill_badge(
+            "PACK", "white", "#0891b2",
+        ))
+    return badges
+
+
 def make_card(entry: dict, on_click) -> QFrame:
     """One catalog entry as a clickable card.  Shows the cached
     thumbnail when present (built by tools/build_thumbnails.py),
-    falls back to a first-letter placeholder otherwise."""
+    falls back to a first-letter placeholder otherwise.
+
+    Card layout matches the Wondershare reference:
+      - Large preview image (75% of card height)
+      - Title row (with optional pill badges)
+      - Subtitle row (mood badge + type label)
+    """
     card = QFrame()
     card.setObjectName("card")
     card.setProperty("class", "card")
     card.setCursor(Qt.PointingHandCursor)
-    card.setFixedSize(220, 200)
+    card.setFixedSize(240, 240)
     card.mousePressEvent = lambda _e: on_click(entry)
 
     layout = QVBoxLayout(card)
-    layout.setContentsMargins(12, 12, 12, 12)
+    layout.setContentsMargins(12, 12, 12, 14)
     layout.setSpacing(8)
 
-    # ── Preview tile ──────────────────────────────────────────────
+    # ── Preview tile (bumped to fill most of the card) ────────────
     thumb = _thumb_path(entry)
     preview = QLabel()
     preview.setAlignment(Qt.AlignCenter)
-    preview.setFixedHeight(110)
+    preview.setFixedHeight(140)
     if thumb.is_file():
         pix = QPixmap(str(thumb))
         if not pix.isNull():
             pix = pix.scaled(
-                110, 110,
+                140, 140,
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation,
             )
             preview.setPixmap(pix)
             preview.setStyleSheet(f"""
                 background: {BG_BASE};
-                border-radius: 6px;
+                border-radius: 8px;
             """)
         else:
-            # Corrupt thumb — fall through to placeholder
             preview.setText(entry["name"][:1].upper())
             preview.setStyleSheet(f"""
                 background: {ACCENT_BG};
                 color: {ACCENT_DARK};
-                border-radius: 6px;
-                font-size: 40px;
+                border-radius: 8px;
+                font-size: 48px;
                 font-weight: 700;
             """)
     else:
@@ -485,19 +542,26 @@ def make_card(entry: dict, on_click) -> QFrame:
         preview.setStyleSheet(f"""
             background: {ACCENT_BG};
             color: {ACCENT_DARK};
-            border-radius: 6px;
-            font-size: 40px;
+            border-radius: 8px;
+            font-size: 48px;
             font-weight: 700;
         """)
     layout.addWidget(preview)
 
+    # Title row: name + any Wondershare-style pill badges inline
+    title_row = QHBoxLayout()
+    title_row.setContentsMargins(0, 0, 0, 0)
+    title_row.setSpacing(6)
     title = QLabel(entry["name"])
     title.setProperty("class", "card_title")
     title.setStyleSheet(
-        f"color: {TEXT_MAIN}; font-size: 13px; font-weight: 600;"
+        f"color: {TEXT_MAIN}; font-size: 14px; font-weight: 700;"
     )
     title.setWordWrap(True)
-    layout.addWidget(title)
+    title_row.addWidget(title, 1)
+    for b in _card_badges_for(entry):
+        title_row.addWidget(b)
+    layout.addLayout(title_row)
 
     bottom = QHBoxLayout()
     bottom.setContentsMargins(0, 0, 0, 0)
