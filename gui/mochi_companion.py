@@ -1551,18 +1551,103 @@ class Sidebar(QWidget):
 
         layout.addStretch()
 
-        # Bottom promo / nudge — empty for now but reserves the space
-        nudge = QLabel(
-            "Mochi v3 alpha\n"
-            "167 animations indexed"
-        )
-        nudge.setStyleSheet(
-            f"background: {ACCENT_BG}; color: {ACCENT_DARK}; "
-            f"border-radius: 8px; padding: 14px; margin: 16px; "
-            f"font-size: 11px; font-weight: 500;"
-        )
-        nudge.setAlignment(Qt.AlignCenter)
-        layout.addWidget(nudge)
+        # ── Bottom promo card — Jenkins Robotics ──────────────────
+        # Borrows Wondershare's "UniConverter 17 / Perpetual plan /
+        # Up to 60% OFF / Upgrade Now" layout but replaces the
+        # upgrade nudge with channel + Patreon CTAs.  Operator's
+        # standing brief: "promote jenkins robotics, the youtube
+        # channel, patreon etc".
+        promo = QFrame()
+        promo.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 {ACCENT_DARK},
+                    stop:1 #5b21b6
+                );
+                border-radius: 10px;
+            }}
+        """)
+        promo_layout = QVBoxLayout(promo)
+        promo_layout.setContentsMargins(14, 14, 14, 14)
+        promo_layout.setSpacing(6)
+
+        brand = QLabel("Jenkins Robotics")
+        brand.setStyleSheet("""
+            background: transparent;
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        """)
+        promo_layout.addWidget(brand)
+
+        tag = QLabel("Open robotics + AI · tutorials weekly")
+        tag.setStyleSheet("""
+            background: transparent;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 10px;
+            font-weight: 500;
+        """)
+        tag.setWordWrap(True)
+        promo_layout.addWidget(tag)
+        promo_layout.addSpacing(8)
+
+        # Two side-by-side CTAs
+        cta_row = QHBoxLayout()
+        cta_row.setContentsMargins(0, 0, 0, 0)
+        cta_row.setSpacing(6)
+
+        yt_btn = QPushButton("YouTube")
+        yt_btn.setCursor(Qt.PointingHandCursor)
+        yt_btn.setStyleSheet("""
+            QPushButton {
+                background: white;
+                color: #5b21b6;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 11px;
+                font-weight: 700;
+            }
+            QPushButton:hover { background: #f5f3ff; }
+        """)
+        yt_btn.clicked.connect(lambda: self._open_promo_url(
+            "https://www.youtube.com/@JenkinsRobotics"
+        ))
+        cta_row.addWidget(yt_btn)
+
+        pt_btn = QPushButton("Patreon")
+        pt_btn.setCursor(Qt.PointingHandCursor)
+        pt_btn.setStyleSheet("""
+            QPushButton {
+                background: rgba(255, 255, 255, 0.15);
+                color: white;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 11px;
+                font-weight: 700;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.25);
+            }
+        """)
+        pt_btn.clicked.connect(lambda: self._open_promo_url(
+            "https://www.patreon.com/JenkinsRobotics"
+        ))
+        cta_row.addWidget(pt_btn)
+
+        promo_layout.addLayout(cta_row)
+
+        # Wrap the promo in a margin frame so it doesn't touch the
+        # sidebar edges.
+        promo_wrap = QFrame()
+        promo_wrap.setStyleSheet(f"background: {BG_SIDEBAR};")
+        wrap_layout = QVBoxLayout(promo_wrap)
+        wrap_layout.setContentsMargins(12, 0, 12, 16)
+        wrap_layout.addWidget(promo)
+        layout.addWidget(promo_wrap)
 
     def _select(self, label: str) -> None:
         for l, btn in self._buttons.items():
@@ -1642,6 +1727,12 @@ class Sidebar(QWidget):
             if isinstance(pb, QPushButton):
                 pb.setChecked(pb.text().endswith(name))
         self.pin_clicked.emit(name)
+
+    def _open_promo_url(self, url: str) -> None:
+        try:
+            QDesktopServices.openUrl(QUrl(url))
+        except Exception as exc:  # noqa: BLE001
+            print(f"[sidebar] failed to open {url}: {exc}")
 
     def _on_add_pin(self) -> None:
         text, ok = QInputDialog.getText(
