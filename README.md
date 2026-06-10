@@ -1,125 +1,245 @@
-# Mochi Modular Display
+# Mochi — animated character companion
 
-Mochi is a modular framework for building LED-style animation pipelines inspired by the Dasai Mochi experience. The host process boots shared infrastructure (a ZeroMQ broker) and one or more plugin processes. Each plugin publishes frames/events and listens for targeted control commands, so features can be added or swapped without touching the core runtime.
+> A modular ZeroMQ-bus-driven framework for building animated
+> character displays.  Inspired by the Dasai Mochi3 desktop toy,
+> reimagined as an open, extensible platform for animation
+> education, character packs, and operator-driven performance.
 
-## Project Layout
+Part of the **Jenkins Robotics** open-source robotics + AI stack.
+
+---
+
+## Built by Jenkins Robotics
+
+Mochi is one piece of the larger Jenkins Robotics ecosystem —
+home robotics, voice AI companions, animated avatars, and
+educational hands-on robotics + animation.
+
+### Follow + support the project
+
+- **YouTube:** subscribe for build logs, animation tutorials,
+  Mochi authoring workflows, and JROS (Jenkins Robot Operating
+  System) development streams →
+  [youtube.com/@JenkinsRobotics](https://www.youtube.com/@JenkinsRobotics)
+- **Patreon:** if Mochi or any of the Jenkins Robotics projects
+  are useful to you, becoming a patron directly funds open
+  development + new tutorials →
+  [patreon.com/JenkinsRobotics](https://www.patreon.com/JenkinsRobotics)
+- **GitHub:** the rest of the stack (JROS, VoiceLLM, AgenticLLM,
+  Hermes, JP01 robot firmware) lives at
+  [github.com/jonathanjenkins](https://github.com/jonathanjenkins)
+
+Like, subscribe, share — every signal helps justify the time
+that goes into shipping these projects publicly.
+
+---
+
+## What Mochi does
+
+- **Renders animations** of every common type on a small virtual
+  display: PNG / bitmap / GIF / sprite / video / procedural
+  (Python) / declarative JSON / scripted (MochiScript)
+- **Companion app** (Wondershare-style Qt UI) for browsing 167+
+  catalogued animations, picking character packs, configuring
+  scenes + triggers, and teaching others about animation
+  techniques
+- **Frameless mini window** that floats on your desktop with
+  customisable body skins (CRT bezel, JDM dash, whatever you
+  author)
+- **ZeroMQ bus** between the renderer node, agent node, and
+  companion app — so the same architecture scales from "single
+  app on my desk" to "distributed across multiple machines"
+
+## Quick start
+
+```bash
+git clone https://github.com/jonathanjenkins/Mochi.git
+cd Mochi
+python3 -m venv venv
+source venv/bin/activate         # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Boot the broker + animation node + LLM node + legacy Tk GUI
+python main.py
+
+# In a separate terminal — open the new Wondershare-style companion
+python gui/mochi_companion.py
+```
+
+In the companion app's top toolbar, click **Open Mini Window** to
+spawn the frameless TV-bezel overlay.  Click any animation in the
+**Library** tab to fire it.
+
+## What's inside
+
+### Top-level layout
 
 | Path | Role |
 | --- | --- |
-| `main.py` | Host entry point. Reads `config.yaml`, launches the broker (`transport/broker.py`) and configured plugins. |
-| `core/` | Shared infrastructure utilities (broker, topic helpers, etc.). |
-| `nodes/animation/` | The reference animation plugin that renders frames and exposes control commands. |
-| `gui/` | Desktop tooling: manual control (`mochi_gui.py`), virtual display, performance monitor, CLI helper. |
-| `docs/messaging.md` | Details on address/topic conventions and message payloads. |
-| `config.yaml` | Addresses and plugin registry. Add new plugins here by appending to the `plugins:` list. |
+| `main.py` | Host entry point.  Reads `config.yaml`, launches the broker (`transport/broker.py`) + each enabled plugin. |
+| `agent/` | The cognitive node (LLM brain — picks animations from context). |
+| `nodes/` | Peripheral nodes — `nodes/animation/` is the renderer with 7 backend types. |
+| `transport/` | The ZeroMQ bus + topics + message envelopes + base-node class. |
+| `core/` | Shared infrastructure (host monitor + plugin registry). |
+| `gui/` | Desktop tooling — companion app, mini window overlay, legacy Tk control panel, perf monitor, CLI helper. |
+| `tools/` | Content editors (sprite / bitmap / mscript) + catalog/prompt generators. |
+| `assets/` | Animations + skins + packs + generated catalogs. |
+| `docs/` | Architectural docs + the Learn tab content. |
 
-## Getting Started
+### Companion app (`gui/mochi_companion.py`)
 
-```bash
-git clone <repo-url>
-cd Mochi
-python -m venv .venv
-source .venv/bin/activate      # or .venv\Scripts\activate on Windows
-pip install -r requirements.txt
+Wondershare-inspired Qt UI with 9 sidebar surfaces:
 
-# For video playback support (mp4, mov, etc.) install moviepy and ensure ffmpeg is available
-pip install moviepy imageio-ffmpeg
+| Tab | Status |
+| --- | --- |
+| **Home** | Stub — scene wheel + favorites + reaction row coming in Phase B |
+| **Library** | **Works today.**  4-col card grid of all 167 animations.  Two filter dimensions (MOOD + TYPE) + search.  Click → fires the animation via the bus. |
+| **Packs** | Discovers `assets/packs/<id>/pack.yaml` folders.  Empty state until the first pack is authored. |
+| **Scenes / Triggers / Schedule** | Stubs (Phase B + C). |
+| **Editors** | Stub — folds the existing `tools/*_editor_gui.py` editors in. |
+| **Learn** | **Works today.**  Chapter list + markdown viewer.  8 chapters covering every animation type Mochi supports — what it is, history, how it works, how Mochi implements it. |
+| **Settings** | Lists installed skins.  Picker coming when there's > 1 skin to choose between. |
+
+Top-toolbar button: **Open Mini Window** — spawns the frameless
+Qt overlay with the active skin.
+
+### Animation types Mochi can render
+
+| Type | Count today | Adapter file |
+| --- | --- | --- |
+| GIFs | 68 | `nodes/animation/animations/gif_handler.py` |
+| Video | 31 | `nodes/animation/animations/video_handler.py` |
+| Math (procedural Python) | 26 | `nodes/animation/animations/math_handler.py` |
+| MochiScript | 18 | `nodes/animation/plugin_core/mscript_engine.py` |
+| Eye animations (JSON) | 6 | `nodes/animation/animations/__init__.py` |
+| PNG | 6 | `nodes/animation/animations/image_handler.py` |
+| Bitmaps (1-bit) | 5 | `nodes/animation/animations/bitmap_handler.py` |
+| Icons | 4 | `nodes/animation/animations/image_handler.py` |
+| BMP (raw) | 2 | `nodes/animation/animations/bitmap_handler.py` |
+| Procedural | 1 | `nodes/animation/animations/math_handler.py` |
+
+Each type has its own chapter under
+[`docs/learn/`](docs/learn/index.md) explaining the history,
+how it works, and how Mochi renders it.
+
+## Project docs
+
+| Doc | What it covers |
+| --- | --- |
+| [`docs/OPERATOR_PRODUCT_PLAN.md`](docs/OPERATOR_PRODUCT_PLAN.md) | Comparable-product research (Dasai Mochi3, EMO, Vector, Eilik, VTube Studio, Divoom, Shimeji) + phased build plan. |
+| [`docs/PACK_CONVENTION.md`](docs/PACK_CONVENTION.md) | How character/style packs are authored (`assets/packs/<id>/pack.yaml`). |
+| [`docs/SKIN_CONVENTION.md`](docs/SKIN_CONVENTION.md) | How body / bezel skins are authored (`assets/skins/<id>/`). |
+| [`docs/ANIMATION_REVIEW.md`](docs/ANIMATION_REVIEW.md) | The LLM-track review (animation-aware system prompt + bridge). |
+| [`docs/future_multi_timeline.md`](docs/future_multi_timeline.md) | The multi-channel timeline idea (split mscript into general timeline + motor DSL). |
+| [`docs/messaging.md`](docs/messaging.md) | ZeroMQ addresses + topic conventions + message payloads. |
+| [`docs/learn/index.md`](docs/learn/index.md) | The Learn tab content — animation history + per-type explainers. |
+
+## Authoring content
+
+### Add a new animation
+
+Drop the file under `assets/<type>/` (matching one of the
+supported types).  Run `python tools/build_catalog.py`.  The
+animation appears in the companion's Library on next refresh.
+
+### Author a character pack
+
+See [`docs/PACK_CONVENTION.md`](docs/PACK_CONVENTION.md).  Short
+version:
+
+```
+assets/packs/<your_id>/
+├── pack.yaml          # required: schema + slot map
+├── idle.gif           # named slot files (operator picks slot names)
+├── happy.gif
+├── ...
+└── README.md          # optional
 ```
 
-### Run the Host & Plugins
+The pack auto-appears on the companion's Packs tab.
 
-The host script spawns the broker and the default animation node using the addresses found in `config.yaml`.
+### Author a skin (body / bezel)
 
-```bash
-python main.py
+See [`docs/SKIN_CONVENTION.md`](docs/SKIN_CONVENTION.md).
+
+```
+assets/skins/<your_id>/
+├── body.png           # required: alpha-cutout body image
+├── meta.yaml          # required: screen_bbox + window defaults
+└── README.md          # optional
 ```
 
-Keep `main.py` running in its own terminal. It will show broker/animation node logs and forward Ctrl+C requests to shut down both processes cleanly.
+The skin auto-appears in the companion's Settings.
 
-To inspect or adjust which plugins launch, use the new CLI helpers:
+## Host monitor + control
 
-The host loads plugin enable/disable state from `config.yaml`. Set `enabled: true`
-for any plugin you want launched automatically when `main.py` runs.
-
-### Launch Supporting Tools
-
-With the host running you can start any of the GUI helpers from another terminal (with the virtual environment activated):
+The host monitor caches node health/meta/event messages.  Reach
+it at `monitor.rep_address` from `config.yaml`:
 
 ```bash
-# Manual control panel with node overview, mode toggles, color controls, etc.
-python gui/mochi_gui.py
-
-# Virtual LED display that subscribes to the frame topic.
-python gui/mochi_vdisplay.py
-
-# Console CLI to send quick commands.
-python gui/control_cli.py play mscripts/demo_wink.mscript
-
-# Lightweight chat window for live conversations with the LLM node.
-python gui/llm_chat_gui.py
-```
-
-The host monitor caches node health/meta/event messages and is reachable at the `monitor.rep_address` defined in `config.yaml`. For example:
-
-```bash
-python - <<'PY'
-import zmq
-ctx = zmq.Context.instance()
-sock = ctx.socket(zmq.REQ)
-sock.connect("tcp://127.0.0.1:5560")
-sock.send_string("GET health")
-print(sock.recv_string())
-PY
-
-# Or use the helper CLI (pretty printing supported)
 python tools/monitor_cli.py --pretty GET health
 ```
 
-The GUI discovers node health broadcasts automatically. Select a node in the table to send `mode on`, `mode off`, `mode reset`, or size commands. The color picker can target either the active animation (`current`) or the fallback solid color (`solid_color`), which updates the plugin’s stored fallback palette.
+Or send raw ZMQ commands to the animation node's ctrl socket:
 
-### Configuration Layout
-
-- `config.yaml` (project root) controls infrastructure (broker, monitor, GUI/display helpers) and lists plugins. Each plugin entry references its own configuration file via `config_path`.
-- `plugins/<node>/config.yaml` contains node-local settings: transport addresses, defaults, and a `capabilities` section that describes available controls/outputs for tooling. Node entry scripts load this file directly, and the host injects the same payload when launching them.
-- Update the plugin’s `enabled` flag in the root file to toggle whether it launches with the host.
-
-### Control Commands
-
-Plugins receive text commands over the ZeroMQ control socket. You can target a specific node explicitly:
-
-```
-node animation mode on solid_color
-node animation color solid_color 255 0 128
-node animation size 64x64
+```bash
+python gui/control_cli.py "node animation mode on solid_color"
+python gui/control_cli.py "node animation color solid_color 255 0 128"
+python gui/control_cli.py "node animation size 64x64"
 ```
 
-Without the `node <id>` prefix, commands go to whichever node the sender is bound to (the bundled GUI defaults to the `animation` node). Responses are emitted as structured event messages on `node.<id>.event`.
+## Developing nodes
 
-For a description of the ZeroMQ addresses and topics, see [docs/messaging.md](docs/messaging.md).
+- Place node code under `nodes/<your_node>/` and provide an entry
+  script following the pattern in `nodes/animation/node.py`
+- Use `transport.make_node_topics(<node_id>)` for the PUB/SUB
+  topic helpers; call `describe_node_catalog` to publish a `meta`
+  announcement at startup
+- Emit health metrics (`node.<id>.health`) + structured event
+  payloads (`node.<id>.event`) so tooling stays in sync
+- Drop a `config.yaml` next to your `node.py` declaring transport
+  addresses, defaults, and a `capabilities` block for GUI metadata
+- Append a block to the root `config.yaml`'s `plugins:` list with
+  `id`, `module` (or `entry`), `cwd`, and `config_path`
 
-## Developing Plugins
+The existing animation node is the canonical template — it
+maintains its own control loop, queues structured events,
+publishes frames through the broker so multiple subscribers can
+consume them without additional wiring.
 
-- Place plugin code under `plugins/<your_plugin>/` and provide an entry script similar to `nodes/animation/node.py`.
-- Use `core.make_node_topics(<node_id>)` to compute your required PUB/SUB topics and call `describe_node_catalog` to publish a `meta` announcement when the plugin starts.
-- Emit health metrics (`node.<id>.health`) and event payloads (`node.<id>.event`) to keep tooling in sync.
-- Give each plugin a dedicated `config.yaml` alongside `node.py`. This is where you declare transport addresses, defaults, and a `capabilities` section for GUI metadata (controls, outputs, etc.).
-- Extend the root `config.yaml` by appending a block to the `plugins:` list. Provide an `id`, how to launch (`entry` or `module`), the working directory, and a `config_path` pointing to the plugin’s configuration file.
-  - Instead of `entry` you can specify `module` (e.g., `module: "plugins.animation_node.node"`) and the host will launch it via `python -m ...` with the project root on `PYTHONPATH`.
-  - Toggle the `enabled` flag to decide whether the host starts a plugin automatically.
+## Companion projects in the Jenkins Robotics stack
 
-The existing animation node is a good template: it maintains its own control loop, queues structured events, and publishes frames through the broker so multiple subscribers can consume them without extra wiring.
-
-## Scripts & Animations
-
-- Animation classes live in `nodes/animation/animations/` and inherit from the shared `Animation` base. Register a new class in `animations/__init__.py` to expose it as a `mode` command.
-- MochiScript files (`nodes/animation/mscripts/`) drive scripted sequences. The GUI and CLI can invoke them with `play <path>`; they emit structured commands that flow through the same control interface.
+- **[JROS](https://github.com/jonathanjenkins/JROS)** — Jenkins
+  Robot Operating System.  The full undertaking: agent + voice +
+  vision + animation + motor.  Mochi is the structural pattern
+  testbed for JROS's animation pipeline.
+- **[VoiceLLM](https://github.com/jonathanjenkins/VoiceLLM)** —
+  standalone voice agent (Eve) — STT + LLM + TTS.  Lessons fed
+  back into JROS.
+- **[AgenticLLM / python_jaeger](https://github.com/jonathanjenkins/AgenticLLM)** —
+  standalone tool-using LLM agent.  Lessons fed back into JROS.
+- **JP01 firmware** — the hardware side: ESP32 robot controllers
+  + LED matrix display drivers.
 
 ## Contributing
 
-1. Create a branch for your feature or fix.
-2. Run `python -m compileall .` or the relevant tests before submitting.
-3. Open a pull request describing the change and any new configuration requirements.
+1. Branch from `main`
+2. Run `python -m compileall .` plus any relevant smoke tests
+3. Open a PR describing the change + any new config requirements
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+See [LICENSE](LICENSE).
+
+---
+
+### Stay connected
+
+If you got this far, you probably care about open-source
+robotics + animation + AI.  The Jenkins Robotics YouTube channel
++ Patreon are the best ways to follow new work AND help fund it:
+
+- **YouTube:** [youtube.com/@JenkinsRobotics](https://www.youtube.com/@JenkinsRobotics)
+- **Patreon:** [patreon.com/JenkinsRobotics](https://www.patreon.com/JenkinsRobotics)
+
+Thanks for reading.

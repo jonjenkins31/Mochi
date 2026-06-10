@@ -44,7 +44,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QSize, Signal, QTimer
+from PySide6.QtCore import Qt, QSize, Signal, QTimer, QUrl
 from PySide6.QtGui import QFont, QIcon, QPixmap, QColor, QPalette
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
@@ -52,6 +52,7 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QLineEdit, QComboBox,
     QStackedWidget, QListWidget, QListWidgetItem,
     QScrollArea, QSizePolicy, QSpacerItem,
+    QTextBrowser, QSplitter,
 )
 
 import zmq
@@ -61,7 +62,23 @@ PROJECT_ROOT = GUI_DIR.parent
 CATALOG_PATH = PROJECT_ROOT / "assets" / "CATALOG.json"
 PACKS_DIR    = PROJECT_ROOT / "assets" / "packs"
 SKINS_DIR    = PROJECT_ROOT / "assets" / "skins"
+LEARN_DIR    = PROJECT_ROOT / "docs" / "learn"
 MINI_LAUNCHER = GUI_DIR / "mochi_vdisplay_player_qt.py"
+
+# Ordered chapter list (sidebar in the Learn page).  Operator can
+# extend by dropping <slug>.md in docs/learn/ and appending the
+# (slug, title) tuple here.
+LEARN_CHAPTERS: list[tuple[str, str]] = [
+    ("index",         "Overview"),
+    ("static_images", "01 · Static images"),
+    ("bitmaps",       "02 · Bitmaps (1-bit)"),
+    ("gifs",          "03 · GIFs"),
+    ("sprites",       "04 · Sprite sheets"),
+    ("video",         "05 · Video clips"),
+    ("math",          "06 · Procedural / math"),
+    ("animations",    "07 · Eye animations (JSON)"),
+    ("mscripts",      "08 · MochiScript"),
+]
 
 DEFAULT_CTRL_ADDR = "tcp://127.0.0.1:5556"
 
@@ -783,6 +800,141 @@ class PacksPage(QWidget):
                 self.ctrl.send(f"node animation mode on {stem}")
 
 
+class LearnPage(QWidget):
+    """Education / Learn surface — chapter list + markdown viewer.
+
+    Operator note (2026-06-10): "would be nice to have a little
+    education tab to talk about animation, history, implementation,
+    how our system works etc".
+
+    Each chapter is a markdown file at ``docs/learn/<slug>.md``.
+    Click a chapter on the left → it renders on the right.  Qt's
+    ``QTextBrowser.setMarkdown()`` handles the rendering natively.
+
+    To add a chapter: drop a new ``.md`` file in ``docs/learn/`` and
+    append a (slug, title) tuple to ``LEARN_CHAPTERS`` at the top of
+    this module.
+    """
+
+    def __init__(self, parent: QWidget = None) -> None:
+        super().__init__(parent)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Top bar with title
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        tb = QHBoxLayout(topbar)
+        tb.setContentsMargins(28, 22, 28, 16)
+        title = QLabel("Learn")
+        title.setObjectName("page_title")
+        tb.addWidget(title)
+        tb.addStretch()
+        sub = QLabel(
+            "Animation, from cave painting to LED matrix"
+        )
+        sub.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 13px;"
+        )
+        tb.addWidget(sub)
+        outer.addWidget(topbar)
+
+        # Split: chapter list (left, narrow) + viewer (right)
+        body = QSplitter(Qt.Horizontal)
+        body.setStyleSheet(
+            f"QSplitter::handle {{ background: {BORDER}; }}"
+        )
+
+        # ── chapter list ──────────────────────────────────────────
+        self.chapters = QListWidget()
+        self.chapters.setFixedWidth(260)
+        self.chapters.setStyleSheet(f"""
+            QListWidget {{
+                background: {BG_BASE};
+                border: none;
+                border-right: 1px solid {BORDER};
+                padding: 12px 0;
+                font-size: 13px;
+                outline: none;
+            }}
+            QListWidget::item {{
+                color: {TEXT_MAIN};
+                padding: 8px 20px;
+                border: none;
+            }}
+            QListWidget::item:selected {{
+                background: {ACCENT_BG};
+                color: {ACCENT_DARK};
+                font-weight: 600;
+            }}
+            QListWidget::item:hover {{
+                background: {ACCENT_BG};
+            }}
+        """)
+        for slug, title in LEARN_CHAPTERS:
+            item = QListWidgetItem(title)
+            item.setData(Qt.UserRole, slug)
+            self.chapters.addItem(item)
+        self.chapters.currentRowChanged.connect(self._on_chapter_change)
+
+        # ── viewer ────────────────────────────────────────────────
+        viewer_frame = QFrame()
+        viewer_frame.setStyleSheet(f"background: {BG_BASE};")
+        viewer_layout = QVBoxLayout(viewer_frame)
+        viewer_layout.setContentsMargins(28, 20, 28, 28)
+        viewer_layout.setSpacing(0)
+
+        self.viewer = QTextBrowser()
+        self.viewer.setOpenExternalLinks(True)
+        self.viewer.setStyleSheet(f"""
+            QTextBrowser {{
+                background: {BG_CARD};
+                border: 1px solid {BORDER};
+                border-radius: 8px;
+                padding: 20px 28px;
+                font-size: 14px;
+                color: {TEXT_MAIN};
+                font-family: -apple-system, "Segoe UI",
+                             "Helvetica Neue", Arial, sans-serif;
+            }}
+        """)
+        viewer_layout.addWidget(self.viewer)
+
+        body.addWidget(self.chapters)
+        body.addWidget(viewer_frame)
+        body.setStretchFactor(0, 0)
+        body.setStretchFactor(1, 1)
+        outer.addWidget(body)
+
+        # Default to the overview
+        self.chapters.setCurrentRow(0)
+
+    def _on_chapter_change(self, row: int) -> None:
+        if row < 0 or row >= self.chapters.count():
+            return
+        item = self.chapters.item(row)
+        slug = item.data(Qt.UserRole)
+        path = LEARN_DIR / f"{slug}.md"
+        if not path.is_file():
+            self.viewer.setMarkdown(
+                f"# Chapter missing\n\n"
+                f"Expected at `docs/learn/{slug}.md` — file not "
+                f"found.  Operator: add the file to populate this "
+                f"chapter.\n"
+            )
+            return
+        try:
+            text = path.read_text(encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            self.viewer.setPlainText(
+                f"Failed to load {path.name}: {exc}"
+            )
+            return
+        self.viewer.setMarkdown(text)
+
+
 class StubPage(QWidget):
     """Placeholder for tabs not yet wired (Home, Scenes, Triggers,
     Schedule, Editors, Settings)."""
@@ -835,6 +987,7 @@ SIDEBAR_ITEMS: list[tuple[str, str]] = [
     ("Triggers", "⚡"),
     ("Schedule", "🕐"),
     ("Editors",  "🛠"),
+    ("Learn",    "🎓"),
     ("Settings", "⚙"),
 ]
 
@@ -986,6 +1139,7 @@ class CompanionMain(QMainWindow):
             "In-app sprite / bitmap / mscript editor.  Existing "
             "tools/*_editor_gui.py surfaces folded in here.",
         )
+        self.pages["Learn"] = LearnPage()
         # Settings page — minimal first version with skin list.
         # Full picker (radio + preview) lands when there's >1 skin
         # to choose between.
