@@ -52,7 +52,7 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QLineEdit, QComboBox,
     QStackedWidget, QListWidget, QListWidgetItem,
     QScrollArea, QSizePolicy, QSpacerItem,
-    QTextBrowser, QSplitter,
+    QTextBrowser, QSplitter, QInputDialog,
 )
 
 import zmq
@@ -63,6 +63,7 @@ CATALOG_PATH = PROJECT_ROOT / "assets" / "CATALOG.json"
 PACKS_DIR    = PROJECT_ROOT / "assets" / "packs"
 SKINS_DIR    = PROJECT_ROOT / "assets" / "skins"
 THUMBS_DIR   = PROJECT_ROOT / "assets" / "thumbs"
+PINNED_FILE  = PROJECT_ROOT / "assets" / "pinned.json"
 LEARN_DIR    = PROJECT_ROOT / "docs" / "learn"
 MINI_LAUNCHER = GUI_DIR / "mochi_vdisplay_player_qt.py"
 
@@ -1328,14 +1329,19 @@ SIDEBAR_ITEMS: list[tuple[str, str]] = [
 
 class Sidebar(QWidget):
     item_selected = Signal(str)
+    pin_clicked = Signal(str)   # animation name to fire
 
     def __init__(self, parent: QWidget = None) -> None:
         super().__init__(parent)
         self.setObjectName("sidebar")
         self.setFixedWidth(220)
+        self._pinned: list[str] = self._load_pinned()
+        self._pin_buttons: list[QPushButton] = []
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        self._layout = layout
 
         # Logo row: small purple mark + brand text.  Borrows the
         # Wondershare layout (icon-mark on the left, brand text to
@@ -1383,6 +1389,58 @@ class Sidebar(QWidget):
             self._buttons[label] = btn
             layout.addWidget(btn)
 
+        # ── PINNED section (operator's "Quick Access" shortcuts) ──
+        # Matches the Wondershare reference: section header with a
+        # right-aligned "+" button to add new pins.  Each pin is a
+        # one-click shortcut that fires that animation.
+        pinned_header = QFrame()
+        ph_layout = QHBoxLayout(pinned_header)
+        ph_layout.setContentsMargins(20, 16, 12, 6)
+        ph_layout.setSpacing(0)
+        pinned_label = QLabel("PINNED")
+        pinned_label.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 11px; "
+            f"font-weight: 700; letter-spacing: 0.06em; "
+            f"background: transparent;"
+        )
+        ph_layout.addWidget(pinned_label)
+        ph_layout.addStretch()
+        self._add_pin_btn = QPushButton("＋")
+        self._add_pin_btn.setFixedSize(22, 22)
+        self._add_pin_btn.setCursor(Qt.PointingHandCursor)
+        self._add_pin_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {TEXT_MUTED};
+                border: 1px solid {BORDER};
+                border-radius: 4px;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 0;
+            }}
+            QPushButton:hover {{
+                background: {ACCENT_BG};
+                color: {ACCENT_DARK};
+                border-color: {ACCENT};
+            }}
+        """)
+        self._add_pin_btn.clicked.connect(self._on_add_pin)
+        ph_layout.addWidget(self._add_pin_btn)
+        layout.addWidget(pinned_header)
+
+        # Container that holds the pin buttons (so we can rebuild on
+        # add/remove without reshuffling the entire layout).
+        self._pins_container = QFrame()
+        self._pins_container.setStyleSheet(
+            f"background: {BG_SIDEBAR}; border: none;"
+        )
+        pc_layout = QVBoxLayout(self._pins_container)
+        pc_layout.setContentsMargins(0, 0, 0, 0)
+        pc_layout.setSpacing(0)
+        self._pins_layout = pc_layout
+        layout.addWidget(self._pins_container)
+        self._rebuild_pins()
+
         layout.addStretch()
 
         # Bottom promo / nudge — empty for now but reserves the space
@@ -1401,11 +1459,98 @@ class Sidebar(QWidget):
     def _select(self, label: str) -> None:
         for l, btn in self._buttons.items():
             btn.setChecked(l == label)
+        # Clear pin selection visual when a top-nav row is picked
+        for pb in self._pin_buttons:
+            pb.setChecked(False)
         self.item_selected.emit(label)
 
     def select_default(self, label: str = "Library") -> None:
         if label in self._buttons:
             self._buttons[label].click()
+
+    # ── Pinned shortcuts ──────────────────────────────────────────
+
+    def _load_pinned(self) -> list[str]:
+        if not PINNED_FILE.is_file():
+            return []
+        try:
+            data = json.loads(PINNED_FILE.read_text())
+            if isinstance(data, list):
+                return [str(x) for x in data if isinstance(x, str)]
+        except Exception:  # noqa: BLE001
+            pass
+        return []
+
+    def _save_pinned(self) -> None:
+        try:
+            PINNED_FILE.parent.mkdir(parents=True, exist_ok=True)
+            PINNED_FILE.write_text(
+                json.dumps(self._pinned, indent=2) + "\n"
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[sidebar] failed to persist pinned.json: {exc}")
+
+    def _rebuild_pins(self) -> None:
+        # Clear existing pin buttons
+        for btn in self._pin_buttons:
+            btn.deleteLater()
+        self._pin_buttons = []
+        # Empty hint when no pins yet
+        if not self._pinned:
+            hint = QLabel("Click + to pin an animation")
+            hint.setStyleSheet(
+                f"color: {TEXT_MUTED}; font-size: 11px; "
+                f"font-style: italic; padding: 4px 20px 8px 20px; "
+                f"background: transparent;"
+            )
+            hint.setObjectName("pin_empty_hint")
+            self._pins_layout.addWidget(hint)
+            self._pin_buttons.append(hint)
+            return
+        # Render each pin as a sidebar button
+        for name in self._pinned:
+            btn = QPushButton(f"  ★    {name}")
+            btn.setProperty("class", "sidebar_btn")
+            btn.setCheckable(True)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setContextMenuPolicy(Qt.NoContextMenu)
+            btn.clicked.connect(
+                lambda _checked=False, n=name: self._on_pin_click(n)
+            )
+            # Right-click → remove.  Qt's QPushButton doesn't expose a
+            # context menu directly, so we hijack on a long-press via
+            # the alt key in mousePressEvent.  Simpler: bind shift+click
+            # to remove for now (documented quirk).
+            self._pin_buttons.append(btn)
+            self._pins_layout.addWidget(btn)
+
+    def _on_pin_click(self, name: str) -> None:
+        # Don't propagate as item_selected (that's for top-nav items).
+        # Visual: mark the clicked pin button as checked, clear the
+        # rest of the nav.
+        for l, b in self._buttons.items():
+            b.setChecked(False)
+        for pb in self._pin_buttons:
+            if isinstance(pb, QPushButton):
+                pb.setChecked(pb.text().endswith(name))
+        self.pin_clicked.emit(name)
+
+    def _on_add_pin(self) -> None:
+        text, ok = QInputDialog.getText(
+            self,
+            "Pin an animation",
+            "Animation name (must match the Library):",
+        )
+        if not ok:
+            return
+        name = (text or "").strip()
+        if not name:
+            return
+        if name in self._pinned:
+            return
+        self._pinned.append(name)
+        self._save_pinned()
+        self._rebuild_pins()
 
 
 # ── main window ────────────────────────────────────────────────────
@@ -1430,6 +1575,7 @@ class CompanionMain(QMainWindow):
 
         self.sidebar = Sidebar()
         self.sidebar.item_selected.connect(self._on_sidebar_select)
+        self.sidebar.pin_clicked.connect(self._on_pin_clicked)
         h.addWidget(self.sidebar)
 
         right = QVBoxLayout()
@@ -1519,6 +1665,14 @@ class CompanionMain(QMainWindow):
         page = self.pages.get(label)
         if page is not None:
             self.stack.setCurrentWidget(page)
+
+    def _on_pin_clicked(self, name: str) -> None:
+        """Pinned sidebar shortcut fired — dispatch through the same
+        ctrl path the Library card uses."""
+        if not name:
+            return
+        self.ctrl.send(f"node animation mode on {name}")
+        self.logger.info("pin fired — %s", name)
 
     def _build_settings_page(self) -> QWidget:
         """Minimal Settings — lists discovered skins.  Picker UI lands
