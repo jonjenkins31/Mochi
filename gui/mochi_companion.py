@@ -738,12 +738,6 @@ class LibraryPage(QWidget):
 class PacksPage(QWidget):
     """Pack browser with stacked card-grid → detail view.
 
-    Signals:
-      navigate(label) — request that the main window jump to a
-                        different sidebar tab (used by the empty
-                        state's "View Library" CTA).
-    """
-
     Empty state when ``assets/packs/`` has no pack.yaml files yet
     (operator: "most stuff are one-offs... I am working on the
     packs").  As packs land, this page populates with pack cards;
@@ -752,6 +746,11 @@ class PacksPage(QWidget):
     Active pack persists to ``assets/packs/active.txt`` (single line,
     pack id).  The animation node / LLM picker / reaction button row
     (when wired) read from this file to know which pack to use.
+
+    Signals:
+      navigate(label) — request that the main window jump to a
+                        different sidebar tab (used by the empty
+                        state's "View Library" CTA).
     """
 
     ACTIVE_FILE = PACKS_DIR / "active.txt"
