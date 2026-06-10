@@ -11,6 +11,7 @@ import logging
 import json
 import yaml
 import os
+import time
 from typing import Sequence
 import numpy as np
 import zmq
@@ -73,6 +74,12 @@ class AnimationNode(MochiNodeBase):
         self.keyframes: dict[int, Animation] = {}
         self.script: MscriptScript | None = None
         self._solid_color_rgb: tuple[int, int, int] = (173, 216, 230)
+
+        # Per-asset playback hints (overridden in activate_mode from
+        # the catalog/sidecar entry — see docs/ASSET_PROPERTIES.md).
+        self._anim_speed: float = 1.0
+        self._anim_framing: str = "fit"
+        self._anim_origin: float = time.monotonic()
 
         self._install_fallback(source="system", emit_event=True)
         self._load_default_script()
@@ -221,7 +228,24 @@ class AnimationNode(MochiNodeBase):
         if isinstance(animation, SolidColorAnimation):
             animation.set_color(self._solid_color_rgb)
         label = label or name
+        # Read playback_speed + framing from the catalog entry (which
+        # in turn sourced them from the asset's .props.yaml sidecar).
+        # Defaults: 1.0 speed, "fit" framing.  When the entry isn't in
+        # the catalog the defaults stand.
+        entry = self._catalog_index.get(name) or {}
+        self._anim_speed = float(entry.get("playback_speed", 1.0)) or 1.0
+        self._anim_framing = entry.get("framing") or "fit"
+        # Mark when this animation started so we can transform the
+        # wall-clock timestamp into "elapsed since activation" before
+        # scaling.  Avoids jumpy jumps when speed changes between
+        # activations.
+        self._anim_origin = time.monotonic()
         self._set_animation(animation, base_name=name, label=label, source=source)
+        if self._anim_speed != 1.0 or self._anim_framing != "fit":
+            self.logger.info(
+                "playback hints — name=%s speed=%.2f framing=%s",
+                name, self._anim_speed, self._anim_framing,
+            )
         return True
 
     def deactivate_mode(self, *, source: str = "ctrl") -> None:
@@ -515,13 +539,36 @@ class AnimationNode(MochiNodeBase):
         )
 
     def _render_tick(self, timestamp):
-        """Render the current animation into a pixel buffer."""
+        """Render the current animation into a pixel buffer.
+
+        ``timestamp`` is the wall-clock seconds the renderer ticks
+        with.  If the current asset's sidecar declared a
+        ``playback_speed`` other than 1.0, we transform timestamp →
+        "elapsed since activation × speed".  This way speed=2.0
+        makes the animation run twice as fast without jumping if
+        speed was changed mid-playback.
+
+        ``framing`` is captured but not yet applied — most current
+        adapters self-paint to the full buffer.  When per-asset
+        resizing is wired through media_base.py the framing field
+        will pick fit / fill / center / stretch strategies.
+        """
         if self.anim is None:
             return None
-        
+
+        # Apply playback_speed by rescaling the time passed to the
+        # animation.  Animations that depend on absolute t (procedural
+        # math anims) read this as "time runs faster"; frame-based
+        # anims (gif/video/sprite) read it as "frame N happens
+        # sooner".  Both behave correctly.
+        effective_t = (
+            self._anim_origin
+            + (timestamp - self._anim_origin) * self._anim_speed
+        )
+
         zmq_manager.ensure_buffers(self.w, self.h)
         try:
-            self.anim.render_into(timestamp, zmq_manager.pixel_buf)
+            self.anim.render_into(effective_t, zmq_manager.pixel_buf)
         except Exception as exc:
             self.enqueue_event("frame.error", animation=self.current_mode, message=str(exc))
             self.logger.error(f"frame() error from '{self.current_mode}': {exc}")
