@@ -23,7 +23,7 @@ CONFIG_PATHS = [
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
-from core import make_node_topics
+from transport import make_node_topics
 
 
 def _load_perf_settings(logger):

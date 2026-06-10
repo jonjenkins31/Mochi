@@ -6,9 +6,9 @@ Mochi is a modular framework for building LED-style animation pipelines inspired
 
 | Path | Role |
 | --- | --- |
-| `main.py` | Host entry point. Reads `config.yaml`, launches the broker (`core/broker.py`) and configured plugins. |
+| `main.py` | Host entry point. Reads `config.yaml`, launches the broker (`transport/broker.py`) and configured plugins. |
 | `core/` | Shared infrastructure utilities (broker, topic helpers, etc.). |
-| `plugins/animation_node/` | The reference animation plugin that renders frames and exposes control commands. |
+| `nodes/animation/` | The reference animation plugin that renders frames and exposes control commands. |
 | `gui/` | Desktop tooling: manual control (`mochi_gui.py`), virtual display, performance monitor, CLI helper. |
 | `docs/messaging.md` | Details on address/topic conventions and message payloads. |
 | `config.yaml` | Addresses and plugin registry. Add new plugins here by appending to the `plugins:` list. |
@@ -99,7 +99,7 @@ For a description of the ZeroMQ addresses and topics, see [docs/messaging.md](do
 
 ## Developing Plugins
 
-- Place plugin code under `plugins/<your_plugin>/` and provide an entry script similar to `plugins/animation_node/node.py`.
+- Place plugin code under `plugins/<your_plugin>/` and provide an entry script similar to `nodes/animation/node.py`.
 - Use `core.make_node_topics(<node_id>)` to compute your required PUB/SUB topics and call `describe_node_catalog` to publish a `meta` announcement when the plugin starts.
 - Emit health metrics (`node.<id>.health`) and event payloads (`node.<id>.event`) to keep tooling in sync.
 - Give each plugin a dedicated `config.yaml` alongside `node.py`. This is where you declare transport addresses, defaults, and a `capabilities` section for GUI metadata (controls, outputs, etc.).
@@ -111,8 +111,8 @@ The existing animation node is a good template: it maintains its own control loo
 
 ## Scripts & Animations
 
-- Animation classes live in `plugins/animation_node/animations/` and inherit from the shared `Animation` base. Register a new class in `animations/__init__.py` to expose it as a `mode` command.
-- MochiScript files (`plugins/animation_node/mscripts/`) drive scripted sequences. The GUI and CLI can invoke them with `play <path>`; they emit structured commands that flow through the same control interface.
+- Animation classes live in `nodes/animation/animations/` and inherit from the shared `Animation` base. Register a new class in `animations/__init__.py` to expose it as a `mode` command.
+- MochiScript files (`nodes/animation/mscripts/`) drive scripted sequences. The GUI and CLI can invoke them with `play <path>`; they emit structured commands that flow through the same control interface.
 
 ## Contributing
 

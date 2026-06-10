@@ -1,49 +1,15 @@
-# Shared infrastructure utilities for Mochi.
+"""Shared infrastructure for Mochi (host monitoring + plugin loader).
 
-from .topics import (
-    NodeTopics,
-    describe_node_catalog,
-    make_node_topics,
-    build_topic,
-    EXT_LLM_REPLY,
-    EXT_STT_TEXT,
-    SYS_ALERT,
-    SYS_BROADCAST,
-)
+After the JROS-style reorg, the bus + topics + messages + node_base
+moved to transport/.  What stays here is what BOTH the agent + the
+peripheral nodes consume — host monitoring + the plugin registry
+that loads them.
+"""
+
 from .plugin_registry import PluginSpec, PluginProcess, load_plugin_specs
 from .host_monitor import HostMonitor
-from .messages import (
-    Msg,
-    build,
-    TOPIC_STT_TEXT,
-    TOPIC_LLM_REPLY,
-    TOPIC_TTS_SAY,
-    TOPIC_TTS_DONE,
-    TOPIC_ANIM_EVENT,
-    TOPIC_SYS_CMD,
-)
-from . import zmq_manager
 
 __all__ = [
-    "NodeTopics",
-    "describe_node_catalog",
-    "make_node_topics",
-    "build_topic",
-    "EXT_LLM_REPLY",
-    "EXT_STT_TEXT",
-    "SYS_ALERT",
-    "SYS_BROADCAST",
-    "PluginSpec",
-    "PluginProcess",
-    "load_plugin_specs",
+    "PluginSpec", "PluginProcess", "load_plugin_specs",
     "HostMonitor",
-    "Msg",
-    "build",
-    "TOPIC_STT_TEXT",
-    "TOPIC_LLM_REPLY",
-    "TOPIC_TTS_SAY",
-    "TOPIC_TTS_DONE",
-    "TOPIC_ANIM_EVENT",
-    "TOPIC_SYS_CMD",
-    "zmq_manager",
 ]

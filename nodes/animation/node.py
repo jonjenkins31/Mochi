@@ -33,8 +33,8 @@ from animations import create_animation
 from plugin_core.mochi_animations import Animation, Command
 from plugin_core.logging_utils import setup_logger
 from plugin_core.mscript_engine import MscriptScript
-from core.node_base import MochiNodeBase
-from core import zmq_manager
+from transport.node_base import MochiNodeBase
+from transport import zmq_manager
 
 def _merge_dicts(base: dict, overlay: dict) -> dict:
     merged = dict(base)

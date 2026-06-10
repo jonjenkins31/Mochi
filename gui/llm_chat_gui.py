@@ -28,7 +28,7 @@ DEFAULT_BACKEND = "tcp://127.0.0.1:5557"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
-from core.messages import Msg, build, TOPIC_STT_TEXT, TOPIC_LLM_REPLY
+from transport.messages import Msg, build, TOPIC_STT_TEXT, TOPIC_LLM_REPLY
 
 CONFIG_PATHS = [
     PROJECT_ROOT / "config.yaml",

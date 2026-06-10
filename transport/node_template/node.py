@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Sequence
 
-from core.node_base import MochiNodeBase
+from transport.node_base import MochiNodeBase
 from .bootstrap import (
     PROJECT_ROOT,
     build_optional_topics,

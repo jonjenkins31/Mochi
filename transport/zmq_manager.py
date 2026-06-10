@@ -10,7 +10,7 @@ import struct
 import time
 from typing import Iterable, Tuple
 
-from core import NodeTopics, make_node_topics
+from transport import NodeTopics, make_node_topics
 
 # --- Protocol ---
 HEADER_FMT = ">HHQI"  # w,h,uint64 ts_ms,uint32 seq

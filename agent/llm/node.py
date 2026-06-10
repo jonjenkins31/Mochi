@@ -8,17 +8,17 @@ from typing import Iterable, Sequence
 
 import zmq
 
-from core import EXT_LLM_REPLY, EXT_STT_TEXT
-from core.messages import (
+from transport import EXT_LLM_REPLY, EXT_STT_TEXT
+from transport.messages import (
     Msg,
     TOPIC_LLM_REPLY,
     TOPIC_STT_TEXT,
     build,
 )
-from core.node_base import MochiNodeBase
+from transport.node_base import MochiNodeBase
 
 from .ollama_client import OllamaClient
-from plugins.node_template import (
+from transport.node_template import (
     PROJECT_ROOT,
     build_optional_topics,
     load_config,

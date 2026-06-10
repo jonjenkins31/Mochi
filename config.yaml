@@ -14,15 +14,15 @@ infrastructure:
 plugins:
   - id: "animation"
     type: "animation_node"
-    module: "plugins.animation_node.node"
-    cwd: "plugins/animation_node"
-    config_path: "plugins/animation_node/config.yaml"
+    module: "nodes.animation.node"
+    cwd: "nodes/animation"
+    config_path: "nodes/animation/config.yaml"
     enabled: true
   - id: "llm"
     type: "llm_node"
-    module: "plugins.llm_node.node"
-    cwd: "plugins/llm_node"
-    config_path: "plugins/llm_node/config.yaml"
+    module: "agent.llm.node"
+    cwd: "agent/llm"
+    config_path: "agent/llm/config.yaml"
     enabled: true
   - id: "mochi_gui"
     type: "gui"

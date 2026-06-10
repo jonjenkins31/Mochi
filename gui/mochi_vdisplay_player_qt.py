@@ -49,7 +49,7 @@ PROJECT_ROOT = GUI_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
-from core import make_node_topics
+from transport import make_node_topics
 
 HEADER_FMT = ">HHQI"
 HEADER_SIZE = struct.calcsize(HEADER_FMT)

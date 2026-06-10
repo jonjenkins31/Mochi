@@ -14,7 +14,7 @@ The host propagates the chosen addresses to plugins via environment variables so
 
 ## Topic Naming
 
-Topics are UTF-8 strings with dotted sections. Helper utilities live in `core/topics.py`.
+Topics are UTF-8 strings with dotted sections. Helper utilities live in `transport/topics.py`.
 
 ```
 sys.<area>.<name>        # host/broker signals
@@ -42,7 +42,7 @@ Optional or feature-specific channels live under the `ext.` namespace. Common pl
 - `ext.stt.text`
 - `ext.llm.reply`
 
-Standard shared topics defined in `core/messages.py` include `stt.text`, `llm.reply`, `tts.say`, `tts.done`, `anim.event`, and `system.cmd`. Plugins can declare optional topics in configuration (`node.optional_topics`) or via the `MOCHI_NODE_OPTIONAL_TOPICS` environment variable. They are surfaced in the meta payload for discovery.
+Standard shared topics defined in `transport/messages.py` include `stt.text`, `llm.reply`, `tts.say`, `tts.done`, `anim.event`, and `system.cmd`. Plugins can declare optional topics in configuration (`node.optional_topics`) or via the `MOCHI_NODE_OPTIONAL_TOPICS` environment variable. They are surfaced in the meta payload for discovery.
 
 ## Payload Shapes
 
@@ -77,7 +77,7 @@ Standard shared topics defined in `core/messages.py` include `stt.text`, `llm.re
 
 - **Meta:** Produced via `describe_node_catalog(...)`, including addresses, logical size, FPS, and optional topics.
 
-Cross-service messages (e.g., STT → LLM → TTS) use the shared `Msg` envelope defined in `core/messages.py`:
+Cross-service messages (e.g., STT → LLM → TTS) use the shared `Msg` envelope defined in `transport/messages.py`:
 
 ```
 {

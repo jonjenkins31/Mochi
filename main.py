@@ -21,7 +21,7 @@ from core.host_monitor import HostMonitor
 from core.plugin_registry import PluginProcess, load_plugin_specs
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-BROKER_ENTRY = PROJECT_ROOT / "core" / "broker.py"
+BROKER_ENTRY = PROJECT_ROOT / "transport" / "broker.py"
 ROOT_CONFIG = PROJECT_ROOT / "config.yaml"
 
 DEFAULT_XPUB = "tcp://127.0.0.1:5555"
