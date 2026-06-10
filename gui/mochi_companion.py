@@ -62,6 +62,7 @@ PROJECT_ROOT = GUI_DIR.parent
 CATALOG_PATH = PROJECT_ROOT / "assets" / "CATALOG.json"
 PACKS_DIR    = PROJECT_ROOT / "assets" / "packs"
 SKINS_DIR    = PROJECT_ROOT / "assets" / "skins"
+THUMBS_DIR   = PROJECT_ROOT / "assets" / "thumbs"
 LEARN_DIR    = PROJECT_ROOT / "docs" / "learn"
 MINI_LAUNCHER = GUI_DIR / "mochi_vdisplay_player_qt.py"
 
@@ -421,8 +422,18 @@ def make_badge(mood: str) -> QLabel:
     return label
 
 
+def _thumb_path(entry: dict) -> Path:
+    """Resolve the cached thumbnail path for ``entry`` —
+    ``assets/thumbs/<sanitised_name>.png``.  Matches the convention
+    tools/build_thumbnails.py uses."""
+    safe = entry["name"].replace("/", "_").replace(" ", "_")
+    return THUMBS_DIR / f"{safe}.png"
+
+
 def make_card(entry: dict, on_click) -> QFrame:
-    """One catalog entry as a clickable card."""
+    """One catalog entry as a clickable card.  Shows the cached
+    thumbnail when present (built by tools/build_thumbnails.py),
+    falls back to a first-letter placeholder otherwise."""
     card = QFrame()
     card.setObjectName("card")
     card.setProperty("class", "card")
@@ -434,18 +445,43 @@ def make_card(entry: dict, on_click) -> QFrame:
     layout.setContentsMargins(12, 12, 12, 12)
     layout.setSpacing(8)
 
-    # Preview tile — first letter for now, will become thumbnail later
-    preview = QLabel(entry["name"][:1].upper())
+    # ── Preview tile ──────────────────────────────────────────────
+    thumb = _thumb_path(entry)
+    preview = QLabel()
     preview.setAlignment(Qt.AlignCenter)
-    preview.setProperty("class", "card_preview")
-    preview.setStyleSheet(f"""
-        background: {ACCENT_BG};
-        color: {ACCENT_DARK};
-        border-radius: 6px;
-        font-size: 40px;
-        font-weight: 700;
-        min-height: 90px;
-    """)
+    preview.setFixedHeight(110)
+    if thumb.is_file():
+        pix = QPixmap(str(thumb))
+        if not pix.isNull():
+            pix = pix.scaled(
+                110, 110,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
+            )
+            preview.setPixmap(pix)
+            preview.setStyleSheet(f"""
+                background: {BG_BASE};
+                border-radius: 6px;
+            """)
+        else:
+            # Corrupt thumb — fall through to placeholder
+            preview.setText(entry["name"][:1].upper())
+            preview.setStyleSheet(f"""
+                background: {ACCENT_BG};
+                color: {ACCENT_DARK};
+                border-radius: 6px;
+                font-size: 40px;
+                font-weight: 700;
+            """)
+    else:
+        preview.setText(entry["name"][:1].upper())
+        preview.setStyleSheet(f"""
+            background: {ACCENT_BG};
+            color: {ACCENT_DARK};
+            border-radius: 6px;
+            font-size: 40px;
+            font-weight: 700;
+        """)
     layout.addWidget(preview)
 
     title = QLabel(entry["name"])
