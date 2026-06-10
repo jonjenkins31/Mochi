@@ -240,3 +240,66 @@ Everything else builds on these three.
 - Anki Vector TRM: https://randym32.github.io/Vector-TRM.pdf
 - Eilik: https://energizelab.com/consumerview/eilik
 - Divoom Times Gate: https://divoom.com/products/time-gate
+
+
+---
+
+## Operator decisions (2026-06-10)
+
+### 1. Aesthetic — Wondershare style
+
+Operator-selected reference: **Wondershare UniConverter** (screenshot
+in chat history).  Specific elements to copy:
+
+- **Left sidebar navigation** — vertical list of top-level
+  surfaces (Home / Library / Scenes / Triggers / Schedule /
+  Editors / Settings).  Icon + label per row.
+- **Top tab strip** — category filter inside each page
+  (Recently / Hot / Video / Audio / Image in Wondershare;
+  for us: All / Happy / Sad / Angry / Sleepy / etc.)
+- **Search bar top-right** — instant filter by name + tags
+- **Card grid** — each card is preview image + bold title +
+  subtitle + optional badge (New / 4K / AI / custom).  Lots of
+  whitespace between cards.
+- **White base + accent colour + dark text** — light theme,
+  premium feel.  Wondershare's accent is purple; ours can be
+  a soft Mochi-pink or stay purple for consistency.
+- **Bottom-of-sidebar promo block** — Wondershare uses for
+  upgrade nudge; we can use for "Mochi tip of the day" or scene
+  shortcut.
+
+Why this matches the project:
+- "Very clean, very flexible, very reusable for other projects"
+  (operator's words).  The style applies to JROS's eventual Swift
+  operator console too.
+- The companion app becomes our design-system reference for
+  future work.
+
+### 2. Pop-out floating window — confirmed + extended
+
+Keep the existing `mochi_vdisplay_player_qt.py` concept (frameless
+window subscribing to frame stream).  But formalise the body-skin
+system the operator was already experimenting with:
+
+- Body skins live at `assets/skins/<name>/`
+- Each skin contains:
+    - `frame.png` — the bezel/body image (e.g. `tv1.png`)
+    - `meta.yaml` — screen bounding box (where the animation
+      paints inside the bezel), default opacity, draggable
+      regions, attribution
+- Companion app has a **Skin picker** (in Settings) — preview each
+  skin, set the active one
+- `--mini` boot mode renders only the skinned floating window
+  (no companion chrome)
+
+Existing `assets/video/player/tv1.png` becomes the first skin
+example.
+
+### Remaining open questions (deferred — operator can answer mid-build)
+
+  - Default character pack: pick one from existing 167 vs. design
+    fresh
+  - Trigger sources scope for v1: ZMQ + time only, or include
+    MQTT/file-watch/hotkey from day one
+  - Starter scenes: I author 6-8 from existing assets vs. wait for
+    operator curation
