@@ -1,0 +1,2299 @@
+{
+  "version": 1,
+  "generator": "tools/build_catalog.py",
+  "asset_count": 167,
+  "by_type": {
+    "animations": 6,
+    "bitmaps": 5,
+    "bmps": 2,
+    "gifs": 68,
+    "icons": 4,
+    "math": 26,
+    "mscripts": 18,
+    "png": 6,
+    "procedural": 1,
+    "video": 31
+  },
+  "by_mood": {
+    "angry": 5,
+    "curious": 2,
+    "defensive": 2,
+    "energetic": 13,
+    "happy": 6,
+    "love": 1,
+    "neutral": 137,
+    "sad": 1
+  },
+  "entries": [
+    {
+      "name": "closed",
+      "type": "animations",
+      "path": "assets/animations/closed.json",
+      "size_b": 387,
+      "category": "eye_animation",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "animations"
+      ],
+      "hint": "Neutral eye animation (closed)."
+    },
+    {
+      "name": "happy_blink",
+      "type": "animations",
+      "path": "assets/animations/happy_blink.json",
+      "size_b": 359,
+      "category": "eye_animation",
+      "mood": "happy",
+      "tags": [
+        "happy",
+        "animations",
+        "blink"
+      ],
+      "hint": "Happy eye animation (happy_blink)."
+    },
+    {
+      "name": "look_down",
+      "type": "animations",
+      "path": "assets/animations/look_down.json",
+      "size_b": 370,
+      "category": "eye_animation",
+      "mood": "curious",
+      "tags": [
+        "curious",
+        "animations",
+        "look"
+      ],
+      "hint": "Curious eye animation (look_down)."
+    },
+    {
+      "name": "look_up",
+      "type": "animations",
+      "path": "assets/animations/look_up.json",
+      "size_b": 368,
+      "category": "eye_animation",
+      "mood": "curious",
+      "tags": [
+        "curious",
+        "animations",
+        "look"
+      ],
+      "hint": "Curious eye animation (look_up)."
+    },
+    {
+      "name": "neutral_blink",
+      "type": "animations",
+      "path": "assets/animations/neutral_blink.json",
+      "size_b": 369,
+      "category": "eye_animation",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "animations",
+        "blink"
+      ],
+      "hint": "Neutral eye animation (neutral_blink)."
+    },
+    {
+      "name": "sad_blink",
+      "type": "animations",
+      "path": "assets/animations/sad_blink.json",
+      "size_b": 363,
+      "category": "eye_animation",
+      "mood": "sad",
+      "tags": [
+        "sad",
+        "animations",
+        "blink"
+      ],
+      "hint": "Sad eye animation (sad_blink)."
+    },
+    {
+      "name": "2",
+      "type": "bitmaps",
+      "path": "assets/bitmaps/2.json",
+      "size_b": 5685,
+      "category": "static_bitmap",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "bitmaps"
+      ],
+      "hint": "1-bit bitmap: 2."
+    },
+    {
+      "name": "eye_sprites",
+      "type": "bitmaps",
+      "path": "assets/bitmaps/eye_sprites.json",
+      "size_b": 75928,
+      "category": "static_bitmap",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "bitmaps",
+        "eye"
+      ],
+      "hint": "1-bit bitmap: eye_sprites."
+    },
+    {
+      "name": "test_bitmap_data",
+      "type": "bitmaps",
+      "path": "assets/bitmaps/test_bitmap_data.json",
+      "size_b": 3512,
+      "category": "static_bitmap",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "bitmaps",
+        "test"
+      ],
+      "hint": "1-bit bitmap: test_bitmap_data."
+    },
+    {
+      "name": "wink_closed",
+      "type": "bitmaps",
+      "path": "assets/bitmaps/wink_closed.json",
+      "size_b": 139,
+      "category": "static_bitmap",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "bitmaps",
+        "wink"
+      ],
+      "hint": "1-bit bitmap: wink_closed."
+    },
+    {
+      "name": "wink_open",
+      "type": "bitmaps",
+      "path": "assets/bitmaps/wink_open.json",
+      "size_b": 147,
+      "category": "static_bitmap",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "bitmaps",
+        "wink"
+      ],
+      "hint": "1-bit bitmap: wink_open."
+    },
+    {
+      "name": "patric_emotes",
+      "type": "bmps",
+      "path": "assets/bmps/patric_emotes.bmp",
+      "size_b": 1549898,
+      "category": "static_bitmap",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "bmps"
+      ],
+      "hint": "bmps: patric_emotes."
+    },
+    {
+      "name": "random_emotes",
+      "type": "bmps",
+      "path": "assets/bmps/random_emotes.bmp",
+      "size_b": 1751178,
+      "category": "static_bitmap",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "bmps"
+      ],
+      "hint": "bmps: random_emotes."
+    },
+    {
+      "name": "0ec670a21628ecaae848577da077c3cec95888f1r1-264-264_00",
+      "type": "gifs",
+      "path": "assets/gifs/0ec670a21628ecaae848577da077c3cec95888f1r1-264-264_00.gif",
+      "size_b": 1871,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (0ec670a21628ecaae848577da077c3cec95888f1r1-264-264_00)."
+    },
+    {
+      "name": "ChasmDaltynBg",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynBg.gif",
+      "size_b": 13920,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "bg"
+      ],
+      "hint": "Neutral GIF clip (ChasmDaltynBg)."
+    },
+    {
+      "name": "ChasmDaltynChest",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynChest.gif",
+      "size_b": 40786,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ChasmDaltynChest)."
+    },
+    {
+      "name": "ChasmDaltynCrouch",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynCrouch.gif",
+      "size_b": 23545,
+      "category": "looping_gif",
+      "mood": "defensive",
+      "tags": [
+        "defensive",
+        "gifs",
+        "crouch"
+      ],
+      "hint": "Defensive GIF clip (ChasmDaltynCrouch)."
+    },
+    {
+      "name": "ChasmDaltynFight",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynFight.gif",
+      "size_b": 23167,
+      "category": "looping_gif",
+      "mood": "angry",
+      "tags": [
+        "angry",
+        "gifs",
+        "fight"
+      ],
+      "hint": "Angry GIF clip (ChasmDaltynFight)."
+    },
+    {
+      "name": "ChasmDaltynKnife",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynKnife.gif",
+      "size_b": 12091,
+      "category": "looping_gif",
+      "mood": "angry",
+      "tags": [
+        "angry",
+        "gifs",
+        "knife"
+      ],
+      "hint": "Angry GIF clip (ChasmDaltynKnife)."
+    },
+    {
+      "name": "ChasmDaltynPunch",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynPunch.gif",
+      "size_b": 13550,
+      "category": "looping_gif",
+      "mood": "angry",
+      "tags": [
+        "angry",
+        "gifs",
+        "punch"
+      ],
+      "hint": "Angry GIF clip (ChasmDaltynPunch)."
+    },
+    {
+      "name": "ChasmDaltynRun",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynRun.gif",
+      "size_b": 114519,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run"
+      ],
+      "hint": "Energetic GIF clip (ChasmDaltynRun)."
+    },
+    {
+      "name": "ChasmDaltynShield",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynShield.gif",
+      "size_b": 26480,
+      "category": "looping_gif",
+      "mood": "defensive",
+      "tags": [
+        "defensive",
+        "gifs",
+        "shield"
+      ],
+      "hint": "Defensive GIF clip (ChasmDaltynShield)."
+    },
+    {
+      "name": "ChasmDaltynSlash",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynSlash.gif",
+      "size_b": 15036,
+      "category": "looping_gif",
+      "mood": "angry",
+      "tags": [
+        "angry",
+        "gifs"
+      ],
+      "hint": "Angry GIF clip (ChasmDaltynSlash)."
+    },
+    {
+      "name": "ChasmDaltynSword",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynSword.gif",
+      "size_b": 13488,
+      "category": "looping_gif",
+      "mood": "angry",
+      "tags": [
+        "angry",
+        "gifs",
+        "sword"
+      ],
+      "hint": "Angry GIF clip (ChasmDaltynSword)."
+    },
+    {
+      "name": "ChasmDaltynWhip",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmDaltynWhip.gif",
+      "size_b": 10938,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "whip"
+      ],
+      "hint": "Neutral GIF clip (ChasmDaltynWhip)."
+    },
+    {
+      "name": "ChasmGoblin",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmGoblin.gif",
+      "size_b": 20530,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "goblin"
+      ],
+      "hint": "Neutral GIF clip (ChasmGoblin)."
+    },
+    {
+      "name": "ChasmMonster1",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmMonster1.gif",
+      "size_b": 6325,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "monster"
+      ],
+      "hint": "Neutral GIF clip (ChasmMonster1)."
+    },
+    {
+      "name": "ChasmMonster2",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmMonster2.gif",
+      "size_b": 7917,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "monster"
+      ],
+      "hint": "Neutral GIF clip (ChasmMonster2)."
+    },
+    {
+      "name": "ChasmMonster3",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmMonster3.gif",
+      "size_b": 9606,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "monster"
+      ],
+      "hint": "Neutral GIF clip (ChasmMonster3)."
+    },
+    {
+      "name": "ChasmOldMan",
+      "type": "gifs",
+      "path": "assets/gifs/ChasmOldMan.gif",
+      "size_b": 9969,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ChasmOldMan)."
+    },
+    {
+      "name": "DinoRun1",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun1.gif",
+      "size_b": 1918,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun1)."
+    },
+    {
+      "name": "DinoRun10",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun10.gif",
+      "size_b": 2045,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun10)."
+    },
+    {
+      "name": "DinoRun11",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun11.gif",
+      "size_b": 1844,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun11)."
+    },
+    {
+      "name": "DinoRun2",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun2.gif",
+      "size_b": 3232,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun2)."
+    },
+    {
+      "name": "DinoRun3",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun3.gif",
+      "size_b": 3119,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun3)."
+    },
+    {
+      "name": "DinoRun6",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun6.gif",
+      "size_b": 2898,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun6)."
+    },
+    {
+      "name": "DinoRun7",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun7.gif",
+      "size_b": 1686,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun7)."
+    },
+    {
+      "name": "DinoRun7-2",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun7-2.gif",
+      "size_b": 2207,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun7-2)."
+    },
+    {
+      "name": "DinoRun9-1",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun9-1.gif",
+      "size_b": 1991,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun9-1)."
+    },
+    {
+      "name": "DinoRun9-2",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun9-2.gif",
+      "size_b": 2201,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun9-2)."
+    },
+    {
+      "name": "DinoRun9-3",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun9-3.gif",
+      "size_b": 1474,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun9-3)."
+    },
+    {
+      "name": "DinoRun9-4",
+      "type": "gifs",
+      "path": "assets/gifs/DinoRun9-4.gif",
+      "size_b": 1681,
+      "category": "looping_gif",
+      "mood": "energetic",
+      "tags": [
+        "energetic",
+        "gifs",
+        "run",
+        "dino"
+      ],
+      "hint": "Energetic GIF clip (DinoRun9-4)."
+    },
+    {
+      "name": "Eyes_Gif",
+      "type": "gifs",
+      "path": "assets/gifs/Eyes_Gif.gif",
+      "size_b": 52574,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "eye"
+      ],
+      "hint": "Neutral GIF clip (Eyes_Gif)."
+    },
+    {
+      "name": "GIF MEGA Arduino Eyes Only (copy)",
+      "type": "gifs",
+      "path": "assets/gifs/GIF MEGA Arduino Eyes Only (copy).gif",
+      "size_b": 52574,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "eye"
+      ],
+      "hint": "Neutral GIF clip (GIF MEGA Arduino Eyes Only (copy))."
+    },
+    {
+      "name": "RIVE_big_smile_animation",
+      "type": "gifs",
+      "path": "assets/gifs/RIVE_big_smile_animation.gif",
+      "size_b": 17863,
+      "category": "looping_gif",
+      "mood": "happy",
+      "tags": [
+        "happy",
+        "gifs",
+        "smile"
+      ],
+      "hint": "Happy GIF clip (RIVE_big_smile_animation)."
+    },
+    {
+      "name": "RIVE_big_smile_animation_4x",
+      "type": "gifs",
+      "path": "assets/gifs/RIVE_big_smile_animation_4x.gif",
+      "size_b": 28915,
+      "category": "looping_gif",
+      "mood": "happy",
+      "tags": [
+        "happy",
+        "gifs",
+        "smile"
+      ],
+      "hint": "Happy GIF clip (RIVE_big_smile_animation_4x)."
+    },
+    {
+      "name": "TinyFlex",
+      "type": "gifs",
+      "path": "assets/gifs/TinyFlex.gif",
+      "size_b": 2034,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (TinyFlex)."
+    },
+    {
+      "name": "cloud-network",
+      "type": "gifs",
+      "path": "assets/gifs/cloud-network.gif",
+      "size_b": 295866,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (cloud-network)."
+    },
+    {
+      "name": "cloudy",
+      "type": "gifs",
+      "path": "assets/gifs/weather/cloudy.gif",
+      "size_b": 11256,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (cloudy)."
+    },
+    {
+      "name": "ezgif.com-crop",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-crop.gif",
+      "size_b": 254,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-crop)."
+    },
+    {
+      "name": "ezgif.com-resize",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize.gif",
+      "size_b": 87506,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize)."
+    },
+    {
+      "name": "ezgif.com-resize-10",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize-10.gif",
+      "size_b": 126512,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize-10)."
+    },
+    {
+      "name": "ezgif.com-resize-2",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize-2.gif",
+      "size_b": 23793,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize-2)."
+    },
+    {
+      "name": "ezgif.com-resize-3",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize-3.gif",
+      "size_b": 4829,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize-3)."
+    },
+    {
+      "name": "ezgif.com-resize-4",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize-4.gif",
+      "size_b": 6617,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize-4)."
+    },
+    {
+      "name": "ezgif.com-resize-5",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize-5.gif",
+      "size_b": 182903,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize-5)."
+    },
+    {
+      "name": "ezgif.com-resize-6",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize-6.gif",
+      "size_b": 1899,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize-6)."
+    },
+    {
+      "name": "ezgif.com-resize-7",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize-7.gif",
+      "size_b": 211,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize-7)."
+    },
+    {
+      "name": "ezgif.com-resize-8",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize-8.gif",
+      "size_b": 3966,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize-8)."
+    },
+    {
+      "name": "ezgif.com-resize-9",
+      "type": "gifs",
+      "path": "assets/gifs/ezgif.com-resize-9.gif",
+      "size_b": 113252,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (ezgif.com-resize-9)."
+    },
+    {
+      "name": "gearblue",
+      "type": "gifs",
+      "path": "assets/gifs/gearblue.gif",
+      "size_b": 6955,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (gearblue)."
+    },
+    {
+      "name": "gears",
+      "type": "gifs",
+      "path": "assets/gifs/gears.gif",
+      "size_b": 910338,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (gears)."
+    },
+    {
+      "name": "grimace",
+      "type": "gifs",
+      "path": "assets/gifs/grimace.gif",
+      "size_b": 650405,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (grimace)."
+    },
+    {
+      "name": "hail",
+      "type": "gifs",
+      "path": "assets/gifs/weather/hail.gif",
+      "size_b": 13568,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (hail)."
+    },
+    {
+      "name": "happy",
+      "type": "gifs",
+      "path": "assets/gifs/happy.gif",
+      "size_b": 585783,
+      "category": "looping_gif",
+      "mood": "happy",
+      "tags": [
+        "happy",
+        "gifs"
+      ],
+      "hint": "Happy GIF clip (happy)."
+    },
+    {
+      "name": "happy-2",
+      "type": "gifs",
+      "path": "assets/gifs/happy-2.gif",
+      "size_b": 768325,
+      "category": "looping_gif",
+      "mood": "happy",
+      "tags": [
+        "happy",
+        "gifs"
+      ],
+      "hint": "Happy GIF clip (happy-2)."
+    },
+    {
+      "name": "happy-3",
+      "type": "gifs",
+      "path": "assets/gifs/happy-3.gif",
+      "size_b": 705864,
+      "category": "looping_gif",
+      "mood": "happy",
+      "tags": [
+        "happy",
+        "gifs"
+      ],
+      "hint": "Happy GIF clip (happy-3)."
+    },
+    {
+      "name": "icons8-youtube",
+      "type": "gifs",
+      "path": "assets/gifs/icons8-youtube.gif",
+      "size_b": 11908,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (icons8-youtube)."
+    },
+    {
+      "name": "icons8-youtube-2",
+      "type": "gifs",
+      "path": "assets/gifs/icons8-youtube-2.gif",
+      "size_b": 11990,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (icons8-youtube-2)."
+    },
+    {
+      "name": "in-love",
+      "type": "gifs",
+      "path": "assets/gifs/in-love.gif",
+      "size_b": 876744,
+      "category": "looping_gif",
+      "mood": "love",
+      "tags": [
+        "love",
+        "gifs"
+      ],
+      "hint": "Love GIF clip (in-love)."
+    },
+    {
+      "name": "lightnin",
+      "type": "gifs",
+      "path": "assets/gifs/weather/lightnin.gif",
+      "size_b": 10936,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (lightnin)."
+    },
+    {
+      "name": "pcloudrn",
+      "type": "gifs",
+      "path": "assets/gifs/weather/pcloudrn.gif",
+      "size_b": 20085,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (pcloudrn)."
+    },
+    {
+      "name": "pcloudy",
+      "type": "gifs",
+      "path": "assets/gifs/weather/pcloudy.gif",
+      "size_b": 17498,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (pcloudy)."
+    },
+    {
+      "name": "raining",
+      "type": "gifs",
+      "path": "assets/gifs/weather/raining.gif",
+      "size_b": 16487,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "rain"
+      ],
+      "hint": "Neutral GIF clip (raining)."
+    },
+    {
+      "name": "snow",
+      "type": "gifs",
+      "path": "assets/gifs/weather/snow.gif",
+      "size_b": 17601,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "snow"
+      ],
+      "hint": "Neutral GIF clip (snow)."
+    },
+    {
+      "name": "snowrain",
+      "type": "gifs",
+      "path": "assets/gifs/weather/snowrain.gif",
+      "size_b": 19321,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "rain",
+        "snow"
+      ],
+      "hint": "Neutral GIF clip (snowrain)."
+    },
+    {
+      "name": "sr5z2c0e19e9deaws3",
+      "type": "gifs",
+      "path": "assets/gifs/sr5z2c0e19e9deaws3.gif",
+      "size_b": 322490,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (sr5z2c0e19e9deaws3)."
+    },
+    {
+      "name": "storm",
+      "type": "gifs",
+      "path": "assets/gifs/weather/storm.gif",
+      "size_b": 12547,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (storm)."
+    },
+    {
+      "name": "sunny",
+      "type": "gifs",
+      "path": "assets/gifs/weather/sunny.gif",
+      "size_b": 15649,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "sun"
+      ],
+      "hint": "Neutral GIF clip (sunny)."
+    },
+    {
+      "name": "tongue-out",
+      "type": "gifs",
+      "path": "assets/gifs/tongue-out.gif",
+      "size_b": 610283,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs",
+        "tongue"
+      ],
+      "hint": "Neutral GIF clip (tongue-out)."
+    },
+    {
+      "name": "work-in-progress",
+      "type": "gifs",
+      "path": "assets/gifs/work-in-progress.gif",
+      "size_b": 864331,
+      "category": "looping_gif",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "gifs"
+      ],
+      "hint": "Neutral GIF clip (work-in-progress)."
+    },
+    {
+      "name": "Jenkins logo 2",
+      "type": "icons",
+      "path": "assets/icons/Jenkins logo 2.png",
+      "size_b": 41132,
+      "category": "icon",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "icons",
+        "logo"
+      ],
+      "hint": "icons: Jenkins logo 2."
+    },
+    {
+      "name": "Jenkins logo watermark png",
+      "type": "icons",
+      "path": "assets/icons/Jenkins logo watermark png.png",
+      "size_b": 7311,
+      "category": "icon",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "icons",
+        "logo"
+      ],
+      "hint": "icons: Jenkins logo watermark png."
+    },
+    {
+      "name": "github_icon",
+      "type": "icons",
+      "path": "assets/icons/github_icon.png",
+      "size_b": 79895,
+      "category": "icon",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "icons"
+      ],
+      "hint": "icons: github_icon."
+    },
+    {
+      "name": "youtube-switch-hero",
+      "type": "icons",
+      "path": "assets/icons/youtube-switch-hero.BMP",
+      "size_b": 6220854,
+      "category": "icon",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "icons"
+      ],
+      "hint": "icons: youtube-switch-hero."
+    },
+    {
+      "name": "bars",
+      "type": "math",
+      "path": "assets/math/bars.py",
+      "size_b": 1575,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math"
+      ],
+      "hint": "Procedural Python animation: bars."
+    },
+    {
+      "name": "daft_punk_inspired",
+      "type": "math",
+      "path": "assets/math/daft_punk_inspired.py",
+      "size_b": 3839,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math"
+      ],
+      "hint": "Procedural Python animation: daft_punk_inspired."
+    },
+    {
+      "name": "daft_punk_inspired_geometric",
+      "type": "math",
+      "path": "assets/math/daft_punk_inspired_geometric.py",
+      "size_b": 5920,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math"
+      ],
+      "hint": "Procedural Python animation: daft_punk_inspired_geometric."
+    },
+    {
+      "name": "daft_punk_inspired_pixel",
+      "type": "math",
+      "path": "assets/math/daft_punk_inspired_pixel.py",
+      "size_b": 3955,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math"
+      ],
+      "hint": "Procedural Python animation: daft_punk_inspired_pixel."
+    },
+    {
+      "name": "eyes",
+      "type": "math",
+      "path": "assets/math/eyes.py",
+      "size_b": 4115,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "eye"
+      ],
+      "hint": "Procedural Python animation: eyes."
+    },
+    {
+      "name": "face",
+      "type": "math",
+      "path": "assets/math/face.py",
+      "size_b": 4158,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "face"
+      ],
+      "hint": "Procedural Python animation: face."
+    },
+    {
+      "name": "face_2",
+      "type": "math",
+      "path": "assets/math/face_2.py",
+      "size_b": 3827,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "face"
+      ],
+      "hint": "Procedural Python animation: face_2."
+    },
+    {
+      "name": "game_of_life",
+      "type": "math",
+      "path": "assets/math/game_of_life.py",
+      "size_b": 3106,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math"
+      ],
+      "hint": "Procedural Python animation: game_of_life."
+    },
+    {
+      "name": "game_of_life_2",
+      "type": "math",
+      "path": "assets/math/game_of_life_2.py",
+      "size_b": 2522,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math"
+      ],
+      "hint": "Procedural Python animation: game_of_life_2."
+    },
+    {
+      "name": "idle",
+      "type": "math",
+      "path": "assets/math/idle.py",
+      "size_b": 835,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "idle"
+      ],
+      "hint": "Procedural Python animation: idle."
+    },
+    {
+      "name": "logo_spotify",
+      "type": "math",
+      "path": "assets/math/logo_spotify.py",
+      "size_b": 8893,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "logo",
+        "spotify"
+      ],
+      "hint": "Procedural Python animation: logo_spotify."
+    },
+    {
+      "name": "rainbow",
+      "type": "math",
+      "path": "assets/math/rainbow.py",
+      "size_b": 1868,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "rain",
+        "rainbow"
+      ],
+      "hint": "Procedural Python animation: rainbow."
+    },
+    {
+      "name": "test_circles",
+      "type": "math",
+      "path": "assets/math/test_circles.py",
+      "size_b": 1882,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_circles."
+    },
+    {
+      "name": "test_fast_lines",
+      "type": "math",
+      "path": "assets/math/test_fast_lines.py",
+      "size_b": 1253,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_fast_lines."
+    },
+    {
+      "name": "test_fill_screen",
+      "type": "math",
+      "path": "assets/math/test_fill_screen.py",
+      "size_b": 1887,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_fill_screen."
+    },
+    {
+      "name": "test_filled_circles",
+      "type": "math",
+      "path": "assets/math/test_filled_circles.py",
+      "size_b": 1921,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_filled_circles."
+    },
+    {
+      "name": "test_filled_rects",
+      "type": "math",
+      "path": "assets/math/test_filled_rects.py",
+      "size_b": 2234,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_filled_rects."
+    },
+    {
+      "name": "test_filled_round_rects",
+      "type": "math",
+      "path": "assets/math/test_filled_round_rects.py",
+      "size_b": 1943,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_filled_round_rects."
+    },
+    {
+      "name": "test_filled_triangles",
+      "type": "math",
+      "path": "assets/math/test_filled_triangles.py",
+      "size_b": 1909,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_filled_triangles."
+    },
+    {
+      "name": "test_lines",
+      "type": "math",
+      "path": "assets/math/test_lines.py",
+      "size_b": 2521,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_lines."
+    },
+    {
+      "name": "test_rects",
+      "type": "math",
+      "path": "assets/math/test_rects.py",
+      "size_b": 1605,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_rects."
+    },
+    {
+      "name": "test_round_rects",
+      "type": "math",
+      "path": "assets/math/test_round_rects.py",
+      "size_b": 1882,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_round_rects."
+    },
+    {
+      "name": "test_text",
+      "type": "math",
+      "path": "assets/math/test_text.py",
+      "size_b": 1392,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_text."
+    },
+    {
+      "name": "test_triangles",
+      "type": "math",
+      "path": "assets/math/test_triangles.py",
+      "size_b": 1559,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math",
+        "test"
+      ],
+      "hint": "Procedural Python animation: test_triangles."
+    },
+    {
+      "name": "timer",
+      "type": "math",
+      "path": "assets/math/timer.py",
+      "size_b": 3689,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math"
+      ],
+      "hint": "Procedural Python animation: timer."
+    },
+    {
+      "name": "wave_scene",
+      "type": "math",
+      "path": "assets/math/wave_scene.py",
+      "size_b": 3599,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "math"
+      ],
+      "hint": "Procedural Python animation: wave_scene."
+    },
+    {
+      "name": "demo_bitmap",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_bitmap.mscript",
+      "size_b": 211,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_bitmap."
+    },
+    {
+      "name": "demo_gif",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_gif.mscript",
+      "size_b": 167,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_gif."
+    },
+    {
+      "name": "demo_math_eyes_sequence",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_math_eyes_sequence.mscript",
+      "size_b": 488,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "eye",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_math_eyes_sequence."
+    },
+    {
+      "name": "demo_math_game_of_life",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_math_game_of_life.mscript",
+      "size_b": 182,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_math_game_of_life."
+    },
+    {
+      "name": "demo_math_gfx",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_math_gfx.mscript",
+      "size_b": 1168,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_math_gfx."
+    },
+    {
+      "name": "demo_math_rainbow",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_math_rainbow.mscript",
+      "size_b": 176,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "rain",
+        "rainbow",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_math_rainbow."
+    },
+    {
+      "name": "demo_math_timer",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_math_timer.mscript",
+      "size_b": 230,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_math_timer."
+    },
+    {
+      "name": "demo_math_wave_scene",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_math_wave_scene.mscript",
+      "size_b": 180,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_math_wave_scene."
+    },
+    {
+      "name": "demo_mochi_video",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_mochi_video.mscript",
+      "size_b": 812,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_mochi_video."
+    },
+    {
+      "name": "demo_sequence",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_sequence.mscript",
+      "size_b": 446,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_sequence."
+    },
+    {
+      "name": "demo_sprite",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_sprite.mscript",
+      "size_b": 276,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_sprite."
+    },
+    {
+      "name": "demo_sprite_ Patric Sprite",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_sprite_ Patric Sprite.mscript",
+      "size_b": 313,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_sprite_ Patric Sprite."
+    },
+    {
+      "name": "demo_timer",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_timer.mscript",
+      "size_b": 224,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_timer."
+    },
+    {
+      "name": "demo_timer_1_min_red",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_timer_1_min_red.mscript",
+      "size_b": 233,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_timer_1_min_red."
+    },
+    {
+      "name": "demo_timer_5_min_white",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_timer_5_min_white.mscript",
+      "size_b": 239,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_timer_5_min_white."
+    },
+    {
+      "name": "demo_timer_sequential",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_timer_sequential.mscript",
+      "size_b": 327,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_timer_sequential."
+    },
+    {
+      "name": "demo_wink",
+      "type": "mscripts",
+      "path": "assets/mscripts/demo_wink.mscript",
+      "size_b": 341,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts",
+        "wink",
+        "demo"
+      ],
+      "hint": "Scripted sequence: demo_wink."
+    },
+    {
+      "name": "mscript_rules",
+      "type": "mscripts",
+      "path": "assets/mscripts/mscript_rules.txt",
+      "size_b": 4823,
+      "category": "scripted_sequence",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "mscripts"
+      ],
+      "hint": "Scripted sequence: mscript_rules."
+    },
+    {
+      "name": "chrome16",
+      "type": "png",
+      "path": "assets/png/chrome16.png",
+      "size_b": 762,
+      "category": "static_image",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "png"
+      ],
+      "hint": "Static PNG image: chrome16."
+    },
+    {
+      "name": "cloud-network",
+      "type": "png",
+      "path": "assets/png/cloud-network.png",
+      "size_b": 14463,
+      "category": "static_image",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "png"
+      ],
+      "hint": "Static PNG image: cloud-network."
+    },
+    {
+      "name": "colorwheel",
+      "type": "png",
+      "path": "assets/png/colorwheel.png",
+      "size_b": 2353,
+      "category": "static_image",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "png"
+      ],
+      "hint": "Static PNG image: colorwheel."
+    },
+    {
+      "name": "da0f0e6cb1d7f5f7d611600f3c141bc36f4cf95c",
+      "type": "png",
+      "path": "assets/png/da0f0e6cb1d7f5f7d611600f3c141bc36f4cf95c.png",
+      "size_b": 165720,
+      "category": "static_image",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "png"
+      ],
+      "hint": "Static PNG image: da0f0e6cb1d7f5f7d611600f3c141bc36f4cf95c."
+    },
+    {
+      "name": "pixelmatix",
+      "type": "png",
+      "path": "assets/png/pixelmatix.png",
+      "size_b": 1323,
+      "category": "static_image",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "png"
+      ],
+      "hint": "Static PNG image: pixelmatix."
+    },
+    {
+      "name": "youtube",
+      "type": "png",
+      "path": "assets/png/youtube.png",
+      "size_b": 4440,
+      "category": "static_image",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "png"
+      ],
+      "hint": "Static PNG image: youtube."
+    },
+    {
+      "name": "color_wheel",
+      "type": "procedural",
+      "path": "assets/procedural/color_wheel.json",
+      "size_b": 320,
+      "category": "procedural_script",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "procedural"
+      ],
+      "hint": "procedural: color_wheel."
+    },
+    {
+      "name": "cell_0_0",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_0_0.mp4",
+      "size_b": 367412,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_0_0)."
+    },
+    {
+      "name": "cell_0_1",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_0_1.mp4",
+      "size_b": 239214,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_0_1)."
+    },
+    {
+      "name": "cell_1_0",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_1_0.mp4",
+      "size_b": 321505,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_1_0)."
+    },
+    {
+      "name": "cell_1_1",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_1_1.mp4",
+      "size_b": 683120,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_1_1)."
+    },
+    {
+      "name": "cell_2_0",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_2_0.mp4",
+      "size_b": 862279,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_2_0)."
+    },
+    {
+      "name": "cell_2_1",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_2_1.mp4",
+      "size_b": 395393,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_2_1)."
+    },
+    {
+      "name": "cell_3_0",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_3_0.mp4",
+      "size_b": 378571,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_3_0)."
+    },
+    {
+      "name": "cell_3_1",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_3_1.mp4",
+      "size_b": 294262,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_3_1)."
+    },
+    {
+      "name": "cell_4_0",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_4_0.mp4",
+      "size_b": 505347,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_4_0)."
+    },
+    {
+      "name": "cell_4_1",
+      "type": "video",
+      "path": "assets/video/mochi2/cell_4_1.mp4",
+      "size_b": 362863,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (cell_4_1)."
+    },
+    {
+      "name": "mochi",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/mochi.mp4",
+      "size_b": 704570,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (mochi)."
+    },
+    {
+      "name": "split_0_0",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_0_0.mp4",
+      "size_b": 59036,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_0_0)."
+    },
+    {
+      "name": "split_0_0_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_0_0_restored.mp4",
+      "size_b": 193467,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_0_0_restored)."
+    },
+    {
+      "name": "split_0_1",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_0_1.mp4",
+      "size_b": 36194,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_0_1)."
+    },
+    {
+      "name": "split_0_1_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_0_1_restored.mp4",
+      "size_b": 131856,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_0_1_restored)."
+    },
+    {
+      "name": "split_1_0",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_1_0.mp4",
+      "size_b": 64468,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_1_0)."
+    },
+    {
+      "name": "split_1_0_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_1_0_restored.mp4",
+      "size_b": 198579,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_1_0_restored)."
+    },
+    {
+      "name": "split_1_1",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_1_1.mp4",
+      "size_b": 124437,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_1_1)."
+    },
+    {
+      "name": "split_1_1_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_1_1_restored.mp4",
+      "size_b": 380095,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_1_1_restored)."
+    },
+    {
+      "name": "split_2_0",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_2_0.mp4",
+      "size_b": 177125,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_2_0)."
+    },
+    {
+      "name": "split_2_0_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_2_0_restored.mp4",
+      "size_b": 700297,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_2_0_restored)."
+    },
+    {
+      "name": "split_2_1",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_2_1.mp4",
+      "size_b": 72741,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_2_1)."
+    },
+    {
+      "name": "split_2_1_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_2_1_restored.mp4",
+      "size_b": 279630,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_2_1_restored)."
+    },
+    {
+      "name": "split_3_0",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_3_0.mp4",
+      "size_b": 71424,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_3_0)."
+    },
+    {
+      "name": "split_3_0_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_3_0_restored.mp4",
+      "size_b": 247409,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_3_0_restored)."
+    },
+    {
+      "name": "split_3_1",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_3_1.mp4",
+      "size_b": 54835,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_3_1)."
+    },
+    {
+      "name": "split_3_1_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_3_1_restored.mp4",
+      "size_b": 134611,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_3_1_restored)."
+    },
+    {
+      "name": "split_4_0",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_4_0.mp4",
+      "size_b": 93642,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_4_0)."
+    },
+    {
+      "name": "split_4_0_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_4_0_restored.mp4",
+      "size_b": 330085,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_4_0_restored)."
+    },
+    {
+      "name": "split_4_1",
+      "type": "video",
+      "path": "assets/video/Mochi Gifs/video_splits_ffmpeg/split_4_1.mp4",
+      "size_b": 64502,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_4_1)."
+    },
+    {
+      "name": "split_4_1_restored",
+      "type": "video",
+      "path": "assets/video/mochi enhance/split_4_1_restored.mp4",
+      "size_b": 202793,
+      "category": "video_clip",
+      "mood": "neutral",
+      "tags": [
+        "neutral",
+        "video"
+      ],
+      "hint": "Neutral video clip (split_4_1_restored)."
+    }
+  ]
+}
