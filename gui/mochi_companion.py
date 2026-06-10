@@ -738,6 +738,12 @@ class LibraryPage(QWidget):
 class PacksPage(QWidget):
     """Pack browser with stacked card-grid → detail view.
 
+    Signals:
+      navigate(label) — request that the main window jump to a
+                        different sidebar tab (used by the empty
+                        state's "View Library" CTA).
+    """
+
     Empty state when ``assets/packs/`` has no pack.yaml files yet
     (operator: "most stuff are one-offs... I am working on the
     packs").  As packs land, this page populates with pack cards;
@@ -749,6 +755,7 @@ class PacksPage(QWidget):
     """
 
     ACTIVE_FILE = PACKS_DIR / "active.txt"
+    navigate = Signal(str)
 
     def __init__(self, ctrl: CtrlBridge, parent: QWidget = None) -> None:
         super().__init__(parent)
@@ -805,6 +812,9 @@ class PacksPage(QWidget):
             pass
         return None
 
+    def _jump_to_library(self) -> None:
+        self.navigate.emit("Library")
+
     def _write_active(self, pack_id: str) -> None:
         try:
             self.ACTIVE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -823,33 +833,26 @@ class PacksPage(QWidget):
         layout.setSpacing(16)
 
         if not self._packs:
-            layout.addSpacing(40)
-            heading = QLabel("No packs yet")
-            heading.setStyleSheet(
-                f"color: {TEXT_MAIN}; font-size: 20px; "
-                f"font-weight: 600;"
+            # Replace bare-text empty state with the Wondershare-style
+            # drop-zone card (build_empty_state) — visual consistency
+            # with the StubPage emptiness pattern.
+            empty = build_empty_state(
+                icon_glyph="🎭",
+                heading="No packs yet",
+                subtitle=(
+                    "Browse one-off animations on the <b>Library</b> tab. "
+                    "<br><br>"
+                    "Drop a pack folder under "
+                    "<code>assets/packs/&lt;id&gt;/</code> with a "
+                    "<code>pack.yaml</code> manifest and it appears "
+                    "here.  See "
+                    "<code>docs/PACK_CONVENTION.md</code> for the "
+                    "format."
+                ),
+                cta_label="View Library",
+                cta_on_click=self._jump_to_library,
             )
-            heading.setAlignment(Qt.AlignHCenter)
-            layout.addWidget(heading)
-            layout.addSpacing(12)
-            sub = QLabel(
-                "Most of the current assets are one-offs (browse them on "
-                "the Library tab).\n\nWhen you add a pack folder under "
-                "<code>assets/packs/&lt;id&gt;/</code> with a "
-                "<code>pack.yaml</code>, it appears here.\n\n"
-                "See <code>docs/PACK_CONVENTION.md</code> for the format."
-            )
-            sub.setTextFormat(Qt.RichText)
-            sub.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 13px;")
-            sub.setAlignment(Qt.AlignHCenter)
-            sub.setWordWrap(True)
-            sub.setMaximumWidth(600)
-            row = QHBoxLayout()
-            row.addStretch()
-            row.addWidget(sub)
-            row.addStretch()
-            layout.addLayout(row)
-            layout.addStretch()
+            layout.addWidget(empty)
             return page
 
         grid = QGridLayout()
@@ -1277,39 +1280,143 @@ class StubPage(QWidget):
     def __init__(self, title: str, phase: str, hint: str,
                  parent: QWidget = None) -> None:
         super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(8)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
 
+        # Page-title bar
         topbar = QFrame()
         topbar.setObjectName("topbar")
         topbar_layout = QHBoxLayout(topbar)
-        topbar_layout.setContentsMargins(0, 0, 0, 16)
+        topbar_layout.setContentsMargins(28, 22, 28, 16)
         title_lbl = QLabel(title)
         title_lbl.setObjectName("page_title")
         topbar_layout.addWidget(title_lbl)
         topbar_layout.addStretch()
-        layout.addWidget(topbar)
+        outer.addWidget(topbar)
 
-        layout.addSpacing(40)
-        heading = QLabel(f"{title} — coming in {phase}")
-        heading.setProperty("class", "coming_soon_heading")
-        heading.setStyleSheet(
-            f"color: {TEXT_MAIN}; font-size: 20px; font-weight: 600;"
+        # Wondershare-style empty drop-zone
+        body = build_empty_state(
+            icon_glyph=_ICON_FOR_STUB.get(title, "✦"),
+            heading=f"{title} — coming in {phase}",
+            subtitle=hint,
+            cta_label=None,            # stubs aren't actionable yet
         )
-        heading.setAlignment(Qt.AlignHCenter)
-        layout.addWidget(heading)
+        outer.addWidget(body, 1)
 
-        layout.addSpacing(12)
-        sub = QLabel(hint)
-        sub.setProperty("class", "coming_soon")
-        sub.setStyleSheet(
-            f"color: {TEXT_MUTED}; font-size: 13px;"
-        )
-        sub.setAlignment(Qt.AlignHCenter)
-        sub.setWordWrap(True)
-        layout.addWidget(sub)
-        layout.addStretch()
+
+# Per-tab glyph for the centered icon in StubPage's empty card.
+# Picked to vaguely match each surface's purpose; replace with real
+# SVG illustrations later.
+_ICON_FOR_STUB: dict[str, str] = {
+    "Home":     "✦",
+    "Scenes":   "🎬",
+    "Triggers": "⚡",
+    "Schedule": "🕐",
+    "Editors":  "🛠",
+}
+
+
+def build_empty_state(
+    *,
+    icon_glyph: str,
+    heading: str,
+    subtitle: str,
+    cta_label: str | None = None,
+    cta_on_click=None,
+) -> QWidget:
+    """Centred empty-state card with dashed drop-zone border, big
+    icon, heading + subtitle, and an optional CTA button.
+
+    Used by StubPage (Home/Scenes/Triggers/Schedule/Editors) and
+    the Packs page's "No packs yet" state.  Visual matches the
+    Wondershare reference (Converter empty state).
+    """
+    outer = QFrame()
+    outer.setStyleSheet(f"background: {BG_BASE};")
+    outer_layout = QVBoxLayout(outer)
+    outer_layout.setContentsMargins(40, 40, 40, 40)
+    outer_layout.setSpacing(0)
+
+    # Dashed drop-zone box.  Qt's QFrame supports dashed borders via
+    # QSS — we paint it on a wrapper card.
+    zone = QFrame()
+    zone.setStyleSheet(f"""
+        QFrame {{
+            background: {BG_CARD};
+            border: 2px dashed {BORDER_HOVER};
+            border-radius: 14px;
+        }}
+    """)
+    zone_layout = QVBoxLayout(zone)
+    zone_layout.setContentsMargins(40, 80, 40, 80)
+    zone_layout.setSpacing(0)
+    zone_layout.addStretch()
+
+    # Centered icon
+    icon = QLabel(icon_glyph)
+    icon.setAlignment(Qt.AlignCenter)
+    icon.setStyleSheet(f"""
+        background: transparent;
+        color: {ACCENT};
+        font-size: 56px;
+        padding-bottom: 16px;
+    """)
+    zone_layout.addWidget(icon)
+
+    # Heading
+    heading_lbl = QLabel(heading)
+    heading_lbl.setAlignment(Qt.AlignHCenter)
+    heading_lbl.setStyleSheet(f"""
+        background: transparent;
+        color: {TEXT_MAIN};
+        font-size: 20px;
+        font-weight: 600;
+        padding: 6px 0;
+    """)
+    zone_layout.addWidget(heading_lbl)
+
+    # Subtitle
+    sub_lbl = QLabel(subtitle)
+    sub_lbl.setAlignment(Qt.AlignHCenter)
+    sub_lbl.setStyleSheet(f"""
+        background: transparent;
+        color: {TEXT_MUTED};
+        font-size: 13px;
+        padding: 0 60px 12px 60px;
+    """)
+    sub_lbl.setWordWrap(True)
+    sub_lbl.setTextFormat(Qt.RichText)
+    zone_layout.addWidget(sub_lbl)
+
+    # Optional CTA button
+    if cta_label:
+        cta_row = QHBoxLayout()
+        cta_row.addStretch()
+        cta = QPushButton(cta_label)
+        cta.setCursor(Qt.PointingHandCursor)
+        cta.setStyleSheet(f"""
+            QPushButton {{
+                background: {ACCENT_DARK};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 22px;
+                font-size: 14px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{ background: {ACCENT}; }}
+        """)
+        if cta_on_click:
+            cta.clicked.connect(cta_on_click)
+        cta_row.addWidget(cta)
+        cta_row.addStretch()
+        zone_layout.addSpacing(10)
+        zone_layout.addLayout(cta_row)
+
+    zone_layout.addStretch()
+    outer_layout.addWidget(zone, 1)
+    return outer
 
 
 # ── sidebar ────────────────────────────────────────────────────────
@@ -1644,7 +1751,9 @@ class CompanionMain(QMainWindow):
             "character does the rest.",
         )
         self.pages["Library"] = LibraryPage(self.ctrl)
-        self.pages["Packs"] = PacksPage(self.ctrl)
+        packs_page = PacksPage(self.ctrl)
+        packs_page.navigate.connect(self.sidebar.select_default)
+        self.pages["Packs"] = packs_page
         self.pages["Scenes"] = StubPage(
             "Scenes", "Phase B",
             "Curated bundles of idle pool + reaction pool + triggers."
