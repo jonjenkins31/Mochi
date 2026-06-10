@@ -468,6 +468,9 @@ class LibraryPage(QWidget):
         self._current_mood = "all"
         self._current_type = "all"
         self._search_text = ""
+        # (note: _current_type initialised here is consumed by
+        # _filtered() once the Type filter row + _select_type are in
+        # place — see __init__ below)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -489,32 +492,32 @@ class LibraryPage(QWidget):
         topbar_layout.addWidget(self.search)
         outer.addWidget(topbar)
 
-        # ── filter chips (mood) ───────────────────────────────────
-        chip_row = QFrame()
-        chip_row.setStyleSheet(
-            f"background: {BG_BASE}; "
-            f"border-bottom: 1px solid {BORDER};"
-        )
-        chip_layout = QHBoxLayout(chip_row)
-        chip_layout.setContentsMargins(28, 0, 28, 0)
-        chip_layout.setSpacing(0)
+        # ── filter chips (mood + type) ────────────────────────────
+        # Two dimensions filter the grid with AND logic.  Each row is
+        # a labelled chip group with its own "ALL" reset chip.
+        # Useful for product browsing AND as a teaching surface: when
+        # the operator is explaining "how sprites work" they can hide
+        # everything else by clicking TYPE: SPRITES.  Operator note
+        # 2026-06-10: "tabs or filters for animation style, like gifs,
+        # sprites, etc... different categories... also for education
+        # when I teach people about animation".
         moods = ["all"] + sorted(
             {e.get("mood", "neutral") for e in self.entries}
         )
+        types = ["all"] + sorted(
+            {e.get("type", "?") for e in self.entries}
+        )
+
         self._mood_buttons: dict[str, QPushButton] = {}
-        for mood in moods:
-            btn = QPushButton(mood.upper())
-            btn.setProperty("class", "tab_btn")
-            btn.setCheckable(True)
-            if mood == "all":
-                btn.setChecked(True)
-            btn.clicked.connect(
-                lambda _checked=False, m=mood: self._select_mood(m)
-            )
-            self._mood_buttons[mood] = btn
-            chip_layout.addWidget(btn)
-        chip_layout.addStretch()
-        outer.addWidget(chip_row)
+        self._type_buttons: dict[str, QPushButton] = {}
+
+        outer.addWidget(self._build_filter_row(
+            "Mood", moods, self._mood_buttons, self._select_mood,
+        ))
+        outer.addWidget(self._build_filter_row(
+            "Type", types, self._type_buttons, self._select_type,
+            border_bottom=True,
+        ))
 
         # ── card grid (scrollable) ────────────────────────────────
         self.scroll = QScrollArea()
@@ -532,6 +535,48 @@ class LibraryPage(QWidget):
 
         self._rebuild_grid()
 
+    # ── filter-row builder ────────────────────────────────────────
+
+    def _build_filter_row(
+        self,
+        label: str,
+        values: list[str],
+        registry: dict[str, QPushButton],
+        on_select,
+        border_bottom: bool = False,
+    ) -> QFrame:
+        """One labelled chip row (mood / type).  ``ALL`` resets the
+        dimension; rest of the chips form a mutually-exclusive group."""
+        row = QFrame()
+        bb = (
+            f"border-bottom: 1px solid {BORDER};"
+            if border_bottom else ""
+        )
+        row.setStyleSheet(f"background: {BG_BASE}; {bb}")
+        h = QHBoxLayout(row)
+        h.setContentsMargins(28, 0, 28, 0)
+        h.setSpacing(0)
+        prefix = QLabel(f"{label.upper()}:")
+        prefix.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 11px; "
+            f"font-weight: 700; letter-spacing: 0.06em; "
+            f"padding-right: 10px;"
+        )
+        h.addWidget(prefix)
+        for v in values:
+            btn = QPushButton(v.upper())
+            btn.setProperty("class", "tab_btn")
+            btn.setCheckable(True)
+            if v == "all":
+                btn.setChecked(True)
+            btn.clicked.connect(
+                lambda _checked=False, x=v: on_select(x)
+            )
+            registry[v] = btn
+            h.addWidget(btn)
+        h.addStretch()
+        return row
+
     # ── filtering ─────────────────────────────────────────────────
 
     def _on_search(self, text: str) -> None:
@@ -539,10 +584,15 @@ class LibraryPage(QWidget):
         self._rebuild_grid()
 
     def _select_mood(self, mood: str) -> None:
-        # Mutual-exclusive toggle group
         for m, btn in self._mood_buttons.items():
             btn.setChecked(m == mood)
         self._current_mood = mood
+        self._rebuild_grid()
+
+    def _select_type(self, type_: str) -> None:
+        for t, btn in self._type_buttons.items():
+            btn.setChecked(t == type_)
+        self._current_type = type_
         self._rebuild_grid()
 
     def _filtered(self) -> list[dict]:
@@ -550,6 +600,9 @@ class LibraryPage(QWidget):
         for e in self.entries:
             if (self._current_mood != "all"
                     and e.get("mood") != self._current_mood):
+                continue
+            if (self._current_type != "all"
+                    and e.get("type") != self._current_type):
                 continue
             if self._search_text:
                 hay = " ".join([
