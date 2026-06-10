@@ -35,6 +35,16 @@ from plugin_core.logging_utils import setup_logger
 from plugin_core.mscript_engine import MscriptScript
 from transport.node_base import MochiNodeBase
 from transport import zmq_manager
+from transport.messages import Msg
+
+# Mochi-NEXT: LLM-driven animation selection.  Parses <play name="X"/>
+# / <mode name="X"/> / <stop/> tags out of LLM replies and routes them
+# through the existing _process_node_command path so an LLM command
+# behaves identically to a manual CLI/GUI command.
+from nodes.animation.llm_command_parser import (
+    AnimationCommand as _LLMAnimationCommand,
+    parse as _parse_llm_commands,
+)
 
 def _merge_dicts(base: dict, overlay: dict) -> dict:
     merged = dict(base)
@@ -74,6 +84,71 @@ class AnimationNode(MochiNodeBase):
             "play": self._handle_play_command,
             "stop": self._handle_stop_command,
         }
+
+        # ── Mochi-NEXT: LLM bus subscription ──────────────────────
+        # Set up a SUB socket draining llm.reply / ext.llm.reply
+        # messages every _update_tick.  The animation node then
+        # parses the reply text for <play>/<mode>/<stop> tags and
+        # routes each parsed command through the existing
+        # _process_node_command path so they behave identically to
+        # manual ctrl-socket commands.
+
+        # subscribe_topics may be a list of strings; coerce to bytes.
+        sub_topics_raw = config.get("subscribe_topics") or []
+        self._subscribe_topics: tuple[bytes, ...] = tuple(
+            (s.encode("utf-8") if isinstance(s, str) else s)
+            for s in sub_topics_raw
+            if s
+        )
+        bus_sub_address = (
+            config.get("bus_sub_address")
+            or config.get("sub_address")
+            or self.pub_addr
+        )
+        self._sub_socket: zmq.Socket | None = None
+        if self._subscribe_topics:
+            try:
+                self._sub_socket = self._ctx.socket(zmq.SUB)
+                self._sub_socket.setsockopt(zmq.LINGER, 0)
+                for topic in self._subscribe_topics:
+                    self._sub_socket.setsockopt(zmq.SUBSCRIBE, topic)
+                self._sub_socket.connect(bus_sub_address)
+                self.logger.info(
+                    "LLM bus subscription up — topics=%s addr=%s",
+                    [t.decode("utf-8", errors="ignore")
+                     for t in self._subscribe_topics],
+                    bus_sub_address,
+                )
+            except Exception as exc:  # noqa: BLE001
+                self.logger.error(
+                    "Failed to set up SUB socket — LLM-driven "
+                    "animation disabled: %s", exc,
+                )
+                self._sub_socket = None
+
+        # Optional catalog lookup for name → asset path resolution.
+        # Built by tools/build_catalog.py; falls back to mode-name
+        # resolution when absent or when a name isn't in the catalog.
+        self._catalog_index: dict[str, dict] = {}
+        catalog_rel = config.get("catalog_path")
+        if catalog_rel:
+            catalog_abs = Path(project_root) / catalog_rel
+            if catalog_abs.is_file():
+                try:
+                    raw = json.loads(catalog_abs.read_text())
+                    for entry in raw.get("entries", []):
+                        name = entry.get("name")
+                        if name:
+                            self._catalog_index[name] = entry
+                    self.logger.info(
+                        "Loaded catalog — %d entries",
+                        len(self._catalog_index),
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    self.logger.warning(
+                        "Catalog load failed (%s) — continuing "
+                        "without name lookup", exc,
+                    )
 
     # ------------------------------------------------------------------
     # MochiNodeBase Implementation
@@ -352,11 +427,92 @@ class AnimationNode(MochiNodeBase):
         self._set_animation(new_anim, base_name=name, label=label, source="script")
 
     def _update_tick(self, timestamp):
-        """Update the active script."""
+        """Update the active script + drain LLM bus messages."""
+        # ── drain SUB socket (non-blocking) ────────────────────────
+        # LLM replies arrive here as Msg JSON envelopes.  We parse the
+        # reply text for <play>/<mode>/<stop> tags and treat each
+        # parsed command as if it came through the ctrl socket.
+        if self._sub_socket is not None:
+            while True:
+                try:
+                    topic, payload = self._sub_socket.recv_multipart(
+                        flags=zmq.NOBLOCK,
+                    )
+                except zmq.Again:
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    self.logger.error(
+                        "Error receiving from SUB: %s", exc,
+                        exc_info=True,
+                    )
+                    break
+                if topic not in self._subscribe_topics:
+                    continue
+                try:
+                    msg = Msg.from_json(payload)
+                except Exception as exc:  # noqa: BLE001
+                    self.logger.warning(
+                        "Discarding malformed LLM payload: %s", exc,
+                    )
+                    continue
+                self._handle_llm_reply(msg.text)
+
+        # ── script tick (existing behaviour) ───────────────────────
         if self.script:
             due_commands = self.script.update(timestamp)
             for command in due_commands:
                 self._process_external_command(command)
+
+    def _handle_llm_reply(self, reply_text: str) -> None:
+        """Parse an LLM reply for animation tags and dispatch each."""
+        commands = _parse_llm_commands(reply_text)
+        if not commands:
+            return
+        for cmd in commands:
+            self._dispatch_llm_command(cmd)
+
+    def _dispatch_llm_command(
+        self,
+        cmd: _LLMAnimationCommand,
+    ) -> None:
+        """Convert a parsed LLM command into the ctrl-socket text form
+        and route through the existing _process_node_command path."""
+        if cmd.verb == "stop":
+            self._process_node_command("stop", ["stop"])
+            self.enqueue_event(
+                "llm.command", verb="stop", source="llm",
+            )
+            return
+
+        if not cmd.name:
+            return
+
+        # Catalog lookup: if the LLM-emitted name lives in the
+        # catalog AND points to an mscript, route as "play <path>".
+        # Otherwise route as "mode <name>" — the renderer's existing
+        # mode resolver handles animation modes registered in
+        # animations/__init__.py.
+        entry = self._catalog_index.get(cmd.name)
+        if entry and entry.get("type") == "mscripts":
+            asset_path = entry.get("path", "")
+            text = f"play {asset_path}"
+            parts = text.split()
+            self._process_node_command(text, parts)
+            self.enqueue_event(
+                "llm.command", verb="play",
+                name=cmd.name, path=asset_path, source="llm",
+            )
+            return
+
+        # mode dispatch — works for animation defs, gif/sprite/math/
+        # video/bitmap names registered in animations/__init__.py.
+        text = f"mode {cmd.name}"
+        parts = text.split()
+        self._process_node_command(text, parts)
+        self.enqueue_event(
+            "llm.command", verb="mode",
+            name=cmd.name, source="llm",
+        )
 
     def _render_tick(self, timestamp):
         """Render the current animation into a pixel buffer."""

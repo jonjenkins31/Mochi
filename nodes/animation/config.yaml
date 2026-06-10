@@ -9,8 +9,22 @@ node:
   pub_address: "tcp://127.0.0.1:5555"
   pub_backend_address: "tcp://127.0.0.1:5557"
   ctrl_address: "tcp://127.0.0.1:5556"
+  bus_sub_address: "tcp://127.0.0.1:5555"
   default_script: "assets/mscripts/demo_wink.mscript"
   optional_topics: []
+  # Bus topics the animation node subscribes to.  LLM replies are
+  # parsed for <play name="X"/> / <mode name="X"/> / <stop/> tags and
+  # routed through the same _process_node_command path used by the
+  # ctrl socket — so a parsed <play> behaves identically to a manual
+  # "play X" command typed from the CLI.
+  subscribe_topics:
+    - llm.reply
+    - ext.llm.reply
+  # Path to assets/CATALOG.json — when present, LLM-emitted names get
+  # resolved against the catalog (asset path lookup) before falling
+  # back to direct asset-name resolution.  Build with
+  # ``tools/build_catalog.py``.
+  catalog_path: "assets/CATALOG.json"
   capabilities:
     controls:
       - id: "mode"
