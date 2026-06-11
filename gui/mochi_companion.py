@@ -1079,20 +1079,19 @@ class LibraryPage(QWidget):
         path = entry.get("path", "")
         type_ = entry.get("type", "")
         stem = Path(path).stem if path else entry.get("name", "")
-        if type_ == "animations":
-            # The six assets/animations/*.json files are an
-            # "eye_animation" format (left_eye_sprite +
-            # right_eye_sprite + frames).  No handler class is
-            # registered for them in the animations/__init__.py
-            # factory — the only handlers today are BITMAP, GIF,
-            # IMAGE, MEDIA, SPRITE, MATH, VIDEO.  Surface the gap
-            # explicitly instead of letting the renderer reject
-            # with the generic "not a valid command" error.
+        # Catch-all for asset types we KNOW have no runtime handler
+        # yet — declarative JSONs without a registered renderer.
+        # Surfaces the gap explicitly instead of letting the renderer
+        # reject with the generic "not a valid command" error.
+        _NO_HANDLER_TYPES = {
+            "animations": "eye-blink JSONs (left/right eye sprite refs)",
+            "procedural": "procedural JSON configs (color_wheel)",
+        }
+        if type_ in _NO_HANDLER_TYPES:
             print(
-                f"[library] type='animations' entries (eye-blink "
-                f"JSONs) have no runtime handler yet — '{stem}' "
-                f"won't activate until an EYE_ANIMATION handler "
-                f"is added.  Try a gif, math, or mscript."
+                f"[library] type={type_!r} ({_NO_HANDLER_TYPES[type_]}) "
+                f"has no runtime handler yet — '{stem}' won't activate. "
+                f"Try a gif, math, mscript, or bitmap entry."
             )
             return
         if type_ == "mscripts":

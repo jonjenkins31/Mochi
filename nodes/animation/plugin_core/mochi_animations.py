@@ -3,6 +3,31 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, NamedTuple
 
+
+# ── shared utilities expected by individual animation scripts ─────
+# Six math scripts (face.py, face_2.py, test_filled_round_rects.py,
+# test_filled_triangles.py, test_round_rects.py, test_triangles.py)
+# import ``clamp8`` from this module.  Without it they all crash at
+# import time with: cannot import name 'clamp8'.  Tiny utility, no
+# external dep — defined once here, exported via the module
+# namespace.
+
+def clamp8(value) -> int:
+    """Clamp a numeric value to the unsigned-byte range [0, 255] and
+    return it as an int.  Used by colour-math scripts that compute
+    channel values in float space and need to land them on the
+    pixel buffer."""
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        return 0
+    if v < 0:
+        return 0
+    if v > 255:
+        return 255
+    return v
+
+
 # --- Base class for all Commands ---
 class Command(NamedTuple):
     """A simple structure for what the node should do."""
