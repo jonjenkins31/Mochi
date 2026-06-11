@@ -1716,9 +1716,12 @@ class Sidebar(QWidget):
     def _select(self, label: str) -> None:
         for l, btn in self._buttons.items():
             btn.setChecked(l == label)
-        # Clear pin selection visual when a top-nav row is picked
+        # Clear pin selection visual when a top-nav row is picked.
+        # _pin_buttons can contain the empty-state QLabel hint, which
+        # doesn't have setChecked — skip non-button entries.
         for pb in self._pin_buttons:
-            pb.setChecked(False)
+            if isinstance(pb, QPushButton):
+                pb.setChecked(False)
         self.item_selected.emit(label)
 
     def select_default(self, label: str = "Library") -> None:
