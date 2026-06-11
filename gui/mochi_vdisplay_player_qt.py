@@ -131,6 +131,24 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Disable click-and-drag behaviour (enabled by default).",
     )
     parser.add_argument(
+        "--no-skin",
+        action="store_true",
+        help=(
+            "Skip the body / bezel image entirely.  The window shows "
+            "just the rendered animation in a plain frameless rect — "
+            "no TV bezel, no alpha cutout.  Window size = native "
+            "render size (default 512x512, override with --canvas)."
+        ),
+    )
+    parser.add_argument(
+        "--canvas",
+        default="512x512",
+        help=(
+            "WxH for --no-skin mode (default 512x512).  Ignored when "
+            "a skin/body image is in use."
+        ),
+    )
+    parser.add_argument(
         "--profile",
         help="Player profile name defined in config.yaml (display_players section).",
     )
@@ -183,7 +201,7 @@ class PlayerWindow(QWidget):
     def __init__(
         self,
         *,
-        image_path: Path,
+        image_path: Path | None,
         scale: float,
         opacity: float,
         topmost: bool,
@@ -194,53 +212,87 @@ class PlayerWindow(QWidget):
         stream_enabled: bool,
         logger: logging.Logger | None,
         enable_drag: bool = True,
+        canvas_size: tuple[int, int] = (512, 512),
     ) -> None:
         super().__init__()
 
-        # Configure window flags/attributes for a transparent, frameless overlay.
+        # Configure window flags/attributes.  Always frameless + on-top
+        # by default — the toy is meant to float above the desktop.
+        # In --no-skin mode we drop the alpha-transparent background
+        # (no body PNG to honor) and the window is just a solid
+        # rectangle.
         self.setWindowFlag(Qt.FramelessWindowHint, True)
         self.setWindowFlag(Qt.Tool, True)
         if topmost:
             self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
-        self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setWindowOpacity(max(0.0, min(1.0, opacity)))
+        self.setWindowTitle("Mochi")
 
-        pixmap = QPixmap(str(image_path))
-        if pixmap.isNull():
-            raise ValueError(f"Unable to load image: {image_path}")
-        if scale != 1.0:
-            new_width = max(1, int(pixmap.width() * scale))
-            new_height = max(1, int(pixmap.height() * scale))
-            pixmap = pixmap.scaled(
-                new_width,
-                new_height,
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation,
+        skin_mode = image_path is not None
+
+        if skin_mode:
+            # Skinned mode — body.png is the alpha-cutout bezel; the
+            # animation paints inside screen_bbox.
+            self.setAttribute(Qt.WA_TranslucentBackground, True)
+            self.setAttribute(Qt.WA_NoSystemBackground, True)
+
+            pixmap = QPixmap(str(image_path))
+            if pixmap.isNull():
+                raise ValueError(f"Unable to load image: {image_path}")
+            if scale != 1.0:
+                new_width = max(1, int(pixmap.width() * scale))
+                new_height = max(1, int(pixmap.height() * scale))
+                pixmap = pixmap.scaled(
+                    new_width,
+                    new_height,
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
+                )
+
+            label = QLabel(self)
+            label.setPixmap(pixmap)
+            label.setAttribute(Qt.WA_TranslucentBackground, True)
+            label.setStyleSheet("background: transparent; border: 0;")
+            self.background_label = label
+            self.background_pixmap = pixmap
+            self.resize(pixmap.size())
+            self.setFocusPolicy(Qt.ClickFocus)
+
+            bbox = screen_bbox or DEFAULT_SCREEN_BBOX
+            scaled_bbox = (
+                int(bbox[0] * scale),
+                int(bbox[1] * scale),
+                int(bbox[2] * scale),
+                int(bbox[3] * scale),
             )
+            left, top, width, height = scaled_bbox
+            self.screen_label = QLabel(self)
+            self.screen_label.setGeometry(left, top, width, height)
+            self.screen_label.setStyleSheet("background-color: black; border: 0;")
+            self.screen_label.setAlignment(Qt.AlignCenter)
+            self.screen_label.raise_()
+        else:
+            # No-skin mode — plain window, the whole thing IS the
+            # render surface.  No alpha, no bezel.  Window size is
+            # the canvas_size (configurable via --canvas).
+            self.background_label = None
+            self.background_pixmap = None
 
-        label = QLabel(self)
-        label.setPixmap(pixmap)
-        label.setAttribute(Qt.WA_TranslucentBackground, True)
-        label.setStyleSheet("background: transparent; border: 0;")
-        self.background_label = label
-        self.background_pixmap = pixmap
-        self.resize(pixmap.size())
-        self.setFocusPolicy(Qt.ClickFocus)
+            cw, ch = canvas_size
+            cw = max(64, int(cw * scale)) if scale != 1.0 else max(64, cw)
+            ch = max(64, int(ch * scale)) if scale != 1.0 else max(64, ch)
+            self.resize(cw, ch)
+            self.setMinimumSize(64, 64)
+            self.setFocusPolicy(Qt.ClickFocus)
+            # Plain black background so the unfilled canvas reads as
+            # "screen not yet receiving frames" rather than as glitch.
+            self.setStyleSheet("background-color: black;")
 
-        bbox = screen_bbox or DEFAULT_SCREEN_BBOX
-        scaled_bbox = (
-            int(bbox[0] * scale),
-            int(bbox[1] * scale),
-            int(bbox[2] * scale),
-            int(bbox[3] * scale),
-        )
-        left, top, width, height = scaled_bbox
-        self.screen_label = QLabel(self)
-        self.screen_label.setGeometry(left, top, width, height)
-        self.screen_label.setStyleSheet("background-color: black; border: 0;")
-        self.screen_label.setAlignment(Qt.AlignCenter)
-        self.screen_label.raise_()
+            self.screen_label = QLabel(self)
+            self.screen_label.setGeometry(0, 0, cw, ch)
+            self.screen_label.setStyleSheet("background-color: black; border: 0;")
+            self.screen_label.setAlignment(Qt.AlignCenter)
+            width, height = cw, ch
 
         self.logger = logger
         self.stream_enabled = stream_enabled
@@ -403,21 +455,40 @@ def main(argv: list[str] | None = None) -> int:
     elif args.profile:
         logger.warning("Profile '%s' not found; using defaults.", args.profile)
 
-    def _resolve_image(path_str: str | None) -> Path:
-        candidate = Path(path_str) if path_str else DEFAULT_IMAGE
-        if not candidate.is_absolute():
-            candidate = (PROJECT_ROOT / candidate).resolve()
-        return candidate
+    # No-skin mode short-circuits image resolution entirely.
+    skin_disabled = bool(args.no_skin)
+    image_path: Path | None
+    if skin_disabled:
+        image_path = None
+        logger.info("--no-skin: plain window, no body/bezel")
+    else:
+        def _resolve_image(path_str: str | None) -> Path:
+            candidate = Path(path_str) if path_str else DEFAULT_IMAGE
+            if not candidate.is_absolute():
+                candidate = (PROJECT_ROOT / candidate).resolve()
+            return candidate
 
-    image_path = _resolve_image(args.image or profile_data.get("image"))
-    if not image_path.exists():
-        fallback = _resolve_image(str(DEFAULT_IMAGE))
-        if fallback.exists():
-            logger.warning("Image not found: %s; falling back to %s", image_path, fallback)
-            image_path = fallback
-        else:
-            logger.error("Image not found: %s (no fallback available)", image_path)
-            return 1
+        image_path = _resolve_image(args.image or profile_data.get("image"))
+        if not image_path.exists():
+            fallback = _resolve_image(str(DEFAULT_IMAGE))
+            if fallback.exists():
+                logger.warning("Image not found: %s; falling back to %s", image_path, fallback)
+                image_path = fallback
+            else:
+                logger.error("Image not found: %s (no fallback available)", image_path)
+                return 1
+
+    # Parse --canvas WxH for no-skin mode (ignored when image_path is set).
+    canvas_size = (512, 512)
+    canvas_str = (args.canvas or "").lower().strip()
+    if "x" in canvas_str:
+        try:
+            w_str, h_str = canvas_str.split("x", 1)
+            canvas_size = (max(64, int(w_str)), max(64, int(h_str)))
+        except (TypeError, ValueError):
+            logger.warning(
+                "Invalid --canvas %r; using default 512x512", args.canvas,
+            )
 
     scale = args.scale if args.scale is not None else float(profile_data.get("scale", 1.0))
     opacity = args.opacity if args.opacity is not None else float(profile_data.get("opacity", 1.0))
@@ -466,6 +537,7 @@ def main(argv: list[str] | None = None) -> int:
             stream_enabled=stream_enabled,
             logger=logger,
             enable_drag=drag_enabled,
+            canvas_size=canvas_size,
         )
     except Exception as exc:
         logger.error("Failed to initialise overlay: %s", exc)
@@ -473,20 +545,20 @@ def main(argv: list[str] | None = None) -> int:
 
     _center_on_screen(window)
     window.show()
+    surface = (
+        f"no-skin canvas {canvas_size[0]}x{canvas_size[1]}"
+        if image_path is None
+        else str(image_path)
+    )
     if stream_enabled:
         logger.info(
             "Displaying %s (scale %.2f, opacity %.2f) — streaming from %s",
-            image_path,
-            scale,
-            opacity,
-            sub_addr,
+            surface, scale, opacity, sub_addr,
         )
     else:
         logger.info(
             "Displaying %s (scale %.2f, opacity %.2f) — static mode",
-            image_path,
-            scale,
-            opacity,
+            surface, scale, opacity,
         )
     return app.exec()
 

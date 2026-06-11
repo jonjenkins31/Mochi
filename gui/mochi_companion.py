@@ -446,22 +446,21 @@ def launch_mini_window(
     """Spawn the frameless Qt overlay (mochi_vdisplay_player_qt.py)
     as a subprocess so the companion stays interactive.
 
-    When ``skin_path`` is provided, we use its ``body.png``; the
-    launcher's existing --image flag is the bridge.  ``meta.yaml``'s
-    ``screen_bbox`` etc. aren't wired into the launcher CLI today —
-    follow-up commit adds --skin to the launcher so it reads the
-    whole meta in one go.  For now the existing ``--profile`` flag
-    + config.yaml ``display_players`` block continues to handle the
-    detailed settings until the launcher is updated.
+    Operator directive 2026-06-10: "no skins" — the mini window
+    launches in plain-window mode (just the rendered animation, no
+    body/bezel).  The ``skin_path`` arg is preserved on the function
+    signature for the future skin-picker feature but currently
+    ignored.
     """
     if not MINI_LAUNCHER.is_file():
         logger.warning("mini launcher missing: %s", MINI_LAUNCHER)
         return None
-    cmd: list[str] = [sys.executable, str(MINI_LAUNCHER)]
-    if skin_path is not None:
-        body = skin_path / "body.png"
-        if body.is_file():
-            cmd.extend(["--image", str(body)])
+    cmd: list[str] = [
+        sys.executable, str(MINI_LAUNCHER),
+        "--no-skin",
+        "--canvas", "512x512",
+        "--topmost",
+    ]
     try:
         proc = subprocess.Popen(cmd, cwd=str(PROJECT_ROOT))
         logger.info("launched mini window — pid=%d cmd=%s",
