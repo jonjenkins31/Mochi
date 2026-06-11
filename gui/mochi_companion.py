@@ -1607,8 +1607,8 @@ class HomePage(QWidget):
         header.addWidget(perf_btn)
         layout.addLayout(header)
 
-        # The table itself — header row + N data rows.  Built once
-        # via _build_node_table_header(); rows are rebuilt on every
+        # The table itself — header row + N data rows.  Header is
+        # built once; rows + empty-state hint are rebuilt on every
         # health update via _refresh_nodes_table().
         self._nodes_host = QFrame()
         self._nodes_host.setStyleSheet("background: transparent;")
@@ -1617,16 +1617,9 @@ class HomePage(QWidget):
         self._nodes_layout.setSpacing(2)
         self._nodes_layout.addWidget(self._build_node_table_header())
 
-        # Reuse this label for the empty-state hint
-        self._nodes_empty = QLabel(
-            "Waiting for nodes — start ``main.py`` to populate."
-        )
-        self._nodes_empty.setStyleSheet(
-            f"color: {TEXT_MUTED}; font-size: 12px; "
-            f"padding: 14px 0; font-style: italic;"
-        )
-        self._nodes_layout.addWidget(self._nodes_empty)
         layout.addWidget(self._nodes_host)
+        # First refresh paints the empty state (no health yet).
+        self._refresh_nodes_table()
         return card
 
     def _build_node_table_header(self) -> QWidget:
@@ -1656,7 +1649,10 @@ class HomePage(QWidget):
         return row
 
     def _refresh_nodes_table(self) -> None:
-        # Remove every row except the header (index 0)
+        # Remove every row except the header (index 0).  We
+        # deleteLater() each widget — including any previous empty-
+        # state QLabel — so this refresh has full control over what
+        # populates below the header.
         while self._nodes_layout.count() > 1:
             item = self._nodes_layout.takeAt(1)
             if item.widget():
@@ -1664,13 +1660,22 @@ class HomePage(QWidget):
 
         nodes = self.health.known_nodes()
         if not nodes:
-            self._nodes_empty.setText(
-                "Waiting for nodes — start ``main.py`` to populate."
+            # Recreate the empty-state QLabel from scratch every
+            # refresh.  The previous attempt kept a self._nodes_empty
+            # reference which got deleteLater()'d in the loop above,
+            # then crashed on the next .setText() call with
+            # "Internal C++ object already deleted".
+            empty = QLabel(
+                "Waiting for nodes — start <code>main.py</code> to "
+                "populate."
             )
-            self._nodes_empty.setVisible(True)
-            self._nodes_layout.addWidget(self._nodes_empty)
+            empty.setTextFormat(Qt.RichText)
+            empty.setStyleSheet(
+                f"color: {TEXT_MUTED}; font-size: 12px; "
+                f"padding: 14px 0; font-style: italic;"
+            )
+            self._nodes_layout.addWidget(empty)
             return
-        self._nodes_empty.setVisible(False)
 
         for node_id in nodes:
             snap = self.health.snapshot(node_id) or {}
