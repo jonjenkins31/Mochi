@@ -24,8 +24,21 @@ plugins:
     cwd: "agent/llm"
     config_path: "agent/llm/config.yaml"
     enabled: true
+  # Legacy Tk debug panel — keeps the existing typed-mode entry,
+  # raw command box, color picker, etc. for advanced use.
+  # Operator can flip enabled:false once the companion is the only
+  # surface needed.
   - id: "mochi_gui"
     type: "gui"
     entry: "gui/mochi_gui.py"
     cwd: "gui"
+    enabled: true
+  # New Wondershare-style companion (mochi-v4) — sidebar + Library
+  # grid + Packs + Learn + Settings + skin-driven mini window.
+  # Reads assets/CATALOG.json + assets/thumbs/ + assets/packs/ +
+  # assets/skins/.  See docs/OPERATOR_PRODUCT_PLAN.md.
+  - id: "mochi_companion"
+    type: "gui"
+    entry: "gui/mochi_companion.py"
+    cwd: "."
     enabled: true
