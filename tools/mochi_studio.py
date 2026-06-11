@@ -9,14 +9,19 @@ import time
 import tempfile
 from PIL import Image, ImageTk
 
-# Add project root to allow importing core modules
+# Add project root + animation package's own dir to path so internal
+# imports inside the handlers resolve.  Mirrors nodes/animation/node.py's
+# sys.path setup for the plugin process.
 import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(PROJECT_ROOT)
+_ANIM_ROOT = os.path.join(PROJECT_ROOT, 'nodes', 'animation')
+for _p in (PROJECT_ROOT, _ANIM_ROOT):
+    if _p not in sys.path:
+        sys.path.append(_p)
 
-from core.mscript_engine import MscriptScript
-from animations import create_animation, list_animation_names
-from animations.bitmap_handler import BitmapHandler
+from nodes.animation.plugin_core.mscript_engine import MscriptScript
+from nodes.animation.animations import create_animation, list_animation_names
+from nodes.animation.animations.bitmap_handler import BitmapHandler
 
 # --- Helper Classes ---
 

@@ -900,16 +900,23 @@ class LibraryPage(QWidget):
     def _on_card_click(self, entry: dict) -> None:
         """Click on a card → fire the animation through ctrl socket.
 
+        Sends the FILENAME STEM, not the curated display name.
+        ``entry["name"]`` becomes the sidecar's display name after
+        the build_catalog merge (e.g. "Happy Blink" with a space),
+        but the animation handlers + catalog lookup key on the
+        filename stem (``happy_blink``).  Path-derived stem is the
+        identity.
+
         Also notifies the parent CompanionMain so Home's recent
         strip updates (Phase 3 of the Tk supersede migration).
         """
-        name = entry.get("name", "")
+        path = entry.get("path", "")
         type_ = entry.get("type", "")
+        stem = Path(path).stem if path else entry.get("name", "")
         if type_ == "mscripts":
-            path = entry.get("path", "")
             self.ctrl.send(f"play {path}")
         else:
-            self.ctrl.send(f"node animation mode on {name}")
+            self.ctrl.send(f"node animation mode on {stem}")
         # Bubble up to Home so the recent strip updates.  Walk up
         # parents until we find the main window with a HomePage.
         w = self

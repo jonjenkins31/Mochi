@@ -8,9 +8,15 @@ from PIL import Image, ImageTk
 import os
 import sys
 
-# Add project root to path to allow importing core modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from animations.bitmap_handler import BitmapHandler
+# Add project root + animation package's own dir to path so internal
+# imports inside the handler resolve (mirrors how nodes/animation/node.py
+# sets up sys.path for the plugin process).
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+_ANIM_ROOT = os.path.join(_PROJECT_ROOT, 'nodes', 'animation')
+for _p in (_PROJECT_ROOT, _ANIM_ROOT):
+    if _p not in sys.path:
+        sys.path.append(_p)
+from nodes.animation.animations.bitmap_handler import BitmapHandler
 
 PREVIEW_SIZE = (128, 64)
 WINDOW_SIZE = (600, 400)
