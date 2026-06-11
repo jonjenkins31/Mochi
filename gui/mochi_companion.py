@@ -1847,6 +1847,195 @@ class HomePage(QWidget):
         """
 
 
+class EditorsPage(QWidget):
+    """In-app launcher tiles for content-authoring tools.
+
+    Replaces the Tk panel's "Launch Sprite Editor" button + adds
+    the other editor entry points so the operator never has to
+    cd / python tools/X.py from a terminal.
+
+    Phase 5 of the Tk-supersede migration
+    (docs/SUPERSEDE_TK_PLAN.md).
+
+    Subprocess tracking matches the mini-window pattern —
+    children get terminated on companion close.
+    """
+
+    EDITORS: list[dict] = [
+        {
+            "id": "sprite",
+            "name": "Sprite Editor",
+            "icon": "🧩",
+            "desc": "Author + edit sprite sheets — grid + cells + "
+                    "named frames.",
+            "entry": "tools/sprite_editor_gui.py",
+        },
+        {
+            "id": "bitmap",
+            "name": "Bitmap Editor",
+            "icon": "▦",
+            "desc": "1-bit pixel grids for the smallest character "
+                    "vocab.",
+            "entry": "tools/bitmap_editor_gui.py",
+        },
+        {
+            "id": "mscript",
+            "name": "MochiScript Editor",
+            "icon": "📜",
+            "desc": "Visual editor for .mscript scripted sequences.",
+            "entry": "tools/mscript_editor_gui.py",
+        },
+        {
+            "id": "studio",
+            "name": "Mochi Studio",
+            "icon": "🎨",
+            "desc": "All-in-one authoring environment.",
+            "entry": "tools/mochi_studio.py",
+        },
+    ]
+
+    def __init__(self, parent: QWidget = None) -> None:
+        super().__init__(parent)
+        self._processes: list[subprocess.Popen] = []
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        tb = QHBoxLayout(topbar)
+        tb.setContentsMargins(28, 22, 28, 16)
+        title = QLabel("Editors")
+        title.setObjectName("page_title")
+        tb.addWidget(title)
+        tb.addStretch()
+        sub = QLabel(
+            "Authoring tools.  Each launches as its own window."
+        )
+        sub.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 13px;"
+        )
+        tb.addWidget(sub)
+        outer.addWidget(topbar)
+
+        body = QFrame()
+        body.setStyleSheet(f"background: {BG_BASE};")
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(28, 20, 28, 28)
+        body_layout.setSpacing(16)
+
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(16)
+        grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        for i, ed in enumerate(self.EDITORS):
+            card = self._make_editor_card(ed)
+            r, c = divmod(i, 3)
+            grid.addWidget(card, r, c)
+        body_layout.addLayout(grid)
+        body_layout.addStretch()
+        outer.addWidget(body)
+
+    def _make_editor_card(self, ed: dict) -> QFrame:
+        card = QFrame()
+        card.setProperty("class", "card")
+        card.setStyleSheet(f"""
+            QFrame[class="card"] {{
+                background: {BG_CARD};
+                border: 1px solid {BORDER};
+                border-radius: 12px;
+            }}
+            QFrame[class="card"]:hover {{
+                border-color: {ACCENT};
+            }}
+        """)
+        card.setFixedSize(280, 200)
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setSpacing(8)
+
+        icon_lbl = QLabel(ed["icon"])
+        icon_lbl.setStyleSheet(
+            f"background: {ACCENT_BG}; color: {ACCENT_DARK}; "
+            f"border-radius: 8px; font-size: 28px; "
+            f"min-height: 48px; max-height: 48px; "
+            f"min-width: 48px; max-width: 48px;"
+        )
+        icon_lbl.setAlignment(Qt.AlignCenter)
+        layout.addWidget(icon_lbl)
+
+        name = QLabel(ed["name"])
+        name.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 15px; "
+            f"font-weight: 700; padding-top: 6px;"
+        )
+        layout.addWidget(name)
+
+        desc = QLabel(ed["desc"])
+        desc.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 11px;"
+        )
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        layout.addStretch()
+        # Open button
+        button_row = QHBoxLayout()
+        button_row.setContentsMargins(0, 0, 0, 0)
+        button_row.addStretch()
+        btn = QPushButton("Open")
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {ACCENT_DARK};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 18px;
+                font-size: 12px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{ background: {ACCENT}; }}
+            QPushButton:disabled {{
+                background: {BORDER}; color: {TEXT_MUTED};
+            }}
+        """)
+        entry = PROJECT_ROOT / ed["entry"]
+        btn.setEnabled(entry.is_file())
+        if not entry.is_file():
+            btn.setToolTip(f"Missing: {ed['entry']}")
+        btn.clicked.connect(
+            lambda _checked=False, e=ed: self._open_editor(e)
+        )
+        button_row.addWidget(btn)
+        layout.addLayout(button_row)
+        return card
+
+    def _open_editor(self, ed: dict) -> None:
+        entry = PROJECT_ROOT / ed["entry"]
+        if not entry.is_file():
+            return
+        try:
+            proc = subprocess.Popen(
+                [sys.executable, str(entry)],
+                cwd=str(PROJECT_ROOT),
+            )
+            self._processes.append(proc)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[editors] launch failed: {ed['entry']} — {exc}")
+
+    def cleanup_subprocesses(self) -> None:
+        """Called by CompanionMain on close — terminate any spawned
+        editors so they don't orphan."""
+        for proc in self._processes:
+            if proc.poll() is None:
+                try:
+                    proc.terminate()
+                except Exception:  # noqa: BLE001
+                    pass
+
+
 class StubPage(QWidget):
     """Placeholder for tabs not yet wired (Home, Scenes, Triggers,
     Schedule, Editors, Settings)."""
@@ -2484,11 +2673,7 @@ class CompanionMain(QMainWindow):
             "Cron-style showtimes.  Weekdays 9-12 → Focus.  Friday "
             "5pm → Party.  11pm-7am → Sleep.",
         )
-        self.pages["Editors"] = StubPage(
-            "Editors", "Phase A.4",
-            "In-app sprite / bitmap / mscript editor.  Existing "
-            "tools/*_editor_gui.py surfaces folded in here.",
-        )
+        self.pages["Editors"] = EditorsPage()
         self.pages["Learn"] = LearnPage()
         # Settings page — minimal first version with skin list.
         # Full picker (radio + preview) lands when there's >1 skin
@@ -3169,6 +3354,10 @@ class CompanionMain(QMainWindow):
                 self.health.stop()
             except Exception:  # noqa: BLE001
                 pass
+        # Terminate any editor subprocesses spawned from Editors tab.
+        editors = self.pages.get("Editors")
+        if isinstance(editors, EditorsPage):
+            editors.cleanup_subprocesses()
         super().closeEvent(event)
 
 
