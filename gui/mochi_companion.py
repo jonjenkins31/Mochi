@@ -48,6 +48,7 @@ from typing import Any
 from PySide6.QtCore import Qt, QObject, QSize, Signal, QTimer, QUrl
 from PySide6.QtGui import (
     QFont, QIcon, QPixmap, QColor, QPalette, QDesktopServices, QMovie,
+    QImage,
 )
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
@@ -63,6 +64,16 @@ import zmq
 GUI_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = GUI_DIR.parent
 CATALOG_PATH = PROJECT_ROOT / "assets" / "CATALOG.json"
+
+# Add the animation node's package root to sys.path so the
+# in-process LivePreview can import the same handlers the renderer
+# subprocess uses.  Done at import time so the handlers' internal
+# ``from animations import …`` + ``from plugin_core import …`` calls
+# resolve correctly.  Mirrors how nodes/animation/node.py sets up
+# its own sys.path.
+_ANIM_PACKAGE_ROOT = PROJECT_ROOT / "nodes" / "animation"
+if _ANIM_PACKAGE_ROOT.is_dir() and str(_ANIM_PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ANIM_PACKAGE_ROOT))
 PACKS_DIR    = PROJECT_ROOT / "assets" / "packs"
 SKINS_DIR    = PROJECT_ROOT / "assets" / "skins"
 THUMBS_DIR   = PROJECT_ROOT / "assets" / "thumbs"
@@ -576,6 +587,171 @@ def discover_packs() -> list[dict]:
 
 # ── widgets ────────────────────────────────────────────────────────
 
+class LivePreview(QObject):
+    """In-process render of a single animation, painting frames into
+    a target QLabel at fixed fps.
+
+    Reuses the same handler classes the renderer subprocess uses
+    (``GifHandler``, ``MathHandler``, ``ImageHandler``, …) so the
+    hover preview matches **exactly** what would render if the
+    operator clicked the card.  No QMovie, no separate preview
+    pipeline.
+
+    Lifecycle
+    ─────────
+        lp = LivePreview(entry, target_label, fallback_pixmap)
+        lp.start()    # spawn handler, begin ticking at 24 fps
+        ...
+        lp.stop()     # tear down, restore fallback pixmap
+    """
+
+    # Catalog type → handler name registered in animations/__init__.py
+    _TYPE_TO_HANDLER: dict[str, str] = {
+        "gifs":     "GIF",
+        "math":     "MATH",
+        "png":      "IMAGE",
+        "icons":    "IMAGE",
+        "bmps":     "IMAGE",
+        "bitmaps":  "BITMAP",
+        "video":    "VIDEO",
+        "sprites":  "SPRITE",
+    }
+
+    # Cached factory + base class — lazy-loaded so a companion that
+    # can't import the handlers (e.g. test environment) still boots.
+    _factory_load_attempted: bool = False
+    _factory_create = None
+    _factory_animation_base = None
+
+    def __init__(
+        self,
+        entry: dict,
+        target_label: QLabel,
+        fallback_pixmap: QPixmap | None,
+        *,
+        size: tuple[int, int] = (140, 140),
+        fps: int = 24,
+        parent: QObject | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._entry = entry
+        self._target = target_label
+        self._fallback = fallback_pixmap
+        self._w, self._h = size
+        self._fps = max(1, int(fps))
+        self._anim = None
+        self._buf: bytearray | None = None
+        self._timer: QTimer | None = None
+        self._t0: float | None = None
+
+    @classmethod
+    def _ensure_factory(cls) -> bool:
+        if cls._factory_load_attempted:
+            return cls._factory_create is not None
+        cls._factory_load_attempted = True
+        try:
+            from animations import create_animation as _create
+            from plugin_core.mochi_animations import Animation as _Anim
+            cls._factory_create = _create
+            cls._factory_animation_base = _Anim
+            return True
+        except Exception as exc:  # noqa: BLE001
+            print(f"[live-preview] factory load failed: {exc}; "
+                  f"hover preview disabled for renderer-driven types")
+            return False
+
+    @classmethod
+    def can_preview(cls, entry: dict) -> bool:
+        type_ = entry.get("type", "")
+        if type_ not in cls._TYPE_TO_HANDLER:
+            return False
+        if not entry.get("path"):
+            return False
+        asset = PROJECT_ROOT / entry["path"]
+        if not asset.is_file():
+            return False
+        return cls._ensure_factory()
+
+    def start(self) -> None:
+        if self._timer is not None:
+            return  # already running
+        if not self._ensure_factory():
+            return
+        type_ = self._entry.get("type", "")
+        cmd = self._TYPE_TO_HANDLER.get(type_)
+        if cmd is None:
+            return
+        asset_path = str(PROJECT_ROOT / self._entry["path"])
+        kwargs: dict = {
+            "asset_path": asset_path,
+            "resolve_dir": str(PROJECT_ROOT),
+        }
+        # Forward any type_props from the catalog so sprite grids,
+        # math params, etc. take effect during the preview too.
+        type_props = self._entry.get("type_props")
+        if isinstance(type_props, dict):
+            kwargs.update(type_props)
+        try:
+            self._anim = self._factory_create(cmd, self._w, self._h, **kwargs)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[live-preview] {self._entry.get('name', '?')}: "
+                  f"create_animation failed: {exc}")
+            self._anim = None
+            return
+        self._buf = bytearray(self._w * self._h * 3)
+        self._t0 = time.monotonic()
+        self._timer = QTimer(self)
+        self._timer.setInterval(int(1000 / self._fps))
+        self._timer.timeout.connect(self._tick)
+        self._timer.start()
+        # Emit one immediate frame so the preview swap reads instantly.
+        self._tick()
+
+    def stop(self) -> None:
+        if self._timer is not None:
+            self._timer.stop()
+            self._timer.deleteLater()
+            self._timer = None
+        self._anim = None
+        self._buf = None
+        self._t0 = None
+        # Restore the static thumbnail so the card reads correctly
+        # after hover ends.
+        if self._fallback is not None:
+            try:
+                self._target.setPixmap(self._fallback)
+            except RuntimeError:
+                # Target label was destroyed before us (card removed
+                # by filter rebuild) — nothing to restore.
+                pass
+
+    def _tick(self) -> None:
+        if self._anim is None or self._buf is None or self._t0 is None:
+            return
+        t = time.monotonic() - self._t0
+        try:
+            self._anim.render_into(t, self._buf)
+        except Exception as exc:  # noqa: BLE001
+            # Math scripts with bugs (e.g. game_of_life_2,
+            # logo_spotify) crash here — stop the preview cleanly
+            # rather than spamming the log every tick.
+            print(f"[live-preview] {self._entry.get('name', '?')}: "
+                  f"render_into raised; stopping preview: {exc}")
+            self.stop()
+            return
+        # bytes → QImage → QPixmap → label
+        try:
+            img = QImage(
+                bytes(self._buf), self._w, self._h,
+                self._w * 3, QImage.Format_RGB888,
+            )
+            pix = QPixmap.fromImage(img)
+            self._target.setPixmap(pix)
+        except RuntimeError:
+            # Label destroyed — stop ticking.
+            self.stop()
+
+
 class ClickableFrame(QFrame):
     """QFrame emitting ``clicked`` on a left-button press + hover
     signals for preview-on-hover.
@@ -754,31 +930,34 @@ def make_card(entry: dict, on_click) -> QFrame:
         """)
     layout.addWidget(preview)
 
-    # ── Hover preview ─────────────────────────────────────────────
-    # Operator: "preview should play when hovered" (2026-06-10).
-    # For GIFs we swap the static thumbnail for a QMovie that plays
-    # the file directly on hover, and restore the static pixmap on
-    # leave.  Other types (math / video / mscript) don't get a
-    # cheap hover-preview — they'd need a separate animated thumb
-    # generator and aren't worth the cost in this commit.
-    if can_animate and static_pix is not None:
+    # ── Hover preview (live, same render engine as the player) ────
+    # Operator: "if possible i would imagine the same render engine
+    # for the player should be able to display the live preview"
+    # (2026-06-10).
+    #
+    # We reuse the actual handler classes (GIF / MATH / IMAGE / etc.)
+    # in-process — the hover shows EXACTLY what would render if the
+    # card were clicked.  Falls back to QMovie for GIFs only when
+    # the in-process factory can't load (e.g. handler import error).
+    # Types without a runtime handler (animations/, procedural/) get
+    # no preview but the card still works for the type filter.
+    if LivePreview.can_preview(entry) and static_pix is not None:
+        live = LivePreview(entry, preview, static_pix, size=(140, 140))
+        card.hovered.connect(live.start)
+        card.unhovered.connect(live.stop)
+        # Keep the LivePreview alive for the card's lifetime so its
+        # internal QTimer + handler don't get GC'd between hovers.
+        preview._live_preview_keepalive = live  # type: ignore[attr-defined]
+    elif can_animate and static_pix is not None:
+        # Fallback: QMovie for GIFs when the in-process factory is
+        # unavailable.  Same behaviour as before this commit.
         movie = QMovie(str(asset_abs))
         movie.setScaledSize(static_pix.size())
         movie.setCacheMode(QMovie.CacheNone)
-
-        def _hover():
-            preview.setMovie(movie)
-            movie.start()
-
-        def _unhover():
-            movie.stop()
-            preview.setMovie(None)
-            preview.setPixmap(static_pix)
-
-        card.hovered.connect(_hover)
-        card.unhovered.connect(_unhover)
-        # Keep the movie alive for the card's lifetime so it isn't
-        # GC'd between hovers.
+        card.hovered.connect(lambda m=movie, p=preview: (p.setMovie(m), m.start()))
+        card.unhovered.connect(
+            lambda m=movie, p=preview, s=static_pix: (m.stop(), p.setMovie(None), p.setPixmap(s))
+        )
         preview._movie_keepalive = movie  # type: ignore[attr-defined]
 
     # Title row: name + any Wondershare-style pill badges inline
