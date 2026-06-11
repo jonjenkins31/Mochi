@@ -88,20 +88,27 @@ spawn the frameless TV-bezel overlay.  Click any animation in the
 
 ### Companion app (`gui/mochi_companion.py`)
 
-Wondershare-inspired Qt UI with 9 sidebar surfaces:
+Wondershare-inspired Qt UI with 9 sidebar surfaces.  As of
+mochi-v4 / `SUPERSEDE_TK_PLAN.md` Phase 6, it absorbed every
+feature of the legacy Tk debug panel:
 
-| Tab | Status |
+| Tab | What's there |
 | --- | --- |
-| **Home** | Stub — scene wheel + favorites + reaction row coming in Phase B |
-| **Library** | **Works today.**  4-col card grid of all 167 animations.  Two filter dimensions (MOOD + TYPE) + search.  Click → fires the animation via the bus. |
-| **Packs** | Discovers `assets/packs/<id>/pack.yaml` folders.  Empty state until the first pack is authored. |
-| **Scenes / Triggers / Schedule** | Stubs (Phase B + C). |
-| **Editors** | Stub — folds the existing `tools/*_editor_gui.py` editors in. |
-| **Learn** | **Works today.**  Chapter list + markdown viewer.  8 chapters covering every animation type Mochi supports — what it is, history, how it works, how Mochi implements it. |
-| **Settings** | Lists installed skins.  Picker coming when there's > 1 skin to choose between. |
+| **Home** | Operator dashboard — active animation hero card, recent strip, Active-nodes table (with per-node Stop + Reset), Open Perf Monitor button. |
+| **Library** | 4-col card grid of all catalogued animations.  Three filter dimensions (Mood / Type / Curation) + search.  Click → fires via the bus. |
+| **Packs** | Pack browser — empty state → grid → slot detail view → Set Active. |
+| **Scenes / Triggers / Schedule** | Stubs (Phase B + C of the original plan). |
+| **Editors** | Tiles for Sprite / Bitmap / MochiScript editors + Mochi Studio.  Click "Open" to launch as subprocess. |
+| **Learn** | 9-chapter markdown viewer covering every animation type Mochi supports. |
+| **Settings** | Skin picker + advanced toggle revealing Renderer (color picker + canvas size + reset) and Diagnostics (raw command + quit node). |
 
-Top-toolbar button: **Open Mini Window** — spawns the frameless
-Qt overlay with the active skin.
+**Top toolbar:**
+- Live status pill (animation node mode / size / fps / mem)
+- Stop button (deactivates the current animation)
+- Community shortcuts (▶ YouTube · ♥ Patreon · ◯ Discord · ? Help)
+- Open Mini Window button (frameless Qt overlay with active skin)
+
+**Sidebar bottom:** Jenkins Robotics promo card with YouTube + Patreon CTAs.
 
 ### Animation types Mochi can render
 

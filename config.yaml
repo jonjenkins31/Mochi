@@ -24,19 +24,27 @@ plugins:
     cwd: "agent/llm"
     config_path: "agent/llm/config.yaml"
     enabled: true
-  # Legacy Tk debug panel — keeps the existing typed-mode entry,
-  # raw command box, color picker, etc. for advanced use.
-  # Operator can flip enabled:false once the companion is the only
-  # surface needed.
+  # Legacy Tk debug panel — SUPERSEDED by mochi_companion as of
+  # Phase 6 of docs/SUPERSEDE_TK_PLAN.md (commits 7b23cea → 1a52d1e).
+  # File kept in tree for one release as a rollback path; flip
+  # enabled:true and disable mochi_companion to fall back.
+  # Helper script: tools/launch_legacy_tk.sh
   - id: "mochi_gui"
     type: "gui"
     entry: "gui/mochi_gui.py"
     cwd: "gui"
-    enabled: true
-  # New Wondershare-style companion (mochi-v4) — sidebar + Library
-  # grid + Packs + Learn + Settings + skin-driven mini window.
-  # Reads assets/CATALOG.json + assets/thumbs/ + assets/packs/ +
-  # assets/skins/.  See docs/OPERATOR_PRODUCT_PLAN.md.
+    enabled: false
+  # Wondershare-style companion (mochi-v4) — THE GUI.  Library +
+  # Packs + Home dashboard + Learn + Settings + skin-driven mini
+  # window.  Absorbs every feature the legacy Tk panel had:
+  #   - Node Status               → top toolbar status pill
+  #   - Nodes table               → Home → Active nodes card
+  #   - Mode On / Off             → Library card click + Stop button
+  #   - MochiScript Run / Stop    → Library TYPE=mscripts + Stop
+  #   - Color picker + matrix     → Settings → Renderer (advanced)
+  #   - Raw command + Quit Node   → Settings → Diagnostics (advanced)
+  #   - Launch helper buttons     → Editors tab + Open Mini Window
+  # See docs/OPERATOR_PRODUCT_PLAN.md + docs/SUPERSEDE_TK_PLAN.md.
   - id: "mochi_companion"
     type: "gui"
     entry: "gui/mochi_companion.py"

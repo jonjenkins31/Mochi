@@ -3377,6 +3377,14 @@ def main() -> int:
         format="%(asctime)s  %(name)-18s  %(levelname)-7s  %(message)s",
         datefmt="%H:%M:%S",
     )
+    # Goodbye Tk — Phase 6 of docs/SUPERSEDE_TK_PLAN.md.  The Tk
+    # debug panel (gui/mochi_gui.py) is disabled by default in
+    # config.yaml as of this commit.  This log line is the
+    # provenance marker.
+    logging.getLogger("MochiCompanion").info(
+        "Mochi Companion — supersedes the legacy Tk panel "
+        "(see docs/SUPERSEDE_TK_PLAN.md for the migration plan)."
+    )
 
     app = QApplication(sys.argv)
     app.setFont(QFont("-apple-system", 13))
