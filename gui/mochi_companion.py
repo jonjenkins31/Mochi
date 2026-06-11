@@ -2841,13 +2841,15 @@ class CompanionMain(QMainWindow):
     # ── community / promo icon row ────────────────────────────────
 
     COMMUNITY_LINKS: list[tuple[str, str, str]] = [
-        # (glyph, tooltip, url)
+        # (glyph, tooltip, url) — canonical handles from
+        # docs/community block + memory reference
+        # reference-jenkins-robotics-handles.md
+        ("◯",  "Jenkins Robotics Discord",
+                "https://discord.gg/sAnE5pRVyT"),
         ("▶",  "Jenkins Robotics on YouTube",
                 "https://www.youtube.com/@Jenkins_Robotics"),
         ("♥",  "Support on Patreon",
                 "https://www.patreon.com/JenkinsRobotics"),
-        ("◯",  "Discord / community",
-                "https://www.youtube.com/@Jenkins_Robotics"),
         ("?",  "Help & docs",
                 "https://github.com/jonathanjenkins/Mochi"),
     ]

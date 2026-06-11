@@ -9,28 +9,25 @@ Part of the **Jenkins Robotics** open-source robotics + AI stack.
 
 ---
 
-## Built by Jenkins Robotics
+## Community
+
+Built in the open by **[Jenkins Robotics](https://jenkinsrobotics.github.io)**.
+
+**Follow** — [Discord](https://discord.gg/sAnE5pRVyT) ·
+[YouTube](https://www.youtube.com/@Jenkins_Robotics) ·
+[Instagram](https://www.instagram.com/jenkinsrobotics/) ·
+[Facebook](https://www.facebook.com/jenkinsrobotics/)
+
+**Support** — [Patreon](https://www.patreon.com/JenkinsRobotics) ·
+[Venmo](https://venmo.com/u/JenkinsRobotics)
 
 Mochi is one piece of the larger Jenkins Robotics ecosystem —
 home robotics, voice AI companions, animated avatars, and
-educational hands-on robotics + animation.
-
-### Follow + support the project
-
-- **YouTube:** subscribe for build logs, animation tutorials,
-  Mochi authoring workflows, and JROS (Jenkins Robot Operating
-  System) development streams →
-  [youtube.com/@Jenkins_Robotics](https://www.youtube.com/@Jenkins_Robotics)
-- **Patreon:** if Mochi or any of the Jenkins Robotics projects
-  are useful to you, becoming a patron directly funds open
-  development + new tutorials →
-  [patreon.com/JenkinsRobotics](https://www.patreon.com/JenkinsRobotics)
-- **GitHub:** the rest of the stack (JROS, VoiceLLM, AgenticLLM,
-  Hermes, JP01 robot firmware) lives at
-  [github.com/jonathanjenkins](https://github.com/jonathanjenkins)
-
-Like, subscribe, share — every signal helps justify the time
-that goes into shipping these projects publicly.
+educational hands-on robotics + animation.  Discord is the
+fastest way to ask questions or share what you've authored.
+The rest of the stack (JROS, VoiceLLM, AgenticLLM, Hermes, JP01
+robot firmware) lives at
+[github.com/jonathanjenkins](https://github.com/jonathanjenkins).
 
 ---
 
@@ -243,10 +240,14 @@ See [LICENSE](LICENSE).
 ### Stay connected
 
 If you got this far, you probably care about open-source
-robotics + animation + AI.  The Jenkins Robotics YouTube channel
-+ Patreon are the best ways to follow new work AND help fund it:
+robotics + animation + AI.
 
-- **YouTube:** [youtube.com/@Jenkins_Robotics](https://www.youtube.com/@Jenkins_Robotics)
-- **Patreon:** [patreon.com/JenkinsRobotics](https://www.patreon.com/JenkinsRobotics)
+**Follow** — [Discord](https://discord.gg/sAnE5pRVyT) ·
+[YouTube](https://www.youtube.com/@Jenkins_Robotics) ·
+[Instagram](https://www.instagram.com/jenkinsrobotics/) ·
+[Facebook](https://www.facebook.com/jenkinsrobotics/)
+
+**Support** — [Patreon](https://www.patreon.com/JenkinsRobotics) ·
+[Venmo](https://venmo.com/u/JenkinsRobotics)
 
 Thanks for reading.
