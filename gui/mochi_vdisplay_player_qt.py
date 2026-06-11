@@ -526,6 +526,15 @@ def main(argv: list[str] | None = None) -> int:
     poll_interval = args.poll if args.poll is not None else int(stream_cfg.get("poll_ms", DEFAULT_POLL_MS))
 
     app = QApplication(sys.argv)
+    app.setApplicationName("Mochi")
+    app.setOrganizationName("Jenkins Robotics")
+    # Dasai-Mochi-inspired icon (built by tools/build_app_icon.py).
+    # When the player is hosted in-process by the companion this
+    # block is skipped — companion already sets the app icon.
+    _icon = PROJECT_ROOT / "assets" / "icons" / "mochi_app_icon.png"
+    if _icon.is_file():
+        from PySide6.QtGui import QIcon
+        app.setWindowIcon(QIcon(str(_icon)))
 
     try:
         window = PlayerWindow(
