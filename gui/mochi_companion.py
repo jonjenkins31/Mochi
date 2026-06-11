@@ -220,16 +220,17 @@ QMainWindow, QWidget {{
     letter-spacing: 0.05em;
     padding: 16px 20px 6px 20px;
 }}
-/* Sidebar nav items — full-width selection state matches
-   Wondershare's "selected fills the whole row" treatment. */
+/* Sidebar nav items — full-width pill on selection (operator
+   compared against Wondershare 2026-06-11 — wanted cleaner
+   breathing room + more pronounced active state). */
 QPushButton.sidebar_btn {{
     background: transparent;
     color: {TEXT_MAIN};
     text-align: left;
-    padding: 12px 20px;
+    padding: 14px 20px 14px 24px;
     border: none;
     border-radius: 0;
-    margin: 0;
+    margin: 2px 0;
     font-size: 14px;
     font-weight: 500;
 }}
@@ -239,9 +240,9 @@ QPushButton.sidebar_btn:hover {{
 QPushButton.sidebar_btn:checked {{
     background: {ACCENT_BG};
     color: {ACCENT_DARK};
-    font-weight: 600;
+    font-weight: 700;
     border-left: 3px solid {ACCENT_DARK};
-    padding-left: 17px;
+    padding-left: 21px;
 }}
 
 /* Top bar */
@@ -877,12 +878,12 @@ def make_card(entry: dict, on_click) -> QFrame:
     card.setObjectName("card")
     card.setProperty("class", "card")
     card.setCursor(Qt.PointingHandCursor)
-    card.setFixedSize(240, 240)
+    card.setFixedSize(260, 264)
     card.clicked.connect(lambda: on_click(entry))
 
     layout = QVBoxLayout(card)
-    layout.setContentsMargins(12, 12, 12, 14)
-    layout.setSpacing(8)
+    layout.setContentsMargins(14, 14, 14, 16)
+    layout.setSpacing(10)
 
     # ── Preview tile (bumped to fill most of the card) ────────────
     thumb = _thumb_path(entry)
@@ -894,13 +895,13 @@ def make_card(entry: dict, on_click) -> QFrame:
 
     preview = QLabel()
     preview.setAlignment(Qt.AlignCenter)
-    preview.setFixedHeight(140)
+    preview.setFixedHeight(156)
     static_pix: QPixmap | None = None
     if thumb.is_file():
         pix = QPixmap(str(thumb))
         if not pix.isNull():
             pix = pix.scaled(
-                140, 140,
+                156, 156,
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation,
             )
@@ -942,7 +943,7 @@ def make_card(entry: dict, on_click) -> QFrame:
     # Types without a runtime handler (animations/, procedural/) get
     # no preview but the card still works for the type filter.
     if LivePreview.can_preview(entry) and static_pix is not None:
-        live = LivePreview(entry, preview, static_pix, size=(140, 140))
+        live = LivePreview(entry, preview, static_pix, size=(156, 156))
         card.hovered.connect(live.start)
         card.unhovered.connect(live.stop)
         # Keep the LivePreview alive for the card's lifetime so its
@@ -1064,8 +1065,8 @@ class LibraryPage(QWidget):
         self.grid_host = QWidget()
         self.grid_host.setStyleSheet(f"background: {BG_BASE};")
         self.grid_layout = QGridLayout(self.grid_host)
-        self.grid_layout.setContentsMargins(28, 20, 28, 28)
-        self.grid_layout.setSpacing(16)
+        self.grid_layout.setContentsMargins(32, 24, 32, 32)
+        self.grid_layout.setSpacing(22)
         self.grid_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.scroll.setWidget(self.grid_host)
         outer.addWidget(self.scroll)
@@ -1087,18 +1088,26 @@ class LibraryPage(QWidget):
             f"background: {BG_BASE}; border-bottom: 1px solid {BORDER};"
         )
         h = QHBoxLayout(row)
-        h.setContentsMargins(28, 10, 28, 10)
-        h.setSpacing(14)
+        h.setContentsMargins(32, 14, 32, 14)
+        h.setSpacing(22)
 
-        # Build the three dropdowns
+        # Build the three dropdowns.  Tighter label + dropdown pairs
+        # so each dimension reads as one unit instead of two competing
+        # labels.  Operator note 2026-06-11 — "design the filter bar
+        # better, matching Wondershare reference".
         def _make_dropdown(label: str, values: list[str],
                            on_change) -> QComboBox:
+            pair = QFrame()
+            pair.setStyleSheet("background: transparent;")
+            pl = QHBoxLayout(pair)
+            pl.setContentsMargins(0, 0, 0, 0)
+            pl.setSpacing(8)
             lbl = QLabel(label)
             lbl.setStyleSheet(
-                f"color: {TEXT_MUTED}; font-size: 11px; "
-                f"font-weight: 700; letter-spacing: 0.05em;"
+                f"color: {TEXT_MUTED}; font-size: 10px; "
+                f"font-weight: 700; letter-spacing: 0.08em;"
             )
-            h.addWidget(lbl)
+            pl.addWidget(lbl)
             combo = QComboBox()
             for v in values:
                 combo.addItem(v.upper(), v)
@@ -1106,19 +1115,22 @@ class LibraryPage(QWidget):
                 QComboBox {{
                     background: {BG_CARD};
                     border: 1px solid {BORDER};
-                    border-radius: 6px;
-                    padding: 5px 10px;
+                    border-radius: 8px;
+                    padding: 7px 14px;
                     font-size: 12px;
+                    font-weight: 600;
                     color: {TEXT_MAIN};
-                    min-width: 130px;
+                    min-width: 150px;
                 }}
+                QComboBox:hover {{ border-color: {BORDER_HOVER}; }}
                 QComboBox:focus {{ border-color: {ACCENT}; }}
-                QComboBox::drop-down {{ border: none; width: 18px; }}
+                QComboBox::drop-down {{ border: none; width: 20px; }}
             """)
             combo.currentIndexChanged.connect(
                 lambda _i, c=combo: on_change(c.currentData())
             )
-            h.addWidget(combo)
+            pl.addWidget(combo)
+            h.addWidget(pair)
             return combo
 
         self._mood_combo = _make_dropdown("MOOD", moods, self._select_mood)
@@ -2779,12 +2791,12 @@ class Sidebar(QWidget):
         # one-click shortcut that fires that animation.
         pinned_header = QFrame()
         ph_layout = QHBoxLayout(pinned_header)
-        ph_layout.setContentsMargins(20, 16, 12, 6)
+        ph_layout.setContentsMargins(24, 24, 16, 8)
         ph_layout.setSpacing(0)
         pinned_label = QLabel("PINNED")
         pinned_label.setStyleSheet(
-            f"color: {TEXT_MUTED}; font-size: 11px; "
-            f"font-weight: 700; letter-spacing: 0.06em; "
+            f"color: {TEXT_MUTED}; font-size: 10px; "
+            f"font-weight: 700; letter-spacing: 0.08em; "
             f"background: transparent;"
         )
         ph_layout.addWidget(pinned_label)
@@ -2970,13 +2982,14 @@ class Sidebar(QWidget):
         # Empty hint when no pins yet — kept separate from
         # _pin_buttons, which holds only QPushButtons.
         if not self._pinned:
-            hint = QLabel("Click + to pin an animation")
+            hint = QLabel("Click + above to pin\nan animation here.")
             hint.setStyleSheet(
                 f"color: {TEXT_MUTED}; font-size: 11px; "
-                f"font-style: italic; padding: 4px 20px 8px 20px; "
-                f"background: transparent;"
+                f"padding: 6px 24px 12px 24px; "
+                f"background: transparent; line-height: 1.4;"
             )
             hint.setObjectName("pin_empty_hint")
+            hint.setWordWrap(True)
             self._pins_layout.addWidget(hint)
             self._pin_hint = hint
             return
