@@ -2701,8 +2701,17 @@ class CompanionMain(QMainWindow):
             self.logger.error("failed to open %s: %s", url, exc)
 
     def _build_settings_page(self) -> QWidget:
-        """Minimal Settings — lists discovered skins.  Picker UI lands
-        when the operator has > 1 skin to choose between."""
+        """Settings — three sub-sections after Phase 4 of the Tk
+        supersede:
+
+          Skins        (existing) — body frame picker
+          Renderer     (Advanced) — colour + matrix size knobs
+                                     migrated from the Tk panel
+          Diagnostics  (Advanced) — raw command + quit node
+
+        Advanced sections are hidden behind a toggle button at the
+        top of the page so casual users don't see the sharp edges.
+        """
         page = QWidget()
         outer = QVBoxLayout(page)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -2716,30 +2725,93 @@ class CompanionMain(QMainWindow):
         title.setObjectName("page_title")
         tb.addWidget(title)
         tb.addStretch()
+        # Advanced toggle
+        self._advanced_toggle = QPushButton("Show advanced")
+        self._advanced_toggle.setCheckable(True)
+        self._advanced_toggle.setCursor(Qt.PointingHandCursor)
+        self._advanced_toggle.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {TEXT_MUTED};
+                border: 1px solid {BORDER};
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-size: 12px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background: {ACCENT_BG}; color: {ACCENT_DARK};
+                border-color: {ACCENT};
+            }}
+            QPushButton:checked {{
+                background: {ACCENT_BG}; color: {ACCENT_DARK};
+                border-color: {ACCENT};
+            }}
+        """)
+        self._advanced_toggle.clicked.connect(self._toggle_advanced)
+        tb.addWidget(self._advanced_toggle)
         outer.addWidget(topbar)
 
+        # Scrollable body
+        scroll = QScrollArea()
+        scroll.setObjectName("scrollarea")
+        scroll.setWidgetResizable(True)
         body = QFrame()
         body.setStyleSheet(f"background: {BG_BASE};")
         body_layout = QVBoxLayout(body)
         body_layout.setContentsMargins(28, 20, 28, 28)
-        body_layout.setSpacing(12)
+        body_layout.setSpacing(20)
+
+        # ── Skins (always visible) ─────────────────────────────
+        body_layout.addWidget(self._build_skins_section())
+
+        # ── Renderer (advanced) ────────────────────────────────
+        self._renderer_section = self._build_renderer_section()
+        self._renderer_section.setVisible(False)
+        body_layout.addWidget(self._renderer_section)
+
+        # ── Diagnostics (advanced) ─────────────────────────────
+        self._diag_section = self._build_diagnostics_section()
+        self._diag_section.setVisible(False)
+        body_layout.addWidget(self._diag_section)
+
+        body_layout.addStretch()
+        scroll.setWidget(body)
+        outer.addWidget(scroll)
+        return page
+
+    def _toggle_advanced(self, checked: bool) -> None:
+        self._renderer_section.setVisible(checked)
+        self._diag_section.setVisible(checked)
+        self._advanced_toggle.setText(
+            "Hide advanced" if checked else "Show advanced"
+        )
+
+    # ── Skins section ────────────────────────────────────────────
+
+    def _build_skins_section(self) -> QWidget:
+        wrap = QFrame()
+        wrap.setStyleSheet(f"background: {BG_BASE};")
+        layout = QVBoxLayout(wrap)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
 
         heading = QLabel("Skins")
         heading.setStyleSheet(
-            f"color: {TEXT_MAIN}; font-size: 16px; font-weight: 600;"
+            f"color: {TEXT_MAIN}; font-size: 16px; font-weight: 700;"
         )
-        body_layout.addWidget(heading)
+        layout.addWidget(heading)
 
         sub = QLabel(
-            "Body frames the mini window wears.  Drop folders under "
-            "<code>assets/skins/&lt;id&gt;/</code> with "
+            "Body frames the mini window wears.  Drop folders "
+            "under <code>assets/skins/&lt;id&gt;/</code> with "
             "<code>body.png</code> + <code>meta.yaml</code>.  See "
             "<code>docs/SKIN_CONVENTION.md</code>."
         )
         sub.setTextFormat(Qt.RichText)
         sub.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 12px;")
         sub.setWordWrap(True)
-        body_layout.addWidget(sub)
+        layout.addWidget(sub)
 
         if not self._available_skins:
             empty = QLabel("(no skins detected)")
@@ -2747,11 +2819,18 @@ class CompanionMain(QMainWindow):
                 f"color: {TEXT_MUTED}; font-size: 13px; "
                 f"padding: 12px 0;"
             )
-            body_layout.addWidget(empty)
+            layout.addWidget(empty)
         else:
             for skin in self._available_skins:
                 row = QFrame()
                 row.setProperty("class", "card")
+                row.setStyleSheet(f"""
+                    QFrame[class="card"] {{
+                        background: {BG_CARD};
+                        border: 1px solid {BORDER};
+                        border-radius: 8px;
+                    }}
+                """)
                 rl = QHBoxLayout(row)
                 rl.setContentsMargins(14, 12, 14, 12)
                 rl.setSpacing(12)
@@ -2769,9 +2848,8 @@ class CompanionMain(QMainWindow):
                         f"screen {bbox[2]}×{bbox[3]} @ "
                         f"({bbox[0]}, {bbox[1]})"
                     )
-                author = skin.get("author")
-                if author:
-                    meta_bits.append(f"by {author}")
+                if skin.get("author"):
+                    meta_bits.append(f"by {skin['author']}")
                 if skin.get("_warning"):
                     meta_bits.append(f"⚠ {skin['_warning']}")
                 meta = QLabel("  ·  ".join(meta_bits))
@@ -2780,11 +2858,256 @@ class CompanionMain(QMainWindow):
                 )
                 rl.addWidget(meta)
                 rl.addStretch()
-                body_layout.addWidget(row)
+                layout.addWidget(row)
+        return wrap
 
-        body_layout.addStretch()
-        outer.addWidget(body)
-        return page
+    # ── Renderer section (Tk-migrated) ────────────────────────────
+
+    def _build_renderer_section(self) -> QWidget:
+        wrap = QFrame()
+        wrap.setStyleSheet(f"background: {BG_BASE};")
+        layout = QVBoxLayout(wrap)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        heading = QLabel("Renderer (advanced)")
+        heading.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 16px; font-weight: 700;"
+        )
+        layout.addWidget(heading)
+        sub = QLabel(
+            "Animation-node knobs migrated from the legacy "
+            "Tk debug panel.  Most operators won't need these."
+        )
+        sub.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 12px;")
+        sub.setWordWrap(True)
+        layout.addWidget(sub)
+
+        # Matrix size row
+        size_row = self._setting_row(
+            "Logical canvas size",
+            "W×H of the renderer's output buffer.",
+        )
+        self._size_entry = QLineEdit()
+        self._size_entry.setPlaceholderText("64x64")
+        self._size_entry.setText("64x64")
+        self._size_entry.setMaximumWidth(120)
+        self._size_entry.setStyleSheet(self._line_qss())
+        size_btn = QPushButton("Apply")
+        size_btn.setCursor(Qt.PointingHandCursor)
+        size_btn.setStyleSheet(self._button_qss_settings())
+        size_btn.clicked.connect(self._apply_size)
+        size_row.layout().addWidget(self._size_entry)
+        size_row.layout().addWidget(size_btn)
+        size_row.layout().addStretch()
+        layout.addWidget(size_row)
+
+        # Solid colour row
+        colour_row = self._setting_row(
+            "Solid colour fallback",
+            "RGB used when an animation can't render.",
+        )
+        self._rgb_entry = QLineEdit()
+        self._rgb_entry.setPlaceholderText("255 120 40")
+        self._rgb_entry.setText("255 120 40")
+        self._rgb_entry.setMaximumWidth(120)
+        self._rgb_entry.setStyleSheet(self._line_qss())
+        self._colour_target = QComboBox()
+        self._colour_target.addItems(["current", "solid_color"])
+        self._colour_target.setStyleSheet(self._line_qss())
+        colour_btn = QPushButton("Send")
+        colour_btn.setCursor(Qt.PointingHandCursor)
+        colour_btn.setStyleSheet(self._button_qss_settings())
+        colour_btn.clicked.connect(self._apply_colour)
+        colour_row.layout().addWidget(self._rgb_entry)
+        colour_row.layout().addWidget(self._colour_target)
+        colour_row.layout().addWidget(colour_btn)
+        colour_row.layout().addStretch()
+        layout.addWidget(colour_row)
+
+        # Reset row
+        reset_row = self._setting_row(
+            "Reset current mode",
+            "Re-activate the current animation from scratch.",
+        )
+        reset_btn = QPushButton("Reset")
+        reset_btn.setCursor(Qt.PointingHandCursor)
+        reset_btn.setStyleSheet(self._button_qss_settings())
+        reset_btn.clicked.connect(
+            lambda: self.ctrl.send("node animation mode reset")
+        )
+        reset_row.layout().addWidget(reset_btn)
+        reset_row.layout().addStretch()
+        layout.addWidget(reset_row)
+        return wrap
+
+    # ── Diagnostics section (Tk-migrated) ─────────────────────────
+
+    def _build_diagnostics_section(self) -> QWidget:
+        wrap = QFrame()
+        wrap.setStyleSheet(f"background: {BG_BASE};")
+        layout = QVBoxLayout(wrap)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        heading = QLabel("Diagnostics (advanced)")
+        heading.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 16px; font-weight: 700;"
+        )
+        layout.addWidget(heading)
+        sub = QLabel(
+            "Debug surface for power users.  Replaces the Tk "
+            "panel's Raw Command + Quit Node + helper launchers."
+        )
+        sub.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 12px;")
+        sub.setWordWrap(True)
+        layout.addWidget(sub)
+
+        # Raw command row
+        cmd_row = self._setting_row(
+            "Send raw ctrl command",
+            "Anything you'd type into the bus.  Examples: "
+            "<code>node animation size 64x64</code>, "
+            "<code>play assets/mscripts/demo_wink.mscript</code>.",
+        )
+        self._raw_entry = QLineEdit()
+        self._raw_entry.setPlaceholderText(
+            "node animation mode on rainbow"
+        )
+        self._raw_entry.setStyleSheet(self._line_qss())
+        self._raw_entry.returnPressed.connect(self._send_raw)
+        cmd_send = QPushButton("Send")
+        cmd_send.setCursor(Qt.PointingHandCursor)
+        cmd_send.setStyleSheet(self._button_qss_settings())
+        cmd_send.clicked.connect(self._send_raw)
+        cmd_row.layout().addWidget(self._raw_entry, 1)
+        cmd_row.layout().addWidget(cmd_send)
+        layout.addWidget(cmd_row)
+
+        # Quit node row
+        quit_row = self._setting_row(
+            "Stop animation node",
+            "Sends <code>quit</code> to the animation node's "
+            "ctrl socket.  Use sparingly — main.py won't "
+            "auto-relaunch.",
+        )
+        quit_btn = QPushButton("Quit Node")
+        quit_btn.setCursor(Qt.PointingHandCursor)
+        quit_btn.setStyleSheet(self._button_qss_settings(danger=True))
+        quit_btn.clicked.connect(lambda: self.ctrl.send("quit"))
+        quit_row.layout().addWidget(quit_btn)
+        quit_row.layout().addStretch()
+        layout.addWidget(quit_row)
+        return wrap
+
+    # ── helpers ──────────────────────────────────────────────────
+
+    def _setting_row(self, label: str, hint: str) -> QFrame:
+        row = QFrame()
+        row.setProperty("class", "card")
+        row.setStyleSheet(f"""
+            QFrame[class="card"] {{
+                background: {BG_CARD};
+                border: 1px solid {BORDER};
+                border-radius: 8px;
+            }}
+        """)
+        outer = QVBoxLayout(row)
+        outer.setContentsMargins(16, 12, 16, 12)
+        outer.setSpacing(4)
+        title = QLabel(label)
+        title.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 13px; "
+            f"font-weight: 600;"
+        )
+        outer.addWidget(title)
+        hint_lbl = QLabel(hint)
+        hint_lbl.setTextFormat(Qt.RichText)
+        hint_lbl.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 11px;"
+        )
+        hint_lbl.setWordWrap(True)
+        outer.addWidget(hint_lbl)
+        controls = QHBoxLayout()
+        controls.setContentsMargins(0, 6, 0, 0)
+        controls.setSpacing(8)
+        outer.addLayout(controls)
+        return row
+
+    def _line_qss(self) -> str:
+        return f"""
+            QLineEdit, QComboBox {{
+                background: {BG_CARD};
+                border: 1px solid {BORDER};
+                border-radius: 6px;
+                padding: 5px 10px;
+                font-size: 12px;
+                color: {TEXT_MAIN};
+            }}
+            QLineEdit:focus, QComboBox:focus {{
+                border-color: {ACCENT};
+            }}
+        """
+
+    def _button_qss_settings(self, danger: bool = False) -> str:
+        if danger:
+            return f"""
+                QPushButton {{
+                    background: transparent;
+                    color: {TEXT_MAIN};
+                    border: 1px solid {BORDER};
+                    border-radius: 6px;
+                    padding: 5px 14px;
+                    font-size: 12px;
+                    font-weight: 600;
+                }}
+                QPushButton:hover {{
+                    background: #fee2e2; color: #991b1b;
+                    border-color: #fca5a5;
+                }}
+            """
+        return f"""
+            QPushButton {{
+                background: {ACCENT_DARK};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 5px 14px;
+                font-size: 12px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{ background: {ACCENT}; }}
+        """
+
+    def _apply_size(self) -> None:
+        size = self._size_entry.text().strip()
+        if "x" not in size.lower():
+            return
+        self.ctrl.send(f"node animation size {size}")
+
+    def _apply_colour(self) -> None:
+        parts = self._rgb_entry.text().split()
+        if len(parts) != 3:
+            return
+        try:
+            r, g, b = (int(p) for p in parts)
+        except ValueError:
+            return
+        target = self._colour_target.currentText()
+        if target == "current":
+            self.ctrl.send(f"node animation color {r} {g} {b}")
+        else:
+            self.ctrl.send(
+                f"node animation color {target} {r} {g} {b}"
+            )
+
+    def _send_raw(self) -> None:
+        text = self._raw_entry.text().strip()
+        if not text:
+            return
+        self.ctrl.send(text)
+        self.logger.info("raw command sent: %s", text)
+        self._raw_entry.clear()
 
     # ── mini-window toolbar control ──────────────────────────────
 
