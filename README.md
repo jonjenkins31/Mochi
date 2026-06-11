@@ -20,7 +20,7 @@ educational hands-on robotics + animation.
 - **YouTube:** subscribe for build logs, animation tutorials,
   Mochi authoring workflows, and JROS (Jenkins Robot Operating
   System) development streams →
-  [youtube.com/@JenkinsRobotics](https://www.youtube.com/@JenkinsRobotics)
+  [youtube.com/@Jenkins_Robotics](https://www.youtube.com/@Jenkins_Robotics)
 - **Patreon:** if Mochi or any of the Jenkins Robotics projects
   are useful to you, becoming a patron directly funds open
   development + new tutorials →
@@ -246,7 +246,7 @@ If you got this far, you probably care about open-source
 robotics + animation + AI.  The Jenkins Robotics YouTube channel
 + Patreon are the best ways to follow new work AND help fund it:
 
-- **YouTube:** [youtube.com/@JenkinsRobotics](https://www.youtube.com/@JenkinsRobotics)
+- **YouTube:** [youtube.com/@Jenkins_Robotics](https://www.youtube.com/@Jenkins_Robotics)
 - **Patreon:** [patreon.com/JenkinsRobotics](https://www.patreon.com/JenkinsRobotics)
 
 Thanks for reading.

@@ -2380,7 +2380,7 @@ class Sidebar(QWidget):
             QPushButton:hover { background: #f5f3ff; }
         """)
         yt_btn.clicked.connect(lambda: self._open_promo_url(
-            "https://www.youtube.com/@JenkinsRobotics"
+            "https://www.youtube.com/@Jenkins_Robotics"
         ))
         cta_row.addWidget(yt_btn)
 
@@ -2843,11 +2843,11 @@ class CompanionMain(QMainWindow):
     COMMUNITY_LINKS: list[tuple[str, str, str]] = [
         # (glyph, tooltip, url)
         ("▶",  "Jenkins Robotics on YouTube",
-                "https://www.youtube.com/@JenkinsRobotics"),
+                "https://www.youtube.com/@Jenkins_Robotics"),
         ("♥",  "Support on Patreon",
                 "https://www.patreon.com/JenkinsRobotics"),
         ("◯",  "Discord / community",
-                "https://www.youtube.com/@JenkinsRobotics"),
+                "https://www.youtube.com/@Jenkins_Robotics"),
         ("?",  "Help & docs",
                 "https://github.com/jonathanjenkins/Mochi"),
     ]
