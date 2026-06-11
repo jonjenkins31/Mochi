@@ -789,9 +789,8 @@ class LibraryPage(QWidget):
     def _on_card_click(self, entry: dict) -> None:
         """Click on a card → fire the animation through ctrl socket.
 
-        For now we always emit ``node animation mode <name>``.  Later
-        commits (when scene + reaction pools land) can route mscript
-        entries to play <path> instead.
+        Also notifies the parent CompanionMain so Home's recent
+        strip updates (Phase 3 of the Tk supersede migration).
         """
         name = entry.get("name", "")
         type_ = entry.get("type", "")
@@ -800,6 +799,16 @@ class LibraryPage(QWidget):
             self.ctrl.send(f"play {path}")
         else:
             self.ctrl.send(f"node animation mode on {name}")
+        # Bubble up to Home so the recent strip updates.  Walk up
+        # parents until we find the main window with a HomePage.
+        w = self
+        while w is not None:
+            if hasattr(w, "pages"):
+                home = w.pages.get("Home")
+                if isinstance(home, HomePage):
+                    home.push_recent(name)
+                break
+            w = w.parent()
 
 
 class PacksPage(QWidget):
@@ -1337,6 +1346,505 @@ class LearnPage(QWidget):
             )
             return
         self.viewer.setMarkdown(text)
+
+
+class HomePage(QWidget):
+    """Operator dashboard — Phase 3 of the Tk supersede.
+
+    Replaces the Home stub with a real surface combining the
+    legacy Tk panel's Node Status / Nodes table / Quick controls
+    into a coherent landing page.
+
+    Sections:
+      Hero card        — large active-animation status + Stop +
+                          Open Mini Window shortcut
+      Recent strip     — last N animations fired (persisted to
+                          assets/recent.json)
+      Diagnostics card — Nodes table fed by HealthService, with
+                          per-node Stop + Reset.  Replaces the
+                          Tk panel's Nodes overview.
+    """
+
+    RECENT_FILE = PROJECT_ROOT / "assets" / "recent.json"
+    RECENT_MAX = 10
+
+    def __init__(
+        self,
+        ctrl: "CtrlBridge",
+        health,
+        sidebar: "Sidebar",
+        parent: QWidget = None,
+    ) -> None:
+        super().__init__(parent)
+        self.ctrl = ctrl
+        self.health = health
+        self.sidebar = sidebar
+        self._recent: list[str] = self._load_recent()
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Top bar
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        tb = QHBoxLayout(topbar)
+        tb.setContentsMargins(28, 22, 28, 16)
+        title = QLabel("Home")
+        title.setObjectName("page_title")
+        tb.addWidget(title)
+        tb.addStretch()
+        outer.addWidget(topbar)
+
+        # Scrollable body so the dashboard works on shorter windows
+        scroll = QScrollArea()
+        scroll.setObjectName("scrollarea")
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        body = QFrame()
+        body.setStyleSheet(f"background: {BG_BASE};")
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(28, 12, 28, 28)
+        body_layout.setSpacing(16)
+
+        body_layout.addWidget(self._build_hero())
+        body_layout.addWidget(self._build_recent())
+        body_layout.addWidget(self._build_diagnostics())
+        body_layout.addStretch()
+
+        scroll.setWidget(body)
+        outer.addWidget(scroll)
+
+        # Refresh diagnostics on every health broadcast
+        self.health.health_updated.connect(self._on_health)
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setInterval(1000)
+        self._refresh_timer.timeout.connect(self._refresh_all)
+        self._refresh_timer.start()
+
+    # ── recent history ────────────────────────────────────────────
+
+    def _load_recent(self) -> list[str]:
+        if not self.RECENT_FILE.is_file():
+            return []
+        try:
+            data = json.loads(self.RECENT_FILE.read_text())
+            if isinstance(data, list):
+                return [str(x) for x in data if isinstance(x, str)]
+        except Exception:  # noqa: BLE001
+            pass
+        return []
+
+    def _save_recent(self) -> None:
+        try:
+            self.RECENT_FILE.parent.mkdir(parents=True, exist_ok=True)
+            self.RECENT_FILE.write_text(
+                json.dumps(self._recent[: self.RECENT_MAX], indent=2)
+                + "\n"
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[home] failed to persist recent.json: {exc}")
+
+    def push_recent(self, name: str) -> None:
+        """Companion calls this whenever an animation gets fired."""
+        if not name:
+            return
+        if name in self._recent:
+            self._recent.remove(name)
+        self._recent.insert(0, name)
+        self._recent = self._recent[: self.RECENT_MAX]
+        self._save_recent()
+        self._rebuild_recent_strip()
+
+    # ── hero card ─────────────────────────────────────────────────
+
+    def _build_hero(self) -> QWidget:
+        card = QFrame()
+        card.setProperty("class", "card")
+        card.setStyleSheet(f"""
+            QFrame[class="card"] {{
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {BG_CARD}, stop:1 {ACCENT_BG}
+                );
+                border: 1px solid {BORDER};
+                border-radius: 12px;
+            }}
+        """)
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(20)
+
+        left = QVBoxLayout()
+        left.setSpacing(2)
+        eyebrow = QLabel("ACTIVE ANIMATION")
+        eyebrow.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 10px; "
+            f"font-weight: 700; letter-spacing: 0.08em;"
+        )
+        left.addWidget(eyebrow)
+        self._hero_mode = QLabel("(none)")
+        self._hero_mode.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 26px; font-weight: 700;"
+        )
+        left.addWidget(self._hero_mode)
+        self._hero_meta = QLabel("waiting for animation node…")
+        self._hero_meta.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 13px;"
+        )
+        left.addWidget(self._hero_meta)
+        layout.addLayout(left, 1)
+
+        # Action column on the right
+        actions = QVBoxLayout()
+        actions.setSpacing(8)
+        self._hero_stop = QPushButton("■ Stop")
+        self._hero_stop.setCursor(Qt.PointingHandCursor)
+        self._hero_stop.setStyleSheet(self._button_qss(danger=True))
+        self._hero_stop.setEnabled(False)
+        self._hero_stop.clicked.connect(self._on_stop_clicked)
+        actions.addWidget(self._hero_stop)
+        self._hero_library = QPushButton("Browse Library")
+        self._hero_library.setCursor(Qt.PointingHandCursor)
+        self._hero_library.setStyleSheet(self._button_qss())
+        self._hero_library.clicked.connect(
+            lambda: self.sidebar.select_default("Library")
+        )
+        actions.addWidget(self._hero_library)
+        layout.addLayout(actions)
+        return card
+
+    # ── recent strip ──────────────────────────────────────────────
+
+    def _build_recent(self) -> QWidget:
+        wrap = QFrame()
+        wrap.setStyleSheet(f"background: {BG_BASE};")
+        v = QVBoxLayout(wrap)
+        v.setContentsMargins(0, 8, 0, 0)
+        v.setSpacing(6)
+
+        label = QLabel("RECENT")
+        label.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 11px; "
+            f"font-weight: 700; letter-spacing: 0.06em;"
+        )
+        v.addWidget(label)
+
+        self._recent_host = QFrame()
+        self._recent_host.setStyleSheet("background: transparent;")
+        self._recent_layout = QHBoxLayout(self._recent_host)
+        self._recent_layout.setContentsMargins(0, 0, 0, 0)
+        self._recent_layout.setSpacing(8)
+        v.addWidget(self._recent_host)
+        self._rebuild_recent_strip()
+        return wrap
+
+    def _rebuild_recent_strip(self) -> None:
+        while self._recent_layout.count():
+            item = self._recent_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        if not self._recent:
+            empty = QLabel("Nothing yet — click a Library card to start.")
+            empty.setStyleSheet(
+                f"color: {TEXT_MUTED}; font-size: 12px; "
+                f"font-style: italic;"
+            )
+            self._recent_layout.addWidget(empty)
+            self._recent_layout.addStretch()
+            return
+        for name in self._recent[: self.RECENT_MAX]:
+            chip = QPushButton(name)
+            chip.setCursor(Qt.PointingHandCursor)
+            chip.setStyleSheet(f"""
+                QPushButton {{
+                    background: {BG_CARD};
+                    color: {TEXT_MAIN};
+                    border: 1px solid {BORDER};
+                    border-radius: 14px;
+                    padding: 6px 12px;
+                    font-size: 12px;
+                    font-weight: 500;
+                }}
+                QPushButton:hover {{
+                    border-color: {ACCENT};
+                    color: {ACCENT_DARK};
+                }}
+            """)
+            chip.clicked.connect(
+                lambda _checked=False, n=name: self._fire(n)
+            )
+            self._recent_layout.addWidget(chip)
+        self._recent_layout.addStretch()
+
+    # ── diagnostics card (nodes table) ────────────────────────────
+
+    def _build_diagnostics(self) -> QWidget:
+        card = QFrame()
+        card.setProperty("class", "card")
+        card.setStyleSheet(f"""
+            QFrame[class="card"] {{
+                background: {BG_CARD};
+                border: 1px solid {BORDER};
+                border-radius: 12px;
+            }}
+        """)
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(10)
+
+        header = QHBoxLayout()
+        title = QLabel("Active nodes")
+        title.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 15px; font-weight: 700;"
+        )
+        header.addWidget(title)
+        header.addStretch()
+        perf_btn = QPushButton("Open perf monitor")
+        perf_btn.setCursor(Qt.PointingHandCursor)
+        perf_btn.setStyleSheet(self._button_qss(small=True))
+        perf_btn.clicked.connect(self._launch_perf_monitor)
+        header.addWidget(perf_btn)
+        layout.addLayout(header)
+
+        # The table itself — header row + N data rows.  Built once
+        # via _build_node_table_header(); rows are rebuilt on every
+        # health update via _refresh_nodes_table().
+        self._nodes_host = QFrame()
+        self._nodes_host.setStyleSheet("background: transparent;")
+        self._nodes_layout = QVBoxLayout(self._nodes_host)
+        self._nodes_layout.setContentsMargins(0, 0, 0, 0)
+        self._nodes_layout.setSpacing(2)
+        self._nodes_layout.addWidget(self._build_node_table_header())
+
+        # Reuse this label for the empty-state hint
+        self._nodes_empty = QLabel(
+            "Waiting for nodes — start ``main.py`` to populate."
+        )
+        self._nodes_empty.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 12px; "
+            f"padding: 14px 0; font-style: italic;"
+        )
+        self._nodes_layout.addWidget(self._nodes_empty)
+        layout.addWidget(self._nodes_host)
+        return card
+
+    def _build_node_table_header(self) -> QWidget:
+        row = QFrame()
+        row.setStyleSheet(
+            f"background: {BG_BASE}; border-radius: 6px;"
+        )
+        h = QHBoxLayout(row)
+        h.setContentsMargins(10, 6, 10, 6)
+        h.setSpacing(8)
+        for label, w in (
+            ("NODE", 80),
+            ("MODE", 160),
+            ("SIZE", 80),
+            ("FPS", 50),
+            ("MEM", 70),
+            ("TX",  70),
+            ("",   140),
+        ):
+            lbl = QLabel(label)
+            lbl.setFixedWidth(w)
+            lbl.setStyleSheet(
+                f"color: {TEXT_MUTED}; font-size: 10px; "
+                f"font-weight: 700; letter-spacing: 0.06em;"
+            )
+            h.addWidget(lbl)
+        return row
+
+    def _refresh_nodes_table(self) -> None:
+        # Remove every row except the header (index 0)
+        while self._nodes_layout.count() > 1:
+            item = self._nodes_layout.takeAt(1)
+            if item.widget():
+                item.widget().deleteLater()
+
+        nodes = self.health.known_nodes()
+        if not nodes:
+            self._nodes_empty.setText(
+                "Waiting for nodes — start ``main.py`` to populate."
+            )
+            self._nodes_empty.setVisible(True)
+            self._nodes_layout.addWidget(self._nodes_empty)
+            return
+        self._nodes_empty.setVisible(False)
+
+        for node_id in nodes:
+            snap = self.health.snapshot(node_id) or {}
+            self._nodes_layout.addWidget(
+                self._make_node_row(node_id, snap)
+            )
+
+    def _make_node_row(self, node_id: str, snap: dict) -> QWidget:
+        row = QFrame()
+        row.setStyleSheet(
+            f"QFrame {{ background: transparent; "
+            f"border-bottom: 1px solid {BORDER}; }}"
+        )
+        h = QHBoxLayout(row)
+        h.setContentsMargins(10, 8, 10, 8)
+        h.setSpacing(8)
+
+        mode = snap.get("mode") or snap.get("data", {}).get("mode") or "?"
+        size_block = snap.get("logical_size") or {}
+        w = size_block.get("width", snap.get("w", "?"))
+        ht = size_block.get("height", snap.get("h", "?"))
+        fps = snap.get("fps_target", snap.get("fps", 0))
+        mem = snap.get("memory_mb", snap.get("mem_mb", 0.0))
+        tx = snap.get("tx_rate_mbps", 0.0)
+
+        try:
+            mem_str = f"{float(mem):.1f}"
+        except (TypeError, ValueError):
+            mem_str = "—"
+        try:
+            tx_str = f"{float(tx):.2f}"
+        except (TypeError, ValueError):
+            tx_str = "—"
+
+        cells = [
+            (node_id,          80, True),
+            (str(mode),        160, False),
+            (f"{w}×{ht}",      80, False),
+            (str(fps),         50, False),
+            (mem_str,          70, False),
+            (tx_str,           70, False),
+        ]
+        for text, width, bold in cells:
+            lbl = QLabel(text)
+            lbl.setFixedWidth(width)
+            weight = 700 if bold else 500
+            lbl.setStyleSheet(
+                f"color: {TEXT_MAIN}; font-size: 12px; "
+                f"font-weight: {weight}; "
+                f"background: transparent; border: none;"
+            )
+            h.addWidget(lbl)
+
+        # Trailing action buttons: Stop + Reset (per-node)
+        actions = QFrame()
+        actions.setFixedWidth(140)
+        actions.setStyleSheet("background: transparent; border: none;")
+        ah = QHBoxLayout(actions)
+        ah.setContentsMargins(0, 0, 0, 0)
+        ah.setSpacing(4)
+        stop_btn = QPushButton("Stop")
+        stop_btn.setCursor(Qt.PointingHandCursor)
+        stop_btn.setStyleSheet(self._button_qss(small=True))
+        stop_btn.clicked.connect(
+            lambda _checked=False, n=node_id:
+            self.ctrl.send(f"node {n} mode off")
+        )
+        ah.addWidget(stop_btn)
+        reset_btn = QPushButton("Reset")
+        reset_btn.setCursor(Qt.PointingHandCursor)
+        reset_btn.setStyleSheet(self._button_qss(small=True))
+        reset_btn.clicked.connect(
+            lambda _checked=False, n=node_id:
+            self.ctrl.send(f"node {n} mode reset")
+        )
+        ah.addWidget(reset_btn)
+        h.addWidget(actions)
+        return row
+
+    # ── shared event glue ─────────────────────────────────────────
+
+    def _on_health(self, node_id: str, payload: dict) -> None:
+        if node_id == "animation":
+            mode = (
+                payload.get("mode")
+                or payload.get("data", {}).get("mode")
+                or "?"
+            )
+            self._hero_mode.setText(mode)
+            size_block = payload.get("logical_size") or {}
+            w = size_block.get("width", "?")
+            h = size_block.get("height", "?")
+            fps = payload.get("fps_target",
+                              payload.get("fps", 0))
+            mem = payload.get("memory_mb",
+                              payload.get("mem_mb", 0.0))
+            try:
+                mem_str = f"{float(mem):.1f}MB"
+            except (TypeError, ValueError):
+                mem_str = "—"
+            self._hero_meta.setText(
+                f"{w}×{h} · {fps}fps · {mem_str}"
+            )
+            self._hero_stop.setEnabled(
+                mode not in ("?", "", "solid_color")
+            )
+        self._refresh_nodes_table()
+
+    def _refresh_all(self) -> None:
+        # Periodic refresh — picks up no-broadcast staleness colour
+        # transitions in case last_seen drifts past 5s without new
+        # health.  Cheap; just redraws.
+        self._refresh_nodes_table()
+
+    # ── helpers ───────────────────────────────────────────────────
+
+    def _fire(self, name: str) -> None:
+        self.ctrl.send(f"node animation mode on {name}")
+        self.push_recent(name)
+
+    def _on_stop_clicked(self) -> None:
+        self.ctrl.send("node animation mode off")
+
+    def _launch_perf_monitor(self) -> None:
+        script = GUI_DIR / "mochi_perf.py"
+        if not script.is_file():
+            return
+        try:
+            subprocess.Popen(
+                [sys.executable, str(script)],
+                cwd=str(GUI_DIR),
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[home] perf launch failed: {exc}")
+
+    def _button_qss(self, small: bool = False,
+                    danger: bool = False) -> str:
+        pad = "5px 10px" if small else "8px 14px"
+        fs = "11px" if small else "13px"
+        if danger:
+            return f"""
+                QPushButton {{
+                    background: transparent;
+                    color: {TEXT_MAIN};
+                    border: 1px solid {BORDER};
+                    border-radius: 6px;
+                    padding: {pad};
+                    font-size: {fs};
+                    font-weight: 600;
+                }}
+                QPushButton:hover {{
+                    background: #fee2e2; color: #991b1b;
+                    border-color: #fca5a5;
+                }}
+                QPushButton:disabled {{
+                    color: {BORDER_HOVER};
+                    border-color: {BORDER};
+                }}
+            """
+        return f"""
+            QPushButton {{
+                background: transparent;
+                color: {ACCENT_DARK};
+                border: 1px solid {BORDER};
+                border-radius: 6px;
+                padding: {pad};
+                font-size: {fs};
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background: {ACCENT_BG};
+                border-color: {ACCENT};
+            }}
+        """
 
 
 class StubPage(QWidget):
@@ -1952,11 +2460,8 @@ class CompanionMain(QMainWindow):
 
         # Build pages
         self.pages: dict[str, QWidget] = {}
-        self.pages["Home"] = StubPage(
-            "Home", "Phase B",
-            "Scene wheel + favorites + animation grid + reaction "
-            "button row + personality slider.  Pick a scene; the "
-            "character does the rest.",
+        self.pages["Home"] = HomePage(
+            self.ctrl, self.health, self.sidebar,
         )
         self.pages["Library"] = LibraryPage(self.ctrl)
         packs_page = PacksPage(self.ctrl)
@@ -2138,6 +2643,10 @@ class CompanionMain(QMainWindow):
             return
         self.ctrl.send(f"node animation mode on {name}")
         self.logger.info("pin fired — %s", name)
+        # Record into Home's recent strip if Home is up.
+        home = self.pages.get("Home")
+        if isinstance(home, HomePage):
+            home.push_recent(name)
 
     # ── community / promo icon row ────────────────────────────────
 
