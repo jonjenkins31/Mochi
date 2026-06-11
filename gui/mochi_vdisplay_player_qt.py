@@ -216,19 +216,22 @@ class PlayerWindow(QWidget):
     ) -> None:
         super().__init__()
 
-        # Configure window flags/attributes.  Always frameless + on-top
-        # by default — the toy is meant to float above the desktop.
-        # In --no-skin mode we drop the alpha-transparent background
-        # (no body PNG to honor) and the window is just a solid
-        # rectangle.
+        # Configure window flags/attributes.  Always frameless — the
+        # toy is meant to look like a floating image, not an app
+        # window.  Topmost optional.  CRITICAL: we do NOT use
+        # Qt.Tool here — on macOS that hides the window the moment
+        # another app gains focus, which makes the toy "disappear"
+        # the instant the operator clicks away from it.  Plain
+        # Qt.Window keeps it persistent and visible in the Dock /
+        # App Switcher so it can be found again if it goes behind
+        # something.
+        skin_mode = image_path is not None
         self.setWindowFlag(Qt.FramelessWindowHint, True)
-        self.setWindowFlag(Qt.Tool, True)
+        self.setWindowFlag(Qt.Window, True)
         if topmost:
             self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
         self.setWindowOpacity(max(0.0, min(1.0, opacity)))
         self.setWindowTitle("Mochi")
-
-        skin_mode = image_path is not None
 
         if skin_mode:
             # Skinned mode — body.png is the alpha-cutout bezel; the

@@ -65,7 +65,67 @@ PACKS_DIR    = PROJECT_ROOT / "assets" / "packs"
 SKINS_DIR    = PROJECT_ROOT / "assets" / "skins"
 THUMBS_DIR   = PROJECT_ROOT / "assets" / "thumbs"
 PINNED_FILE  = PROJECT_ROOT / "assets" / "pinned.json"
+PLAYER_SETTINGS_FILE = PROJECT_ROOT / "assets" / "player_settings.json"
 LEARN_DIR    = PROJECT_ROOT / "docs" / "learn"
+
+# Player-window defaults, used when player_settings.json is missing
+# or malformed.  Operator-editable via Settings → Player.
+DEFAULT_PLAYER_SETTINGS: dict = {
+    "canvas_w": 512,
+    "canvas_h": 512,
+    "topmost":  True,
+    "opacity":  1.0,
+}
+
+
+def load_player_settings() -> dict:
+    """Read assets/player_settings.json; fall back to defaults.
+
+    Operator wants the canvas size etc. to persist across launches
+    (operator note 2026-06-10).  Defaults applied for any missing
+    keys so a partially-written file still works.
+    """
+    out = dict(DEFAULT_PLAYER_SETTINGS)
+    if not PLAYER_SETTINGS_FILE.is_file():
+        return out
+    try:
+        data = json.loads(PLAYER_SETTINGS_FILE.read_text())
+        if isinstance(data, dict):
+            for k, default in DEFAULT_PLAYER_SETTINGS.items():
+                v = data.get(k, default)
+                # Type coerce — int for sizes, float for opacity,
+                # bool for topmost.
+                if isinstance(default, bool):
+                    out[k] = bool(v)
+                elif isinstance(default, int):
+                    try:
+                        out[k] = int(v)
+                    except (TypeError, ValueError):
+                        out[k] = default
+                elif isinstance(default, float):
+                    try:
+                        out[k] = float(v)
+                    except (TypeError, ValueError):
+                        out[k] = default
+                else:
+                    out[k] = v
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def save_player_settings(settings: dict) -> None:
+    """Atomic write — tmp + rename — so partial writes don't corrupt
+    the settings file."""
+    try:
+        PLAYER_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        merged = dict(DEFAULT_PLAYER_SETTINGS)
+        merged.update(settings or {})
+        tmp = PLAYER_SETTINGS_FILE.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(merged, indent=2) + "\n")
+        tmp.replace(PLAYER_SETTINGS_FILE)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[player] failed to persist settings: {exc}")
 MINI_LAUNCHER = GUI_DIR / "mochi_vdisplay_player_qt.py"
 
 # Ordered chapter list (sidebar in the Learn page).  Operator can
@@ -448,19 +508,26 @@ def launch_mini_window(
 
     Operator directive 2026-06-10: "no skins" — the mini window
     launches in plain-window mode (just the rendered animation, no
-    body/bezel).  The ``skin_path`` arg is preserved on the function
-    signature for the future skin-picker feature but currently
-    ignored.
+    body/bezel).  Canvas size, topmost, opacity all read from
+    ``assets/player_settings.json`` so operator's preference
+    persists across launches.
     """
     if not MINI_LAUNCHER.is_file():
         logger.warning("mini launcher missing: %s", MINI_LAUNCHER)
         return None
+    settings = load_player_settings()
+    canvas_w = max(64, int(settings.get("canvas_w", 512)))
+    canvas_h = max(64, int(settings.get("canvas_h", 512)))
     cmd: list[str] = [
         sys.executable, str(MINI_LAUNCHER),
         "--no-skin",
-        "--canvas", "512x512",
-        "--topmost",
+        "--canvas", f"{canvas_w}x{canvas_h}",
+        "--opacity", str(float(settings.get("opacity", 1.0))),
     ]
+    if bool(settings.get("topmost", True)):
+        cmd.append("--topmost")
+    else:
+        cmd.append("--no-topmost")
     try:
         proc = subprocess.Popen(cmd, cwd=str(PROJECT_ROOT))
         logger.info("launched mini window — pid=%d cmd=%s",
@@ -3109,6 +3176,9 @@ class CompanionMain(QMainWindow):
         body_layout.setContentsMargins(28, 20, 28, 28)
         body_layout.setSpacing(20)
 
+        # ── Player (always visible — operator-facing knob) ────
+        body_layout.addWidget(self._build_player_section())
+
         # ── Skins (always visible) ─────────────────────────────
         body_layout.addWidget(self._build_skins_section())
 
@@ -3135,6 +3205,133 @@ class CompanionMain(QMainWindow):
         )
 
     # ── Skins section ────────────────────────────────────────────
+
+    def _build_player_section(self) -> QWidget:
+        """Mini-window playback settings — persisted to
+        assets/player_settings.json so the operator's preferences
+        survive across launches."""
+        wrap = QFrame()
+        wrap.setStyleSheet(f"background: {BG_BASE};")
+        layout = QVBoxLayout(wrap)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        heading = QLabel("Player")
+        heading.setStyleSheet(
+            f"color: {TEXT_MAIN}; font-size: 16px; font-weight: 700;"
+        )
+        layout.addWidget(heading)
+        sub = QLabel(
+            "Mini-window playback settings.  Saved to "
+            "<code>assets/player_settings.json</code> so they persist "
+            "across launches.  Close + reopen the mini window for "
+            "changes to take effect."
+        )
+        sub.setTextFormat(Qt.RichText)
+        sub.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 12px;")
+        sub.setWordWrap(True)
+        layout.addWidget(sub)
+
+        current = load_player_settings()
+
+        # Canvas size row
+        canvas_row = self._setting_row(
+            "Canvas size",
+            "Mini-window pixel size, e.g. <code>64x64</code> for the "
+            "Dasai-Mochi look or <code>512x512</code> for a desktop "
+            "display.  Re-launch the mini window to apply."
+        )
+        self._player_canvas_entry = QLineEdit()
+        self._player_canvas_entry.setMaximumWidth(120)
+        self._player_canvas_entry.setText(
+            f"{current['canvas_w']}x{current['canvas_h']}"
+        )
+        self._player_canvas_entry.setStyleSheet(self._line_qss())
+        canvas_save = QPushButton("Save")
+        canvas_save.setCursor(Qt.PointingHandCursor)
+        canvas_save.setStyleSheet(self._button_qss_settings())
+        canvas_save.clicked.connect(self._save_player_canvas)
+        canvas_row.layout().addWidget(self._player_canvas_entry)
+        canvas_row.layout().addWidget(canvas_save)
+        canvas_row.layout().addStretch()
+        layout.addWidget(canvas_row)
+
+        # Topmost row
+        topmost_row = self._setting_row(
+            "Always on top",
+            "Keep the mini window above other apps."
+        )
+        from PySide6.QtWidgets import QCheckBox
+        self._player_topmost = QCheckBox("Stay on top")
+        self._player_topmost.setChecked(bool(current.get("topmost", True)))
+        self._player_topmost.stateChanged.connect(self._save_player_topmost)
+        topmost_row.layout().addWidget(self._player_topmost)
+        topmost_row.layout().addStretch()
+        layout.addWidget(topmost_row)
+
+        # Opacity row
+        opacity_row = self._setting_row(
+            "Opacity",
+            "0.0 (invisible) to 1.0 (fully opaque).  Decimal value."
+        )
+        self._player_opacity = QLineEdit()
+        self._player_opacity.setMaximumWidth(80)
+        self._player_opacity.setText(str(float(current.get("opacity", 1.0))))
+        self._player_opacity.setStyleSheet(self._line_qss())
+        opacity_save = QPushButton("Save")
+        opacity_save.setCursor(Qt.PointingHandCursor)
+        opacity_save.setStyleSheet(self._button_qss_settings())
+        opacity_save.clicked.connect(self._save_player_opacity)
+        opacity_row.layout().addWidget(self._player_opacity)
+        opacity_row.layout().addWidget(opacity_save)
+        opacity_row.layout().addStretch()
+        layout.addWidget(opacity_row)
+        return wrap
+
+    def _save_player_canvas(self) -> None:
+        text = self._player_canvas_entry.text().strip().lower()
+        if "x" not in text:
+            return
+        try:
+            w_str, h_str = text.split("x", 1)
+            w = max(64, int(w_str))
+            h = max(64, int(h_str))
+        except (TypeError, ValueError):
+            return
+        current = load_player_settings()
+        current["canvas_w"] = w
+        current["canvas_h"] = h
+        save_player_settings(current)
+        self.logger.info(
+            "player canvas saved %dx%d (re-open mini window to apply)",
+            w, h,
+        )
+        # Reflect what we actually stored
+        self._player_canvas_entry.setText(f"{w}x{h}")
+
+    def _save_player_topmost(self) -> None:
+        current = load_player_settings()
+        current["topmost"] = bool(self._player_topmost.isChecked())
+        save_player_settings(current)
+        self.logger.info(
+            "player topmost saved %s (re-open mini window to apply)",
+            current["topmost"],
+        )
+
+    def _save_player_opacity(self) -> None:
+        try:
+            val = float(self._player_opacity.text().strip())
+        except (TypeError, ValueError):
+            return
+        val = max(0.0, min(1.0, val))
+        current = load_player_settings()
+        current["opacity"] = val
+        save_player_settings(current)
+        self.logger.info(
+            "player opacity saved %.2f (re-open mini window to apply)",
+            val,
+        )
+        self._player_opacity.setText(f"{val}")
 
     def _build_skins_section(self) -> QWidget:
         wrap = QFrame()
