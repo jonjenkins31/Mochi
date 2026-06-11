@@ -1869,6 +1869,42 @@ class CompanionMain(QMainWindow):
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.setContentsMargins(20, 8, 20, 8)
         toolbar_layout.setSpacing(8)
+
+        # ── status pill (left) — Phase 2 of Tk supersede ─────────
+        self.status_pill = self._build_status_pill()
+        toolbar_layout.addWidget(self.status_pill)
+
+        # ── Stop button — sends "mode off" to the animation node ─
+        # Replaces the Tk panel's "Turn Off" button.  Disabled when
+        # no animation is currently active.
+        self.stop_btn = QPushButton("■ Stop")
+        self.stop_btn.setCursor(Qt.PointingHandCursor)
+        self.stop_btn.setToolTip("Stop the active animation")
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {TEXT_MUTED};
+                border: 1px solid {BORDER};
+                border-radius: 6px;
+                padding: 5px 12px;
+                font-size: 12px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background: #fee2e2;
+                color: #991b1b;
+                border-color: #fca5a5;
+            }}
+            QPushButton:disabled {{
+                background: transparent;
+                color: {BORDER_HOVER};
+                border-color: {BORDER};
+            }}
+        """)
+        self.stop_btn.clicked.connect(self._on_stop_clicked)
+        toolbar_layout.addWidget(self.stop_btn)
+
         toolbar_layout.addStretch()
 
         # ── community / promo / help icon row ────────────────────
@@ -1964,15 +2000,125 @@ class CompanionMain(QMainWindow):
         if page is not None:
             self.stack.setCurrentWidget(page)
 
-    # ── HealthService glue (Phase 1) ──────────────────────────────
+    # ── HealthService glue (Phase 1 + Phase 2) ────────────────────
+
+    def _build_status_pill(self) -> QFrame:
+        """Top-toolbar live status pill.  Reflects the animation
+        node's latest health broadcast — colour shifts grey → green
+        as health arrives, grey again when it goes stale (~5s old).
+        """
+        pill = QFrame()
+        pill.setCursor(Qt.PointingHandCursor)
+        pill.setStyleSheet(self._pill_qss("grey"))
+        layout = QHBoxLayout(pill)
+        layout.setContentsMargins(10, 5, 12, 5)
+        layout.setSpacing(8)
+        self._pill_dot = QLabel("●")
+        self._pill_dot.setStyleSheet(
+            "color: #9ca3af; font-size: 11px; background: transparent;"
+        )
+        layout.addWidget(self._pill_dot)
+        self._pill_label = QLabel("waiting for animation node…")
+        self._pill_label.setStyleSheet(
+            f"color: {TEXT_MUTED}; font-size: 12px; "
+            f"font-weight: 600; background: transparent;"
+        )
+        layout.addWidget(self._pill_label)
+        # Clicking the pill jumps to Home (where the diagnostics
+        # panel lives in Phase 3).
+        pill.mousePressEvent = lambda _e: self.sidebar.select_default("Home")
+
+        # Refresh the pill at 1Hz so staleness fades it grey when
+        # health stops flowing.
+        self._pill_timer = QTimer(self)
+        self._pill_timer.setInterval(1000)
+        self._pill_timer.timeout.connect(self._refresh_status_pill)
+        self._pill_timer.start()
+        return pill
+
+    def _pill_qss(self, state: str) -> str:
+        # state ∈ {"green", "grey", "red"}
+        if state == "green":
+            bg, border, txt = "#dcfce7", "#86efac", "#166534"
+        elif state == "red":
+            bg, border, txt = "#fee2e2", "#fca5a5", "#991b1b"
+        else:
+            bg, border, txt = "#f3f4f6", "#e5e7eb", "#6b7280"
+        return f"""
+            QFrame {{
+                background: {bg};
+                border: 1px solid {border};
+                border-radius: 12px;
+            }}
+        """
 
     def _on_health_updated(self, node_id: str, payload: dict) -> None:
-        """Default consumer just logs.  Phase 2's status pill + Phase
-        3's Home page connect to the same signal for live updates."""
-        mode = payload.get("mode") or payload.get("data", {}).get("mode")
-        self.logger.debug(
-            "health: %s mode=%s", node_id, mode,
+        """Update the status pill + Stop button enable state."""
+        if node_id != "animation":
+            return
+        mode = (
+            payload.get("mode")
+            or payload.get("data", {}).get("mode")
+            or "?"
         )
+        size_block = payload.get("logical_size") or {}
+        w = size_block.get("width", payload.get("w", "?"))
+        h = size_block.get("height", payload.get("h", "?"))
+        fps = payload.get("fps_target", payload.get("fps", 0))
+        mem = payload.get("memory_mb", payload.get("mem_mb", 0.0))
+
+        try:
+            mem_str = f"{float(mem):.1f}MB"
+        except (TypeError, ValueError):
+            mem_str = "—"
+        self._pill_label.setText(
+            f"animation · {mode} · {w}×{h} · {fps}fps · {mem_str}"
+        )
+
+        # Enable Stop when an animation is actively rendering.
+        # Heuristic: any mode that isn't the fallback "solid_color"
+        # counts as "running".
+        is_running = mode not in ("?", "", "solid_color")
+        self.stop_btn.setEnabled(is_running)
+        self._refresh_status_pill()
+
+    def _refresh_status_pill(self) -> None:
+        """Re-evaluate freshness colour without a new broadcast."""
+        if not hasattr(self, "health"):
+            return
+        from mochi_health_service import staleness
+        last = self.health.last_seen("animation")
+        state = staleness(last)
+        if state == "fresh":
+            self.status_pill.setStyleSheet(self._pill_qss("green"))
+            self._pill_dot.setStyleSheet(
+                "color: #16a34a; font-size: 11px; background: transparent;"
+            )
+            self._pill_label.setStyleSheet(
+                "color: #166534; font-size: 12px; "
+                "font-weight: 600; background: transparent;"
+            )
+        else:
+            self.status_pill.setStyleSheet(self._pill_qss("grey"))
+            self._pill_dot.setStyleSheet(
+                "color: #9ca3af; font-size: 11px; background: transparent;"
+            )
+            self._pill_label.setStyleSheet(
+                f"color: {TEXT_MUTED}; font-size: 12px; "
+                f"font-weight: 600; background: transparent;"
+            )
+            if state == "gone":
+                # If health never arrived, keep the waiting message.
+                # If it WAS fresh but stopped, mark as stale.
+                if last is not None:
+                    self._pill_label.setText("animation · stale")
+                    self.stop_btn.setEnabled(False)
+
+    def _on_stop_clicked(self) -> None:
+        """Send "mode off" to the animation node.  Matches the Tk
+        panel's Turn Off button behaviour exactly."""
+        self.ctrl.send("node animation mode off")
+        self.logger.info("Stop clicked — sent 'mode off'")
 
     def _on_health_error(self, msg: str) -> None:
         self.logger.warning("HealthService: %s", msg)
