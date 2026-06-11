@@ -46,7 +46,9 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, QObject, QSize, Signal, QTimer, QUrl
-from PySide6.QtGui import QFont, QIcon, QPixmap, QColor, QPalette, QDesktopServices
+from PySide6.QtGui import (
+    QFont, QIcon, QPixmap, QColor, QPalette, QDesktopServices, QMovie,
+)
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QHBoxLayout, QVBoxLayout, QGridLayout, QFrame,
@@ -575,19 +577,36 @@ def discover_packs() -> list[dict]:
 # ── widgets ────────────────────────────────────────────────────────
 
 class ClickableFrame(QFrame):
-    """QFrame emitting ``clicked`` on a left-button press.
+    """QFrame emitting ``clicked`` on a left-button press + hover
+    signals for preview-on-hover.
 
     Replaces the ad-hoc instance-level ``mousePressEvent = lambda``
     overrides, which fired on any mouse button and broke event
     propagation.
+
+    Signals
+    -------
+    clicked      — left-button press
+    hovered      — pointer entered
+    unhovered    — pointer left
     """
 
     clicked = Signal()
+    hovered = Signal()
+    unhovered = Signal()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(event)
+
+    def enterEvent(self, event) -> None:  # noqa: N802
+        self.hovered.emit()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        self.unhovered.emit()
+        super().leaveEvent(event)
 
 
 def make_badge(mood: str) -> QLabel:
@@ -691,9 +710,16 @@ def make_card(entry: dict, on_click) -> QFrame:
 
     # ── Preview tile (bumped to fill most of the card) ────────────
     thumb = _thumb_path(entry)
+    asset_abs = (
+        PROJECT_ROOT / entry["path"] if entry.get("path") else None
+    )
+    type_ = entry.get("type", "")
+    can_animate = type_ == "gifs" and asset_abs is not None and asset_abs.is_file()
+
     preview = QLabel()
     preview.setAlignment(Qt.AlignCenter)
     preview.setFixedHeight(140)
+    static_pix: QPixmap | None = None
     if thumb.is_file():
         pix = QPixmap(str(thumb))
         if not pix.isNull():
@@ -703,6 +729,7 @@ def make_card(entry: dict, on_click) -> QFrame:
                 Qt.SmoothTransformation,
             )
             preview.setPixmap(pix)
+            static_pix = pix
             preview.setStyleSheet(f"""
                 background: {BG_BASE};
                 border-radius: 8px;
@@ -726,6 +753,33 @@ def make_card(entry: dict, on_click) -> QFrame:
             font-weight: 700;
         """)
     layout.addWidget(preview)
+
+    # ── Hover preview ─────────────────────────────────────────────
+    # Operator: "preview should play when hovered" (2026-06-10).
+    # For GIFs we swap the static thumbnail for a QMovie that plays
+    # the file directly on hover, and restore the static pixmap on
+    # leave.  Other types (math / video / mscript) don't get a
+    # cheap hover-preview — they'd need a separate animated thumb
+    # generator and aren't worth the cost in this commit.
+    if can_animate and static_pix is not None:
+        movie = QMovie(str(asset_abs))
+        movie.setScaledSize(static_pix.size())
+        movie.setCacheMode(QMovie.CacheNone)
+
+        def _hover():
+            preview.setMovie(movie)
+            movie.start()
+
+        def _unhover():
+            movie.stop()
+            preview.setMovie(None)
+            preview.setPixmap(static_pix)
+
+        card.hovered.connect(_hover)
+        card.unhovered.connect(_unhover)
+        # Keep the movie alive for the card's lifetime so it isn't
+        # GC'd between hovers.
+        preview._movie_keepalive = movie  # type: ignore[attr-defined]
 
     # Title row: name + any Wondershare-style pill badges inline
     title_row = QHBoxLayout()
@@ -812,28 +866,15 @@ class LibraryPage(QWidget):
             {e.get("type", "?") for e in self.entries}
         )
 
+        # Operator feedback 2026-06-10: three rows of chips is "poor
+        # design".  Collapsed into a single-line bar with dropdowns.
+        # Kept _mood_buttons / _type_buttons / _curation_buttons dicts
+        # for API symmetry with the old chip-row code paths.
         self._mood_buttons: dict[str, QPushButton] = {}
         self._type_buttons: dict[str, QPushButton] = {}
         self._curation_buttons: dict[str, QPushButton] = {}
-
-        outer.addWidget(self._build_filter_row(
-            "Mood", moods, self._mood_buttons, self._select_mood,
-        ))
-        outer.addWidget(self._build_filter_row(
-            "Type", types, self._type_buttons, self._select_type,
-        ))
-        # Curation chip row — operator uses to find what still needs
-        # a hand-edit on its sidecar.  "Curated" means the operator
-        # has touched the sidecar beyond the auto-scaffolded stub;
-        # heuristic: any sidecar that has at least one curation field
-        # set (we approximate via ``author`` populated, since the
-        # scaffolder leaves author commented-out).
-        outer.addWidget(self._build_filter_row(
-            "Curation",
-            ["all", "curated", "uncurated"],
-            self._curation_buttons,
-            self._select_curation,
-            border_bottom=True,
+        outer.addWidget(self._build_compact_filter_bar(
+            moods, types,
         ))
 
         # ── card grid (scrollable) ────────────────────────────────
@@ -853,6 +894,64 @@ class LibraryPage(QWidget):
         self._rebuild_grid()
 
     # ── filter-row builder ────────────────────────────────────────
+
+    def _build_compact_filter_bar(
+        self,
+        moods: list[str],
+        types: list[str],
+    ) -> QFrame:
+        """Single-line filter bar: Mood / Type / Curation as QComboBox
+        dropdowns side-by-side, with right-aligned current-count
+        label.  Replaces the three stacked chip rows."""
+        row = QFrame()
+        row.setStyleSheet(
+            f"background: {BG_BASE}; border-bottom: 1px solid {BORDER};"
+        )
+        h = QHBoxLayout(row)
+        h.setContentsMargins(28, 10, 28, 10)
+        h.setSpacing(14)
+
+        # Build the three dropdowns
+        def _make_dropdown(label: str, values: list[str],
+                           on_change) -> QComboBox:
+            lbl = QLabel(label)
+            lbl.setStyleSheet(
+                f"color: {TEXT_MUTED}; font-size: 11px; "
+                f"font-weight: 700; letter-spacing: 0.05em;"
+            )
+            h.addWidget(lbl)
+            combo = QComboBox()
+            for v in values:
+                combo.addItem(v.upper(), v)
+            combo.setStyleSheet(f"""
+                QComboBox {{
+                    background: {BG_CARD};
+                    border: 1px solid {BORDER};
+                    border-radius: 6px;
+                    padding: 5px 10px;
+                    font-size: 12px;
+                    color: {TEXT_MAIN};
+                    min-width: 130px;
+                }}
+                QComboBox:focus {{ border-color: {ACCENT}; }}
+                QComboBox::drop-down {{ border: none; width: 18px; }}
+            """)
+            combo.currentIndexChanged.connect(
+                lambda _i, c=combo: on_change(c.currentData())
+            )
+            h.addWidget(combo)
+            return combo
+
+        self._mood_combo = _make_dropdown("MOOD", moods, self._select_mood)
+        self._type_combo = _make_dropdown("TYPE", types, self._select_type)
+        self._curation_combo = _make_dropdown(
+            "CURATION",
+            ["all", "curated", "uncurated"],
+            self._select_curation,
+        )
+
+        h.addStretch()
+        return row
 
     def _build_filter_row(
         self,
