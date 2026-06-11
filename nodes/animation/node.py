@@ -93,12 +93,22 @@ class AnimationNode(MochiNodeBase):
 
         # Per-asset playback hints (overridden in activate_mode from
         # the catalog/sidecar entry — see docs/ASSET_PROPERTIES.md).
+        # Default framing: "stretch" so non-square source media
+        # (most GIFs are roughly 1.5:1) fills the whole buffer
+        # without black bars.  Operator preference 2026-06-11 —
+        # "even scale would be full screen".  Sidecar
+        # ``framing: fit | fill | stretch`` overrides per asset.
         self._anim_speed: float = 1.0
-        self._anim_framing: str = "fit"
+        self._anim_framing: str = "stretch"
         self._anim_origin: float = time.monotonic()
 
         self._install_fallback(source="system", emit_event=True)
         self._load_default_script()
+
+        # Default framing applied when the activated entry's
+        # sidecar/catalog doesn't specify one.  Operator-tunable via
+        # the ``framing <mode>`` ctrl command (see below).
+        self._default_framing: str = "stretch"
 
         self._command_handlers = {
             "mode": self._handle_mode_command,
@@ -106,6 +116,7 @@ class AnimationNode(MochiNodeBase):
             "color": self._handle_color_command,
             "play": self._handle_play_command,
             "stop": self._handle_stop_command,
+            "framing": self._handle_framing_command,
         }
 
         # ── Mochi-NEXT: LLM bus subscription ──────────────────────
@@ -263,10 +274,11 @@ class AnimationNode(MochiNodeBase):
         label = label or name
         # Read playback_speed + framing from the catalog entry (which
         # in turn sourced them from the asset's .props.yaml sidecar).
-        # Defaults: 1.0 speed, "fit" framing.  When the entry isn't in
-        # the catalog the defaults stand.
+        # When the entry doesn't specify framing, fall back to
+        # ``self._default_framing`` — operator-tunable via the
+        # ``framing <mode>`` ctrl command + Settings → Renderer.
         self._anim_speed = float(entry.get("playback_speed", 1.0)) or 1.0
-        self._anim_framing = entry.get("framing") or "fit"
+        self._anim_framing = entry.get("framing") or self._default_framing
         # Mark when this animation started so we can transform the
         # wall-clock timestamp into "elapsed since activation" before
         # scaling.  Avoids jumpy jumps when speed changes between
@@ -439,6 +451,36 @@ class AnimationNode(MochiNodeBase):
             self.logger.info("Ctrl: Script stopped by command")
             self.enqueue_event("script.stopped", source="ctrl")
             self.script = None
+
+    def _handle_framing_command(self, parts: list[str]):
+        """ctrl: ``framing <fit|fill|stretch>`` — sets the default
+        framing applied to subsequent activations whose sidecar /
+        catalog entry doesn't specify their own.  Operator-tunable
+        from Settings → Renderer.  Also re-applies to the current
+        animation so the change is visible immediately."""
+        if len(parts) < 2:
+            self.logger.info(
+                "Ctrl: framing current = %s (valid: fit, fill, stretch)",
+                self._default_framing,
+            )
+            return
+        mode = parts[1].lower()
+        if mode not in ("fit", "fill", "stretch"):
+            self.enqueue_event(
+                "framing.error",
+                value=mode,
+                message="must be fit, fill, or stretch",
+                source="ctrl",
+            )
+            self.logger.warning("Ctrl: invalid framing mode %r", mode)
+            return
+        self._default_framing = mode
+        # If the current animation was using the previous default,
+        # update it live too so the operator sees the change without
+        # re-activating.
+        self._anim_framing = mode
+        self.enqueue_event("framing.changed", value=mode, source="ctrl")
+        self.logger.info("Ctrl: default framing → %s", mode)
 
     def _process_script_command(self, command: Command):
         """Handle structured commands emitted by an active script."""

@@ -88,6 +88,11 @@ DEFAULT_PLAYER_SETTINGS: dict = {
     "canvas_h": 512,
     "topmost":  True,
     "opacity":  1.0,
+    # Render-side knob (lives in the same file for now so there's
+    # one settings sink the companion shows in one Settings tab).
+    # Sent to the animation node via the ``framing`` ctrl command at
+    # companion startup + whenever the operator saves it.
+    "default_framing": "stretch",
 }
 
 
@@ -3353,6 +3358,32 @@ class CompanionMain(QMainWindow):
         # restarts cleanly.
         if hasattr(self, "health"):
             self.health.start()
+        # Push saved render-side settings to the animation node so
+        # the operator's persisted preferences take effect even
+        # before they open the Settings page.  Idempotent — the node
+        # accepts and applies the same value every boot.
+        if hasattr(self, "ctrl") and not getattr(self, "_settings_synced", False):
+            settings = load_player_settings()
+            # CRITICAL: sync the renderer's logical buffer size to
+            # match the player canvas.  Without this the animation
+            # node renders into its config-default (e.g. 288×192) and
+            # the player letterboxes to fit a square canvas — black
+            # bars even on square-source GIFs.  Operator note
+            # 2026-06-11.
+            cw = max(8, int(settings.get("canvas_w", 512)))
+            ch = max(8, int(settings.get("canvas_h", 512)))
+            self.ctrl.send(f"node animation size {cw}x{ch}")
+            self.logger.info(
+                "synced render size to animation node: %dx%d", cw, ch,
+            )
+            framing = str(settings.get("default_framing", "stretch")).lower()
+            if framing in ("fit", "fill", "stretch"):
+                self.ctrl.send(f"node animation framing {framing}")
+                self.logger.info(
+                    "synced default framing to animation node: %s",
+                    framing,
+                )
+            self._settings_synced = True
 
     def _on_pin_clicked(self, name: str) -> None:
         """Pinned sidebar shortcut fired — dispatch through the same
@@ -3608,12 +3639,27 @@ class CompanionMain(QMainWindow):
         current["canvas_w"] = w
         current["canvas_h"] = h
         save_player_settings(current)
+        # Live-update the renderer's buffer size so the next animation
+        # paints at the new resolution without a node restart.  Same
+        # ctrl command companion uses on every startup.
+        self.ctrl.send(f"node animation size {w}x{h}")
         self.logger.info(
-            "player canvas saved %dx%d (re-open mini window to apply)",
-            w, h,
+            "player canvas saved %dx%d + renderer size synced "
+            "(re-open mini window to apply size change)", w, h,
         )
-        # Reflect what we actually stored
         self._player_canvas_entry.setText(f"{w}x{h}")
+
+    def _save_default_framing(self, mode: str) -> None:
+        mode = (mode or "").lower()
+        if mode not in ("fit", "fill", "stretch"):
+            return
+        current = load_player_settings()
+        current["default_framing"] = mode
+        save_player_settings(current)
+        self.ctrl.send(f"node animation framing {mode}")
+        self.logger.info(
+            "default framing saved %s + sent to renderer", mode,
+        )
 
     def _save_player_topmost(self) -> None:
         current = load_player_settings()
@@ -3736,7 +3782,9 @@ class CompanionMain(QMainWindow):
         # Matrix size row
         size_row = self._setting_row(
             "Logical canvas size",
-            "W×H of the renderer's output buffer.",
+            "W×H of the renderer's output buffer.  Note: the Player "
+            "section above syncs this automatically — only set here "
+            "if you need a one-off override.",
         )
         self._size_entry = QLineEdit()
         self._size_entry.setPlaceholderText("64x64")
@@ -3751,6 +3799,31 @@ class CompanionMain(QMainWindow):
         size_row.layout().addWidget(size_btn)
         size_row.layout().addStretch()
         layout.addWidget(size_row)
+
+        # Default framing row — operator 2026-06-11: "anything
+        # adjustable should have a way to adjust in settings".
+        framing_row = self._setting_row(
+            "Default framing",
+            "How non-matching aspects map onto the buffer: "
+            "<b>stretch</b> distorts to fill, <b>fill</b> crops to "
+            "cover, <b>fit</b> letterboxes (black bars).  Per-asset "
+            "sidecar <code>framing</code> overrides this default.",
+        )
+        framing_combo = QComboBox()
+        framing_combo.addItems(["stretch", "fill", "fit"])
+        current_framing = str(
+            load_player_settings().get("default_framing", "stretch")
+        ).lower()
+        if current_framing in ("stretch", "fill", "fit"):
+            framing_combo.setCurrentText(current_framing)
+        framing_combo.setStyleSheet(self._line_qss())
+        framing_combo.setMaximumWidth(180)
+        framing_combo.currentTextChanged.connect(
+            self._save_default_framing
+        )
+        framing_row.layout().addWidget(framing_combo)
+        framing_row.layout().addStretch()
+        layout.addWidget(framing_row)
 
         # Solid colour row
         colour_row = self._setting_row(
