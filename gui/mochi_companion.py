@@ -83,6 +83,7 @@ LEARN_CHAPTERS: list[tuple[str, str]] = [
 ]
 
 DEFAULT_CTRL_ADDR = "tcp://127.0.0.1:5556"
+DEFAULT_HEALTH_ADDR = "tcp://127.0.0.1:5555"
 
 
 # ── Wondershare-inspired theme ─────────────────────────────────────
@@ -1822,7 +1823,8 @@ class Sidebar(QWidget):
 # ── main window ────────────────────────────────────────────────────
 
 class CompanionMain(QMainWindow):
-    def __init__(self, ctrl_addr: str) -> None:
+    def __init__(self, ctrl_addr: str,
+                 health_addr: str = DEFAULT_HEALTH_ADDR) -> None:
         super().__init__()
         self.logger = logging.getLogger("MochiCompanion")
         self.setWindowTitle("Mochi Companion")
@@ -1830,6 +1832,17 @@ class CompanionMain(QMainWindow):
         self.setStyleSheet(STYLESHEET)
 
         self.ctrl = CtrlBridge(ctrl_addr, self.logger)
+        # Shared HealthService — Phase 1 of the Tk-supersede migration.
+        # Pages can subscribe via ``self.health.health_updated`` or
+        # poll via ``self.health.snapshot(node_id)``.  Today no
+        # consumer is wired; Phase 2 adds the toolbar status pill.
+        from mochi_health_service import HealthService
+        self.health = HealthService(
+            health_sub_addr=health_addr,
+            logger=self.logger,
+        )
+        self.health.health_updated.connect(self._on_health_updated)
+        self.health.error.connect(self._on_health_error)
         self._mini_proc: subprocess.Popen | None = None
         self._available_skins: list[dict] = discover_skins()
 
@@ -1950,6 +1963,27 @@ class CompanionMain(QMainWindow):
         page = self.pages.get(label)
         if page is not None:
             self.stack.setCurrentWidget(page)
+
+    # ── HealthService glue (Phase 1) ──────────────────────────────
+
+    def _on_health_updated(self, node_id: str, payload: dict) -> None:
+        """Default consumer just logs.  Phase 2's status pill + Phase
+        3's Home page connect to the same signal for live updates."""
+        mode = payload.get("mode") or payload.get("data", {}).get("mode")
+        self.logger.debug(
+            "health: %s mode=%s", node_id, mode,
+        )
+
+    def _on_health_error(self, msg: str) -> None:
+        self.logger.warning("HealthService: %s", msg)
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        # Lazy-start the health service the first time the window
+        # appears so headless smoke tests don't pay for the SUB
+        # connection.
+        if hasattr(self, "health") and self.health._thread is None:
+            self.health.start()
 
     def _on_pin_clicked(self, name: str) -> None:
         """Pinned sidebar shortcut fired — dispatch through the same
@@ -2151,6 +2185,12 @@ class CompanionMain(QMainWindow):
                 self._mini_proc.wait(timeout=1.5)
             except subprocess.TimeoutExpired:
                 self._mini_proc.kill()
+        # Stop the HealthService background thread cleanly.
+        if hasattr(self, "health"):
+            try:
+                self.health.stop()
+            except Exception:  # noqa: BLE001
+                pass
         super().closeEvent(event)
 
 
