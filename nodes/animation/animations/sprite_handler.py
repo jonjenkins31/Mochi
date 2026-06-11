@@ -44,6 +44,8 @@ import numpy as np
 from plugin_core.mochi_animations import Animation
 from PIL import Image
 
+from .decoders import resize_frame
+
 
 class SpriteHandler(Animation):
     name = "SPRITE"
@@ -65,12 +67,26 @@ class SpriteHandler(Animation):
         self._start_frame: int = 0
         self._end_frame: int = 0
         self._fixed_index: int | None = None   # set by named_frame
+        self._framing: str = "fit"             # fit | fill | stretch
+        self._t0: float | None = None          # activation anchor (first render t)
 
     def on_enter(self, **kwargs) -> None:
         super().on_enter(**kwargs)
 
+        # Restart the animation clock on every activation so playback
+        # begins at start_frame (anchored on first render, see
+        # _current_index_for_time).
+        self._t0 = None
+
         resolve_dir = kwargs.get("resolve_dir")
         asset_path = kwargs.get("asset_path")
+
+        # How a cell is mapped onto the display when sizes differ.
+        # Mirrors the decoded-media handlers ("framing" sidecar prop,
+        # "fit" mscript kwarg).
+        self._framing = str(
+            kwargs.get("framing") or kwargs.get("fit") or "fit"
+        )
 
         # Load the sheet first — both modes need it
         if asset_path:
@@ -89,11 +105,12 @@ class SpriteHandler(Animation):
                 coords = [int(c.strip()) for c in src_rect_str.split(",")]
                 if len(coords) == 4:
                     self.sprite_coords = tuple(coords)
-                else:
-                    print(f"Warning: Invalid SRC format: {src_rect_str}")
+                    return
+                print(f"Warning: Invalid SRC format: {src_rect_str}")
             except (ValueError, AttributeError):
                 print(f"Warning: Could not parse SRC rect: {src_rect_str}")
-            return
+            # Malformed SRC — fall through so any grid kwargs in the
+            # same call still apply.
 
         # ── ANIMATED (grid-driven) ────────────────────────────────
         frame_size = kwargs.get("frame_size")
@@ -106,35 +123,91 @@ class SpriteHandler(Animation):
         except (TypeError, IndexError, ValueError):
             return
 
-        self._frame_count = int(kwargs.get("frame_count", 0))
-        self._frame_rate_ms = int(kwargs.get("frame_rate_ms", 100))
-        self._start_frame = int(kwargs.get("start_frame", 0))
-        self._end_frame = int(
-            kwargs.get("end_frame", max(0, self._frame_count - 1))
-        )
+        def _int_kwarg(key: str, default: int) -> int:
+            raw = kwargs.get(key, default)
+            try:
+                return int(raw)
+            except (TypeError, ValueError):
+                print(f"Warning: invalid {key} value {raw!r}; using {default}")
+                return default
+
+        self._frame_count = _int_kwarg("frame_count", 0)
+        self._frame_rate_ms = _int_kwarg("frame_rate_ms", 100)
+        self._start_frame = _int_kwarg("start_frame", 0)
+        self._end_frame = _int_kwarg("end_frame", max(0, self._frame_count - 1))
 
         # Derive grid (cols × rows) from sheet size when omitted
+        sheet_w, sheet_h = self.sprite_sheet.size
+        derived_cols = max(1, sheet_w // max(1, self._frame_w))
+        derived_rows = max(1, sheet_h // max(1, self._frame_h))
         grid = kwargs.get("grid")
+        explicit_grid = False
         if grid and len(grid) == 2:
-            self._cols = max(1, int(grid[0]))
-            self._rows = max(1, int(grid[1]))
-        else:
-            sheet_w, sheet_h = self.sprite_sheet.size
-            self._cols = max(1, sheet_w // max(1, self._frame_w))
-            self._rows = max(1, sheet_h // max(1, self._frame_h))
+            try:
+                self._cols = max(1, int(grid[0]))
+                self._rows = max(1, int(grid[1]))
+                explicit_grid = True
+            except (TypeError, ValueError):
+                print(f"Warning: invalid grid value {grid!r}; deriving from sheet size")
+        if not explicit_grid:
+            self._cols = derived_cols
+            self._rows = derived_rows
+        elif (self._cols * self._frame_w > sheet_w
+              or self._rows * self._frame_h > sheet_h):
+            # An oversized explicit grid would crop past the sheet edge
+            # and silently render black zero-padded cells.
+            print(
+                f"Warning: grid [{self._cols}, {self._rows}] exceeds sheet "
+                f"size {sheet_w}x{sheet_h}; clamping to "
+                f"[{min(self._cols, derived_cols)}, {min(self._rows, derived_rows)}]"
+            )
+            self._cols = min(self._cols, derived_cols)
+            self._rows = min(self._rows, derived_rows)
 
         # If frame_count wasn't given, infer from grid
         if self._frame_count <= 0:
             self._frame_count = self._cols * self._rows
             self._end_frame = self._frame_count - 1
 
+        # Clamp the [start_frame, end_frame] window to the cells that
+        # actually exist, so loops never replay wrapped cells or
+        # silently freeze.
+        max_index = max(0, self._frame_count - 1)
+        if self._end_frame > max_index:
+            print(
+                f"Warning: end_frame {self._end_frame} exceeds last frame "
+                f"{max_index}; clamping"
+            )
+            self._end_frame = max_index
+        if self._start_frame > self._end_frame:
+            print(
+                f"Warning: start_frame {self._start_frame} > end_frame "
+                f"{self._end_frame}; clamping"
+            )
+            self._start_frame = self._end_frame
+
         # named_frame: pin the renderer to one specific cell
         named_frame = kwargs.get("named_frame")
         named_frames = kwargs.get("named_frames") or {}
         if named_frame and isinstance(named_frames, dict):
             idx = named_frames.get(named_frame)
-            if isinstance(idx, int) and 0 <= idx < self._cols * self._rows:
-                self._fixed_index = idx
+            if idx is not None:
+                try:
+                    idx = int(idx)
+                except (TypeError, ValueError):
+                    print(
+                        f"Warning: named_frame '{named_frame}' has "
+                        f"non-integer index {named_frames.get(named_frame)!r}"
+                    )
+                    idx = None
+            if idx is not None:
+                if 0 <= idx < self._frame_count:
+                    self._fixed_index = idx
+                else:
+                    print(
+                        f"Warning: named_frame '{named_frame}' index {idx} "
+                        f"out of range (frame_count={self._frame_count})"
+                    )
 
     # ──────────────────────────────────────────────────────────────
 
@@ -153,11 +226,16 @@ class SpriteHandler(Animation):
         )
 
     def _current_index_for_time(self, t: float) -> int:
-        """Wrap t into the [start_frame, end_frame] loop."""
+        """Wrap elapsed-since-activation into the [start_frame,
+        end_frame] loop.  Anchored on the first render so every
+        activation starts at start_frame (mirrors media_base.py)."""
+        if self._t0 is None:
+            self._t0 = t
         if self._frame_rate_ms <= 0 or self._frame_count <= 0:
             return self._start_frame
         loop_len = max(1, (self._end_frame - self._start_frame + 1))
-        elapsed_frames = int((t * 1000.0) / self._frame_rate_ms)
+        elapsed = max(0.0, t - self._t0)
+        elapsed_frames = int((elapsed * 1000.0) / self._frame_rate_ms)
         return self._start_frame + (elapsed_frames % loop_len)
 
     # ──────────────────────────────────────────────────────────────
@@ -184,6 +262,13 @@ class SpriteHandler(Animation):
             frame[:, :] = (0, 0, 0)
 
         sprite_image = self.sprite_sheet.crop((x, y, x + w, y + h))
+        # Honor the framing prop like the decoded-media handlers do:
+        # scale the cell to the display via fit / fill / stretch.
+        # Fast path: same size → direct blit below, no resampling.
+        if sprite_image.size != (self.w, self.h):
+            sprite_image = resize_frame(
+                sprite_image, (self.w, self.h), self._framing, (0, 0, 0)
+            )
         sprite_array = np.array(sprite_image)
         img_h, img_w, _ = sprite_array.shape
 

@@ -42,9 +42,11 @@ class AnimationCommand:
 # back-track between patterns.
 
 _TAG_PATTERNS: list[tuple[re.Pattern, str]] = [
-    # <play name="X"/> or <play name='X'/> with optional whitespace
+    # <play name="X"/> or <play name='X'/> with optional whitespace.
+    # The backreference forces matching quote pairs; newlines inside
+    # the name are rejected.  The name is always the LAST group.
     (re.compile(
-        r'<(play|mode)\s+name\s*=\s*["\']([^"\']+)["\']\s*/?>',
+        r'<(play|mode)\s+name\s*=\s*(["\'])([^"\'\n]+)\2\s*/?>',
         re.IGNORECASE,
     ), "name-attribute"),
     # <play>X</play> with body text
@@ -80,7 +82,8 @@ def parse(reply: str) -> list[AnimationCommand]:
     for pat, label in _TAG_PATTERNS:
         for m in pat.finditer(reply):
             verb = m.group(1).lower()
-            name = m.group(2).strip()
+            # Every pattern puts the name in its LAST capture group.
+            name = m.groups()[-1].strip()
             if not name:
                 continue
             commands.append((m.start(), AnimationCommand(

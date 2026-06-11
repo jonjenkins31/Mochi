@@ -135,7 +135,11 @@ class MscriptScript(Script):
 
             # For all other commands, resolve the resource key if present
             if 'K' in args:
-                key = int(args['K'])
+                try:
+                    key = int(args['K'])
+                except (TypeError, ValueError):
+                    print(f"Warning: Invalid resource key '{args['K']}' for command {cmd_name}.")
+                    continue  # Skip this invalid command
                 resource_path = self._resources.get(key)
                 if resource_path:
                     # Add asset_path to the arguments, just like the JSON engine
@@ -206,13 +210,12 @@ class MscriptScript(Script):
         return None
 
     def _video_duration(self, path: Path) -> Optional[float]:
-        # Try imageio ffmpeg probe first
+        # Try imageio-ffmpeg first (count_frames_and_secs → (nframes, secs))
         if imageio_ffmpeg is not None:
             try:
-                meta = imageio_ffmpeg.probe(str(path))
-                duration_val = meta.get("duration")
-                if duration_val:
-                    return float(duration_val)
+                _nframes, secs = imageio_ffmpeg.count_frames_and_secs(str(path))
+                if secs:
+                    return float(secs)
             except Exception:
                 pass
 

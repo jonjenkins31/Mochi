@@ -281,8 +281,6 @@ class PlayerWindow(QWidget):
                 self._timer.timeout.connect(self._poll_stream)
                 self._timer.start()
 
-        self.enable_drag = enable_drag
-
     # ------------------------------------------------------------------ interaction
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -479,16 +477,16 @@ def main(argv: list[str] | None = None) -> int:
         logger.info(
             "Displaying %s (scale %.2f, opacity %.2f) — streaming from %s",
             image_path,
-            args.scale,
-            args.opacity,
+            scale,
+            opacity,
             sub_addr,
         )
     else:
         logger.info(
             "Displaying %s (scale %.2f, opacity %.2f) — static mode",
             image_path,
-            args.scale,
-            args.opacity,
+            scale,
+            opacity,
         )
     return app.exec()
 

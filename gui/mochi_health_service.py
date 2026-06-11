@@ -55,8 +55,13 @@ class HealthService(QObject):
     Signals
     -------
     health_updated(node_id, payload)
-        Fired on every health message.  ``node_id`` derived from the
-        broadcast topic; ``payload`` is the parsed JSON dict.
+        Fired on every health-shaped message.  ``node_id`` derived
+        from the broadcast topic; ``payload`` is the parsed JSON
+        dict.
+
+    event_received(node_id, payload)
+        Fired for non-health messages (``.event`` / ``.meta``) that
+        arrive on the same ``node.`` prefix.
 
     error(message)
         Fired when the SUB socket can't connect or decode payload.
@@ -76,6 +81,7 @@ class HealthService(QObject):
     """
 
     health_updated = Signal(str, dict)
+    event_received = Signal(str, dict)
     error = Signal(str)
 
     def __init__(
@@ -118,14 +124,11 @@ class HealthService(QObject):
         self._logger.info("HealthService started — %s", self._addr)
 
     def stop(self) -> None:
+        # The SUB socket is created, used, and closed on the worker
+        # thread only (see _sub_loop's finally) — closing it here
+        # while the worker may be inside recv_multipart is unsafe.
         self._stop.set()
         self._drain_timer.stop()
-        if self._sub is not None:
-            try:
-                self._sub.close(linger=0)
-            except Exception:  # noqa: BLE001
-                pass
-            self._sub = None
         if self._thread is not None:
             self._thread.join(timeout=1.0)
             self._thread = None
@@ -153,73 +156,89 @@ class HealthService(QObject):
     # ── internal: SUB thread ─────────────────────────────────────
 
     def _sub_loop(self) -> None:
+        # The SUB socket lives entirely on this thread — created
+        # here, used here, closed in the ``finally`` below.  stop()
+        # only sets the event and joins; it never touches the socket.
         try:
-            self._sub = self._ctx.socket(zmq.SUB)
-            self._sub.setsockopt(zmq.RCVHWM, 1)
-            self._sub.setsockopt(zmq.SUBSCRIBE, HEALTH_TOPIC_PREFIX)
-            self._sub.connect(self._addr)
-            self._logger.info(
-                "SUB connected — addr=%s prefix=%s",
-                self._addr,
-                HEALTH_TOPIC_PREFIX.decode("utf-8", errors="ignore"),
-            )
-        except Exception as exc:  # noqa: BLE001
-            self._logger.error("SUB connect failed: %s", exc)
-            self._queue.put(("__error__", {"error": str(exc)}))
-            return
-
-        while not self._stop.is_set():
             try:
-                topic, payload = self._sub.recv_multipart(
-                    flags=zmq.NOBLOCK,
+                self._sub = self._ctx.socket(zmq.SUB)
+                self._sub.setsockopt(zmq.RCVHWM, 1)
+                self._sub.setsockopt(zmq.SUBSCRIBE, HEALTH_TOPIC_PREFIX)
+                self._sub.connect(self._addr)
+                self._logger.info(
+                    "SUB connected — addr=%s prefix=%s",
+                    self._addr,
+                    HEALTH_TOPIC_PREFIX.decode("utf-8", errors="ignore"),
                 )
-            except zmq.Again:
-                time.sleep(0.1)
-                continue
             except Exception as exc:  # noqa: BLE001
-                if not self._stop.is_set():
-                    self._logger.warning(
-                        "SUB recv error: %s", exc,
+                self._logger.error("SUB connect failed: %s", exc)
+                self._queue.put(
+                    ("__error__", {"error": str(exc)}, False)
+                )
+                return
+
+            while not self._stop.is_set():
+                try:
+                    topic, payload = self._sub.recv_multipart(
+                        flags=zmq.NOBLOCK,
                     )
-                continue
+                except zmq.Again:
+                    time.sleep(0.1)
+                    continue
+                except Exception as exc:  # noqa: BLE001
+                    if not self._stop.is_set():
+                        self._logger.warning(
+                            "SUB recv error: %s", exc,
+                        )
+                    continue
 
-            # Topic shape: ``node.<id>.health`` (or similar)
-            try:
-                topic_str = topic.decode("utf-8", errors="ignore")
-                parts = topic_str.split(".")
-                node_id = parts[1] if len(parts) >= 2 else "unknown"
-                data = json.loads(payload.decode("utf-8"))
-            except Exception as exc:  # noqa: BLE001
-                self._logger.warning(
-                    "malformed health payload: %s", exc,
-                )
-                continue
+                # Topic shape: ``node.<id>.health`` (or similar)
+                try:
+                    topic_str = topic.decode("utf-8", errors="ignore")
+                    parts = topic_str.split(".")
+                    node_id = parts[1] if len(parts) >= 2 else "unknown"
+                    data = json.loads(payload.decode("utf-8"))
+                except Exception as exc:  # noqa: BLE001
+                    self._logger.warning(
+                        "malformed health payload: %s", exc,
+                    )
+                    continue
 
-            # Only ``.health`` messages drive the snapshot; ``.event``
-            # / ``.meta`` arrive on the same prefix but carry different
-            # shapes.  Fan them out via the same signal but skip
-            # snapshot writes for non-health topics.
-            is_health = (
-                len(parts) >= 3 and parts[2] == "health"
-            ) or "mode" in data or "logical_size" in data
+                # Only ``.health`` messages drive the snapshot and the
+                # health_updated signal; ``.event`` / ``.meta`` arrive
+                # on the same prefix but carry different shapes, so
+                # they fan out via event_received instead.
+                is_health = (
+                    len(parts) >= 3 and parts[2] == "health"
+                ) or "mode" in data or "logical_size" in data
 
-            if is_health:
-                with self._lock:
-                    self._snapshots[node_id] = data
-                    self._last_seen[node_id] = time.monotonic()
+                if is_health:
+                    with self._lock:
+                        self._snapshots[node_id] = data
+                        self._last_seen[node_id] = time.monotonic()
 
-            self._queue.put((node_id, data))
+                self._queue.put((node_id, data, is_health))
+        finally:
+            if self._sub is not None:
+                try:
+                    self._sub.close(linger=0)
+                except Exception:  # noqa: BLE001
+                    pass
+            self._sub = None
 
     # ── main-thread: queue drain ─────────────────────────────────
 
     def _drain_queue(self) -> None:
         try:
             while True:
-                node_id, data = self._queue.get_nowait()
+                node_id, data, is_health = self._queue.get_nowait()
                 if node_id == "__error__":
                     self.error.emit(data.get("error", "unknown error"))
                     continue
-                self.health_updated.emit(node_id, data)
+                if is_health:
+                    self.health_updated.emit(node_id, data)
+                else:
+                    self.event_received.emit(node_id, data)
         except Empty:
             return
 

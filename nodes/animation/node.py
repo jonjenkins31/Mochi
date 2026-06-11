@@ -59,6 +59,22 @@ def _merge_dicts(base: dict, overlay: dict) -> dict:
 class AnimationNode(MochiNodeBase):
     """Manages the state and logic for rendering animations."""
 
+    # Catalog entry type → animation handler command.  Used by
+    # activate_mode to resolve a catalog name (e.g. "rainbow") into
+    # the handler that can play its asset.  Types without a direct
+    # handler (animations, procedural) and mscripts (routed through
+    # "play") are intentionally absent.
+    _TYPE_TO_COMMAND: dict[str, str] = {
+        "gifs": "GIF",
+        "sprites": "SPRITE",
+        "math": "MATH",
+        "video": "VIDEO",
+        "bitmaps": "BITMAP",
+        "bmps": "IMAGE",
+        "png": "IMAGE",
+        "icons": "IMAGE",
+    }
+
     def __init__(self, node_id: str, config: dict, project_root: str, optional_topics: Sequence[bytes] | None = None):
         super().__init__(node_id, config, project_root, optional_topics)
 
@@ -219,8 +235,25 @@ class AnimationNode(MochiNodeBase):
             self.enqueue_event("mode.error", message="No mode specified", source=source)
             self.logger.warning("Mode activation requested without a name")
             return False
+        # Resolve the name through the catalog: a catalog entry tells
+        # us which handler plays it (via its type), where the asset
+        # lives, and any sidecar type_props (sprite grid, math params,
+        # gif fps, ...) that must reach the handler's on_enter.  Names
+        # not in the catalog fall through unchanged so direct handler
+        # commands ("mode GIF", "mode SPRITE"...) keep working.
+        entry = self._catalog_index.get(name) or {}
+        cmd_name = name
+        anim_kwargs: dict = {}
+        handler_cmd = self._TYPE_TO_COMMAND.get(entry.get("type") or "")
+        if handler_cmd and entry.get("path"):
+            cmd_name = handler_cmd
+            anim_kwargs["asset_path"] = entry["path"]
+            anim_kwargs["resolve_dir"] = self.project_root
+        type_props = entry.get("type_props")
+        if isinstance(type_props, dict):
+            anim_kwargs.update(type_props)
         try:
-            animation = create_animation(name, self.w, self.h)
+            animation = create_animation(cmd_name, self.w, self.h, **anim_kwargs)
         except Exception as exc:
             self.enqueue_event("mode.error", mode=name, message=str(exc), source=source)
             self.logger.error(f"Failed to activate mode '{name}': {exc}")
@@ -232,7 +265,6 @@ class AnimationNode(MochiNodeBase):
         # in turn sourced them from the asset's .props.yaml sidecar).
         # Defaults: 1.0 speed, "fit" framing.  When the entry isn't in
         # the catalog the defaults stand.
-        entry = self._catalog_index.get(name) or {}
         self._anim_speed = float(entry.get("playback_speed", 1.0)) or 1.0
         self._anim_framing = entry.get("framing") or "fit"
         # Mark when this animation started so we can transform the
@@ -250,6 +282,13 @@ class AnimationNode(MochiNodeBase):
 
     def deactivate_mode(self, *, source: str = "ctrl") -> None:
         previous = self.current_mode or "?"
+        # Stop any running script too — otherwise the script keeps
+        # ticking and immediately re-drives a mode, making "mode off"
+        # (the companion Stop button) ineffective.
+        if self.script:
+            self.logger.info("Mode off: stopping active script")
+            self.enqueue_event("script.stopped", source=source)
+            self.script = None
         self._install_fallback(source=source, emit_event=True)
         self.enqueue_event("mode.disabled", previous_mode=previous, source=source)
 
@@ -499,8 +538,10 @@ class AnimationNode(MochiNodeBase):
         self,
         cmd: _LLMAnimationCommand,
     ) -> None:
-        """Convert a parsed LLM command into the ctrl-socket text form
-        and route through the existing _process_node_command path."""
+        """Dispatch a parsed LLM command to the matching internal
+        method.  Play/mode names go straight to activate_mode so a
+        name like "off" or "reset" is always treated as an animation
+        name, never re-parsed as a mode subcommand."""
         if cmd.verb == "stop":
             self._process_node_command("stop", ["stop"])
             self.enqueue_event(
@@ -528,11 +569,10 @@ class AnimationNode(MochiNodeBase):
             )
             return
 
-        # mode dispatch — works for animation defs, gif/sprite/math/
-        # video/bitmap names registered in animations/__init__.py.
-        text = f"mode {cmd.name}"
-        parts = text.split()
-        self._process_node_command(text, parts)
+        # mode dispatch — call activate_mode directly (NOT the text
+        # parser) so gif/sprite/math/video/bitmap names resolve via
+        # the catalog and names like "off"/"reset" stay plain names.
+        self.activate_mode(cmd.name, source="llm")
         self.enqueue_event(
             "llm.command", verb="mode",
             name=cmd.name, source="llm",

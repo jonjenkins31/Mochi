@@ -40,11 +40,12 @@ import json
 import logging
 import subprocess
 import sys
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QSize, Signal, QTimer, QUrl
+from PySide6.QtCore import Qt, QObject, QSize, Signal, QTimer, QUrl
 from PySide6.QtGui import QFont, QIcon, QPixmap, QColor, QPalette, QDesktopServices
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
@@ -275,6 +276,9 @@ class CtrlBridge:
         try:
             self._push = self._ctx.socket(zmq.PUSH)
             self._push.setsockopt(zmq.LINGER, 0)
+            # Small HWM so a missing consumer surfaces quickly as
+            # zmq.Again instead of buffering commands forever.
+            self._push.setsockopt(zmq.SNDHWM, 10)
             self._push.connect(ctrl_addr)
             self.logger.info("ctrl connected — %s", ctrl_addr)
         except zmq.ZMQError as exc:
@@ -288,10 +292,102 @@ class CtrlBridge:
             )
             return
         try:
-            self._push.send_string(command)
+            # DONTWAIT: never block the GUI thread when the HWM is
+            # full (no consumer on the other end).
+            self._push.send_string(command, flags=zmq.DONTWAIT)
             self.logger.info("ctrl send: %s", command)
+        except zmq.Again:
+            self.logger.warning(
+                "ctrl send queue full (consumer down?) — "
+                "dropped: %s", command,
+            )
         except zmq.ZMQError as exc:
             self.logger.error("ctrl send failed: %s — %s", command, exc)
+
+
+# ── subprocess registry ────────────────────────────────────────────
+
+class ProcessRegistry(QObject):
+    """Tracks helper subprocesses (editors, perf monitor) launched
+    from the companion.
+
+    - ``launch(key, argv, single=False)`` spawns + tracks a child;
+      ``single=True`` refuses while that key is still running.
+    - A 1 s QTimer reaps exited children so they don't linger as
+      zombies.
+    - ``terminate_all()`` does terminate → wait → kill on close so
+      children never orphan.
+    """
+
+    def __init__(
+        self,
+        logger: logging.Logger,
+        parent: QObject | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._logger = logger
+        self._procs: dict[str, list[subprocess.Popen]] = {}
+        self._reap_timer = QTimer(self)
+        self._reap_timer.setInterval(1000)
+        self._reap_timer.timeout.connect(self._reap)
+        self._reap_timer.start()
+
+    def launch(
+        self,
+        key: str,
+        argv: list[str],
+        *,
+        cwd: str | None = None,
+        single: bool = False,
+    ) -> subprocess.Popen | None:
+        if single and self.is_running(key):
+            self._logger.info(
+                "%s already running — not relaunching", key,
+            )
+            return None
+        try:
+            proc = subprocess.Popen(argv, cwd=cwd)
+        except Exception as exc:  # noqa: BLE001
+            self._logger.error("launch failed: %s — %s", key, exc)
+            return None
+        self._procs.setdefault(key, []).append(proc)
+        self._logger.info("launched %s — pid=%d", key, proc.pid)
+        return proc
+
+    def is_running(self, key: str) -> bool:
+        return any(
+            p.poll() is None for p in self._procs.get(key, [])
+        )
+
+    def _reap(self) -> None:
+        """Drop exited children so poll() collects them promptly."""
+        for key in list(self._procs):
+            alive = [p for p in self._procs[key] if p.poll() is None]
+            if alive:
+                self._procs[key] = alive
+            else:
+                del self._procs[key]
+
+    def terminate_all(self, timeout: float = 1.5) -> None:
+        survivors = [
+            p for procs in self._procs.values()
+            for p in procs if p.poll() is None
+        ]
+        for p in survivors:
+            try:
+                p.terminate()
+            except Exception:  # noqa: BLE001
+                pass
+        deadline = time.monotonic() + timeout
+        for p in survivors:
+            try:
+                p.wait(timeout=max(0.0, deadline - time.monotonic()))
+            except Exception:  # noqa: BLE001
+                try:
+                    p.kill()
+                except Exception:  # noqa: BLE001
+                    pass
+        self._procs.clear()
 
 
 # ── catalog loader ─────────────────────────────────────────────────
@@ -412,6 +508,22 @@ def discover_packs() -> list[dict]:
 
 # ── widgets ────────────────────────────────────────────────────────
 
+class ClickableFrame(QFrame):
+    """QFrame emitting ``clicked`` on a left-button press.
+
+    Replaces the ad-hoc instance-level ``mousePressEvent = lambda``
+    overrides, which fired on any mouse button and broke event
+    propagation.
+    """
+
+    clicked = Signal()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
 def make_badge(mood: str) -> QLabel:
     bg, fg = BADGE_COLORS.get(mood, BADGE_COLORS["neutral"])
     label = QLabel(mood.upper())
@@ -500,12 +612,12 @@ def make_card(entry: dict, on_click) -> QFrame:
       - Title row (with optional pill badges)
       - Subtitle row (mood badge + type label)
     """
-    card = QFrame()
+    card = ClickableFrame()
     card.setObjectName("card")
     card.setProperty("class", "card")
     card.setCursor(Qt.PointingHandCursor)
     card.setFixedSize(240, 240)
-    card.mousePressEvent = lambda _e: on_click(entry)
+    card.clicked.connect(lambda: on_click(entry))
 
     layout = QVBoxLayout(card)
     layout.setContentsMargins(12, 12, 12, 14)
@@ -943,12 +1055,12 @@ class PacksPage(QWidget):
         return page
 
     def _make_pack_card(self, pack: dict) -> QFrame:
-        card = QFrame()
+        card = ClickableFrame()
         card.setProperty("class", "card")
         card.setObjectName("card")
         card.setCursor(Qt.PointingHandCursor)
         card.setFixedSize(240, 220)
-        card.mousePressEvent = lambda _e, p=pack: self._show_detail(p)
+        card.clicked.connect(lambda p=pack: self._show_detail(p))
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(14, 14, 14, 14)
@@ -1127,12 +1239,14 @@ class PacksPage(QWidget):
         *,
         is_default: bool,
     ) -> QFrame:
-        card = QFrame()
+        card = ClickableFrame()
         card.setProperty("class", "card")
         card.setObjectName("card")
         card.setCursor(Qt.PointingHandCursor)
         card.setFixedSize(180, 160)
-        card.mousePressEvent = lambda _e: self._fire_slot(pack, slot_name, slot_value)
+        card.clicked.connect(
+            lambda: self._fire_slot(pack, slot_name, slot_value)
+        )
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -1373,13 +1487,20 @@ class HomePage(QWidget):
         ctrl: "CtrlBridge",
         health,
         sidebar: "Sidebar",
+        procs: "ProcessRegistry",
         parent: QWidget = None,
     ) -> None:
         super().__init__(parent)
         self.ctrl = ctrl
         self.health = health
         self.sidebar = sidebar
+        self.procs = procs
         self._recent: list[str] = self._load_recent()
+        # Diff-updated nodes table: one entry per node id, each
+        # holding the row frame + its cell labels so refreshes can
+        # setText in place (buttons persist across refreshes).
+        self._node_rows: dict[str, dict] = {}
+        self._nodes_empty: QLabel | None = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -1618,7 +1739,7 @@ class HomePage(QWidget):
         self._nodes_layout.addWidget(self._build_node_table_header())
 
         layout.addWidget(self._nodes_host)
-        # First refresh paints the empty state (no health yet).
+        # First visible refresh (showEvent) paints the empty state.
         self._refresh_nodes_table()
         return card
 
@@ -1649,50 +1770,62 @@ class HomePage(QWidget):
         return row
 
     def _refresh_nodes_table(self) -> None:
-        # Remove every row except the header (index 0).  We
-        # deleteLater() each widget — including any previous empty-
-        # state QLabel — so this refresh has full control over what
-        # populates below the header.
-        while self._nodes_layout.count() > 1:
-            item = self._nodes_layout.takeAt(1)
-            if item.widget():
-                item.widget().deleteLater()
+        # Diff-update: rows persist across refreshes so the per-row
+        # Stop/Reset buttons survive (a full teardown+rebuild used
+        # to silently swallow clicks landing across a rebuild, and
+        # churned widgets up to twice a second).
+        if not self.isVisible():
+            return
 
         nodes = self.health.known_nodes()
         if not nodes:
-            # Recreate the empty-state QLabel from scratch every
-            # refresh.  The previous attempt kept a self._nodes_empty
-            # reference which got deleteLater()'d in the loop above,
-            # then crashed on the next .setText() call with
-            # "Internal C++ object already deleted".
-            empty = QLabel(
-                "Waiting for nodes — start <code>main.py</code> to "
-                "populate."
-            )
-            empty.setTextFormat(Qt.RichText)
-            empty.setStyleSheet(
-                f"color: {TEXT_MUTED}; font-size: 12px; "
-                f"padding: 14px 0; font-style: italic;"
-            )
-            self._nodes_layout.addWidget(empty)
+            for node_id in list(self._node_rows):
+                self._remove_node_row(node_id)
+            if self._nodes_empty is None:
+                empty = QLabel(
+                    "Waiting for nodes — start <code>main.py</code> "
+                    "to populate."
+                )
+                empty.setTextFormat(Qt.RichText)
+                empty.setStyleSheet(
+                    f"color: {TEXT_MUTED}; font-size: 12px; "
+                    f"padding: 14px 0; font-style: italic;"
+                )
+                self._nodes_layout.addWidget(empty)
+                self._nodes_empty = empty
             return
 
+        if self._nodes_empty is not None:
+            self._nodes_empty.deleteLater()
+            self._nodes_empty = None
+
+        # Drop rows whose node vanished.
+        for node_id in list(self._node_rows):
+            if node_id not in nodes:
+                self._remove_node_row(node_id)
+
+        # Update existing rows in place; add rows for new nodes.
         for node_id in nodes:
             snap = self.health.snapshot(node_id) or {}
-            self._nodes_layout.addWidget(
-                self._make_node_row(node_id, snap)
-            )
+            entry = self._node_rows.get(node_id)
+            if entry is None:
+                entry = self._make_node_row(node_id, snap)
+                self._node_rows[node_id] = entry
+                self._nodes_layout.addWidget(entry["row"])
+            else:
+                cells = self._node_row_cells(node_id, snap)
+                for lbl, text in zip(entry["labels"], cells):
+                    if lbl.text() != text:
+                        lbl.setText(text)
 
-    def _make_node_row(self, node_id: str, snap: dict) -> QWidget:
-        row = QFrame()
-        row.setStyleSheet(
-            f"QFrame {{ background: transparent; "
-            f"border-bottom: 1px solid {BORDER}; }}"
-        )
-        h = QHBoxLayout(row)
-        h.setContentsMargins(10, 8, 10, 8)
-        h.setSpacing(8)
+    def _remove_node_row(self, node_id: str) -> None:
+        entry = self._node_rows.pop(node_id, None)
+        if entry is not None:
+            entry["row"].deleteLater()
 
+    @staticmethod
+    def _node_row_cells(node_id: str, snap: dict) -> list[str]:
+        """Cell texts for one node row, in column order."""
         mode = snap.get("mode") or snap.get("data", {}).get("mode") or "?"
         size_block = snap.get("logical_size") or {}
         w = size_block.get("width", snap.get("w", "?"))
@@ -1710,24 +1843,40 @@ class HomePage(QWidget):
         except (TypeError, ValueError):
             tx_str = "—"
 
-        cells = [
-            (node_id,          80, True),
-            (str(mode),        160, False),
-            (f"{w}×{ht}",      80, False),
-            (str(fps),         50, False),
-            (mem_str,          70, False),
-            (tx_str,           70, False),
+        return [
+            node_id,
+            str(mode),
+            f"{w}×{ht}",
+            str(fps),
+            mem_str,
+            tx_str,
         ]
-        for text, width, bold in cells:
+
+    def _make_node_row(self, node_id: str, snap: dict) -> dict:
+        """Build one nodes-table row.  Returns ``{"row": QFrame,
+        "labels": [QLabel, …]}`` so refreshes can setText in place."""
+        row = QFrame()
+        row.setStyleSheet(
+            f"QFrame {{ background: transparent; "
+            f"border-bottom: 1px solid {BORDER}; }}"
+        )
+        h = QHBoxLayout(row)
+        h.setContentsMargins(10, 8, 10, 8)
+        h.setSpacing(8)
+
+        widths = [80, 160, 80, 50, 70, 70]
+        labels: list[QLabel] = []
+        for i, text in enumerate(self._node_row_cells(node_id, snap)):
             lbl = QLabel(text)
-            lbl.setFixedWidth(width)
-            weight = 700 if bold else 500
+            lbl.setFixedWidth(widths[i])
+            weight = 700 if i == 0 else 500
             lbl.setStyleSheet(
                 f"color: {TEXT_MAIN}; font-size: 12px; "
                 f"font-weight: {weight}; "
                 f"background: transparent; border: none;"
             )
             h.addWidget(lbl)
+            labels.append(lbl)
 
         # Trailing action buttons: Stop + Reset (per-node)
         actions = QFrame()
@@ -1753,7 +1902,7 @@ class HomePage(QWidget):
         )
         ah.addWidget(reset_btn)
         h.addWidget(actions)
-        return row
+        return {"row": row, "labels": labels}
 
     # ── shared event glue ─────────────────────────────────────────
 
@@ -1790,6 +1939,12 @@ class HomePage(QWidget):
         # health.  Cheap; just redraws.
         self._refresh_nodes_table()
 
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        # Refreshes no-op while hidden; catch up as soon as the
+        # page becomes visible.
+        self._refresh_nodes_table()
+
     # ── helpers ───────────────────────────────────────────────────
 
     def _fire(self, name: str) -> None:
@@ -1803,13 +1958,12 @@ class HomePage(QWidget):
         script = GUI_DIR / "mochi_perf.py"
         if not script.is_file():
             return
-        try:
-            subprocess.Popen(
-                [sys.executable, str(script)],
-                cwd=str(GUI_DIR),
-            )
-        except Exception as exc:  # noqa: BLE001
-            print(f"[home] perf launch failed: {exc}")
+        self.procs.launch(
+            "perf_monitor",
+            [sys.executable, str(script)],
+            cwd=str(GUI_DIR),
+            single=True,
+        )
 
     def _button_qss(self, small: bool = False,
                     danger: bool = False) -> str:
@@ -1862,8 +2016,8 @@ class EditorsPage(QWidget):
     Phase 5 of the Tk-supersede migration
     (docs/SUPERSEDE_TK_PLAN.md).
 
-    Subprocess tracking matches the mini-window pattern —
-    children get terminated on companion close.
+    Spawned editors are tracked by the shared ProcessRegistry —
+    children get reaped on exit and terminated on companion close.
     """
 
     EDITORS: list[dict] = [
@@ -1899,9 +2053,10 @@ class EditorsPage(QWidget):
         },
     ]
 
-    def __init__(self, parent: QWidget = None) -> None:
+    def __init__(self, procs: "ProcessRegistry",
+                 parent: QWidget = None) -> None:
         super().__init__(parent)
-        self._processes: list[subprocess.Popen] = []
+        self.procs = procs
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -2021,24 +2176,11 @@ class EditorsPage(QWidget):
         entry = PROJECT_ROOT / ed["entry"]
         if not entry.is_file():
             return
-        try:
-            proc = subprocess.Popen(
-                [sys.executable, str(entry)],
-                cwd=str(PROJECT_ROOT),
-            )
-            self._processes.append(proc)
-        except Exception as exc:  # noqa: BLE001
-            print(f"[editors] launch failed: {ed['entry']} — {exc}")
-
-    def cleanup_subprocesses(self) -> None:
-        """Called by CompanionMain on close — terminate any spawned
-        editors so they don't orphan."""
-        for proc in self._processes:
-            if proc.poll() is None:
-                try:
-                    proc.terminate()
-                except Exception:  # noqa: BLE001
-                    pass
+        self.procs.launch(
+            f"editor:{ed['id']}",
+            [sys.executable, str(entry)],
+            cwd=str(PROJECT_ROOT),
+        )
 
 
 class StubPage(QWidget):
@@ -2212,6 +2354,7 @@ class Sidebar(QWidget):
         self.setFixedWidth(220)
         self._pinned: list[str] = self._load_pinned()
         self._pin_buttons: list[QPushButton] = []
+        self._pin_hint: QLabel | None = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -2420,11 +2563,8 @@ class Sidebar(QWidget):
         for l, btn in self._buttons.items():
             btn.setChecked(l == label)
         # Clear pin selection visual when a top-nav row is picked.
-        # _pin_buttons can contain the empty-state QLabel hint, which
-        # doesn't have setChecked — skip non-button entries.
         for pb in self._pin_buttons:
-            if isinstance(pb, QPushButton):
-                pb.setChecked(False)
+            pb.setChecked(False)
         self.item_selected.emit(label)
 
     def select_default(self, label: str = "Library") -> None:
@@ -2454,11 +2594,15 @@ class Sidebar(QWidget):
             print(f"[sidebar] failed to persist pinned.json: {exc}")
 
     def _rebuild_pins(self) -> None:
-        # Clear existing pin buttons
+        # Clear existing pin buttons + any previous empty-state hint
         for btn in self._pin_buttons:
             btn.deleteLater()
         self._pin_buttons = []
-        # Empty hint when no pins yet
+        if self._pin_hint is not None:
+            self._pin_hint.deleteLater()
+            self._pin_hint = None
+        # Empty hint when no pins yet — kept separate from
+        # _pin_buttons, which holds only QPushButtons.
         if not self._pinned:
             hint = QLabel("Click + to pin an animation")
             hint.setStyleSheet(
@@ -2468,7 +2612,7 @@ class Sidebar(QWidget):
             )
             hint.setObjectName("pin_empty_hint")
             self._pins_layout.addWidget(hint)
-            self._pin_buttons.append(hint)
+            self._pin_hint = hint
             return
         # Render each pin as a sidebar button
         for name in self._pinned:
@@ -2494,8 +2638,7 @@ class Sidebar(QWidget):
         for l, b in self._buttons.items():
             b.setChecked(False)
         for pb in self._pin_buttons:
-            if isinstance(pb, QPushButton):
-                pb.setChecked(pb.text().endswith(name))
+            pb.setChecked(pb.text().endswith(name))
         self.pin_clicked.emit(name)
 
     def _open_promo_url(self, url: str) -> None:
@@ -2545,6 +2688,9 @@ class CompanionMain(QMainWindow):
         )
         self.health.health_updated.connect(self._on_health_updated)
         self.health.error.connect(self._on_health_error)
+        # Shared subprocess registry — editors + perf monitor.  The
+        # mini window keeps its dedicated toggle handling below.
+        self.procs = ProcessRegistry(self.logger, parent=self)
         self._mini_proc: subprocess.Popen | None = None
         self._available_skins: list[dict] = discover_skins()
 
@@ -2655,7 +2801,7 @@ class CompanionMain(QMainWindow):
         # Build pages
         self.pages: dict[str, QWidget] = {}
         self.pages["Home"] = HomePage(
-            self.ctrl, self.health, self.sidebar,
+            self.ctrl, self.health, self.sidebar, self.procs,
         )
         self.pages["Library"] = LibraryPage(self.ctrl)
         packs_page = PacksPage(self.ctrl)
@@ -2678,7 +2824,7 @@ class CompanionMain(QMainWindow):
             "Cron-style showtimes.  Weekdays 9-12 → Focus.  Friday "
             "5pm → Party.  11pm-7am → Sleep.",
         )
-        self.pages["Editors"] = EditorsPage()
+        self.pages["Editors"] = EditorsPage(self.procs)
         self.pages["Learn"] = LearnPage()
         # Settings page — minimal first version with skin list.
         # Full picker (radio + preview) lands when there's >1 skin
@@ -2702,7 +2848,7 @@ class CompanionMain(QMainWindow):
         node's latest health broadcast — colour shifts grey → green
         as health arrives, grey again when it goes stale (~5s old).
         """
-        pill = QFrame()
+        pill = ClickableFrame()
         pill.setCursor(Qt.PointingHandCursor)
         pill.setStyleSheet(self._pill_qss("grey"))
         layout = QHBoxLayout(pill)
@@ -2721,7 +2867,9 @@ class CompanionMain(QMainWindow):
         layout.addWidget(self._pill_label)
         # Clicking the pill jumps to Home (where the diagnostics
         # panel lives in Phase 3).
-        pill.mousePressEvent = lambda _e: self.sidebar.select_default("Home")
+        pill.clicked.connect(
+            lambda: self.sidebar.select_default("Home")
+        )
 
         # Refresh the pill at 1Hz so staleness fades it grey when
         # health stops flowing.
@@ -2822,8 +2970,9 @@ class CompanionMain(QMainWindow):
         super().showEvent(event)
         # Lazy-start the health service the first time the window
         # appears so headless smoke tests don't pay for the SUB
-        # connection.
-        if hasattr(self, "health") and self.health._thread is None:
+        # connection.  start() is idempotent, and a stopped service
+        # restarts cleanly.
+        if hasattr(self, "health"):
             self.health.start()
 
     def _on_pin_clicked(self, name: str) -> None:
@@ -3313,17 +3462,18 @@ class CompanionMain(QMainWindow):
         self.mini_btn.setText(self._mini_button_label())
 
     def _on_mini_toggle(self) -> None:
-        # If already running, kill it.
+        # If already running, ask it to exit — without blocking the
+        # GUI thread on a synchronous wait.  Disable the toggle and
+        # let the poll path re-enable it once the process is gone.
         if self._mini_proc is not None and self._mini_proc.poll() is None:
             self.logger.info("closing mini window (pid=%d)",
                              self._mini_proc.pid)
-            self._mini_proc.terminate()
             try:
-                self._mini_proc.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                self._mini_proc.kill()
-            self._mini_proc = None
-            self._refresh_mini_button()
+                self._mini_proc.terminate()
+            except Exception:  # noqa: BLE001
+                pass
+            self.mini_btn.setEnabled(False)
+            QTimer.singleShot(500, self._poll_mini_status)
             return
         # Pick the first skin (operator-curated picker lands in
         # Settings page later).  Fall back to launching with no skin,
@@ -3339,9 +3489,11 @@ class CompanionMain(QMainWindow):
 
     def _poll_mini_status(self) -> None:
         if self._mini_proc is not None and self._mini_proc.poll() is not None:
-            # Process exited externally — reset state.
-            self.logger.info("mini window exited externally")
+            # Process exited (externally or after a close request) —
+            # reset state and re-enable the toggle.
+            self.logger.info("mini window exited")
             self._mini_proc = None
+            self.mini_btn.setEnabled(True)
             self._refresh_mini_button()
             return
         if self._mini_proc is not None:
@@ -3361,10 +3513,9 @@ class CompanionMain(QMainWindow):
                 self.health.stop()
             except Exception:  # noqa: BLE001
                 pass
-        # Terminate any editor subprocesses spawned from Editors tab.
-        editors = self.pages.get("Editors")
-        if isinstance(editors, EditorsPage):
-            editors.cleanup_subprocesses()
+        # Terminate every registered subprocess (editors, perf
+        # monitor) — terminate → wait → kill survivors.
+        self.procs.terminate_all()
         super().closeEvent(event)
 
 
@@ -3376,6 +3527,11 @@ def main() -> int:
         "--ctrl-addr", default=DEFAULT_CTRL_ADDR,
         help=f"Animation node ctrl PUSH endpoint "
              f"(default: {DEFAULT_CTRL_ADDR})",
+    )
+    parser.add_argument(
+        "--health-addr", default=DEFAULT_HEALTH_ADDR,
+        help=f"Broker health SUB endpoint "
+             f"(default: {DEFAULT_HEALTH_ADDR})",
     )
     args = parser.parse_args()
 
@@ -3396,7 +3552,7 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setFont(QFont("-apple-system", 13))
 
-    win = CompanionMain(args.ctrl_addr)
+    win = CompanionMain(args.ctrl_addr, health_addr=args.health_addr)
     win.show()
     return app.exec()
 

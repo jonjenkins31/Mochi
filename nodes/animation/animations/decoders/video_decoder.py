@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Optional, Tuple
 
@@ -113,7 +114,6 @@ def _decode_with_moviepy(
             durations.append(frame_duration_ms)
     except Exception as exc:
         logger.error("Error decoding video frames for %s with moviepy: %s", path, exc)
-        clip.close()
         return None
     finally:
         clip.close()
@@ -176,11 +176,12 @@ def _decode_with_imageio(
         else:
             frame_iter = imageio_v3.imiter(path)
 
-        for frame_np in frame_iter:
-            frame = Image.fromarray(frame_np)
-            frame_resized = resize_frame(frame, target_size, fit_mode, letterbox_color)
-            frames.append(frame_resized)
-            durations.append(frame_duration_ms)
+        with contextlib.closing(frame_iter):
+            for frame_np in frame_iter:
+                frame = Image.fromarray(frame_np)
+                frame_resized = resize_frame(frame, target_size, fit_mode, letterbox_color)
+                frames.append(frame_resized)
+                durations.append(frame_duration_ms)
     except Exception as exc:
         logger.error("Error decoding video frames for %s with imageio: %s", path, exc)
         return None
