@@ -58,6 +58,8 @@ from PySide6.QtWidgets import (
     QStackedWidget, QListWidget, QListWidgetItem,
     QScrollArea, QSizePolicy, QSpacerItem,
     QTextBrowser, QSplitter, QInputDialog,
+    QGroupBox, QMessageBox, QTableWidget, QTableWidgetItem,
+    QTextEdit,
 )
 
 import zmq
@@ -2745,15 +2747,16 @@ def build_empty_state(
 # ── sidebar ────────────────────────────────────────────────────────
 
 SIDEBAR_ITEMS: list[tuple[str, str]] = [
-    ("Home",     "🏠"),
-    ("Library",  "📚"),
-    ("Packs",    "🎭"),
-    ("Scenes",   "🎬"),
-    ("Triggers", "⚡"),
-    ("Schedule", "🕐"),
-    ("Editors",  "🛠"),
-    ("Learn",    "🎓"),
-    ("Settings", "⚙"),
+    ("Home",        "🏠"),
+    ("Library",     "📚"),
+    ("Packs",       "🎭"),
+    ("Scenes",      "🎬"),
+    ("Triggers",    "⚡"),
+    ("Schedule",    "🕐"),
+    ("Editors",     "🛠"),
+    ("Learn",       "🎓"),
+    ("Diagnostics", "🔧"),
+    ("Settings",    "⚙"),
 ]
 
 
@@ -3079,12 +3082,233 @@ class Sidebar(QWidget):
         self._rebuild_pins()
 
 
+# ── diagnostics page ───────────────────────────────────────────────
+
+
+class DiagnosticsPage(QWidget):
+    """Chassis supervisor view — ported from the Jaeger-Framework
+    jenkins-demo's MainWindow.
+
+    Shows the chassis supervisor table (id, tier, backend, state,
+    uptime, restarts, policy, health age) refreshed every 500 ms,
+    plus the four operator verbs (Start / Stop / Restart / Diagnose)
+    and a live ``/sys/log`` feed so chassis events ("node animation
+    started", "node llm died; restart in 1 s") are visible without
+    a terminal.
+
+    When the page is constructed without a JaegerApp ``ctx`` —
+    e.g. running ``gui/mochi_companion.py`` directly for debugging —
+    the page renders an "unavailable" empty state and stays inert.
+    The supervisor only exists when the companion is the chassis's
+    main surface.
+    """
+
+    _COLUMNS = ("id", "tier", "backend", "state", "uptime",
+                "restarts", "policy", "health age")
+
+    def __init__(self, ctx: object = None,
+                 parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.ctx = ctx
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Topbar — matches StubPage's shape.
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        tb = QHBoxLayout(topbar)
+        tb.setContentsMargins(28, 22, 28, 16)
+        title_lbl = QLabel("Diagnostics")
+        title_lbl.setObjectName("page_title")
+        tb.addWidget(title_lbl)
+        tb.addStretch()
+        if ctx is None:
+            sub = "Standalone mode — supervisor unavailable"
+        else:
+            sub = (
+                f"chassis {getattr(ctx.spec, 'requires_framework', '?')}"
+                f" · {ctx.spec.name} v{ctx.spec.version}"
+            )
+        sub_lbl = QLabel(sub)
+        sub_lbl.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 12px;")
+        tb.addWidget(sub_lbl)
+        outer.addWidget(topbar)
+
+        if ctx is None:
+            body = build_empty_state(
+                icon_glyph="🔧",
+                heading="Supervisor not connected",
+                subtitle=(
+                    "This tab needs the JaegerApp chassis context. "
+                    "Run via `python main.py` from the Mochi repo root "
+                    "instead of `python gui/mochi_companion.py` to see "
+                    "the supervisor and live log here."
+                ),
+                cta_label=None,
+            )
+            outer.addWidget(body, 1)
+            return
+
+        body = QWidget()
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(28, 0, 28, 24)
+        body_layout.setSpacing(12)
+
+        # ── Supervisor card ──────────────────────────────────────
+        nodes_box = QGroupBox("Nodes (chassis supervisor)")
+        nb = QVBoxLayout(nodes_box)
+        nb.setSpacing(8)
+
+        self.table = QTableWidget(0, len(self._COLUMNS))
+        self.table.setHorizontalHeaderLabels(self._COLUMNS)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setMinimumHeight(180)
+        nb.addWidget(self.table)
+
+        verbs = QHBoxLayout()
+        for label, fn in (
+            ("▶ Start",   self._verb_start),
+            ("■ Stop",    self._verb_stop),
+            ("↻ Restart", self._verb_restart),
+            ("🔍 Diagnose", self._verb_diagnose),
+        ):
+            btn = QPushButton(label)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(fn)
+            verbs.addWidget(btn)
+        verbs.addStretch()
+        nb.addLayout(verbs)
+        body_layout.addWidget(nodes_box)
+
+        # ── /sys/log feed ────────────────────────────────────────
+        log_box = QGroupBox("Log (/sys/log)")
+        lb = QVBoxLayout(log_box)
+        self.log_view = QTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setFont(QFont("Menlo", 10))
+        self.log_view.setMinimumHeight(140)
+        lb.addWidget(self.log_view)
+        body_layout.addWidget(log_box, 1)
+
+        outer.addWidget(body, 1)
+
+        # Bus → Qt: the one sanctioned hop (chassis BusBridge).
+        try:
+            from app.surfaces import make_bus_bridge
+            self._bridge = make_bus_bridge(ctx.bus, ["/sys/log"])
+            self._bridge.message.connect(self._on_bus_msg)
+        except Exception as exc:   # noqa: BLE001
+            logging.getLogger("MochiCompanion").warning(
+                "DiagnosticsPage: BusBridge subscribe failed (%s); "
+                "log feed will stay empty.", exc,
+            )
+
+        # Refresh timer — 500 ms (jenkins-demo default).
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.timeout.connect(self._refresh_table)
+        self._refresh_timer.start(500)
+        self._refresh_table()
+
+    # ── verbs ────────────────────────────────────────────────────
+
+    def _selected_node(self) -> str | None:
+        row = self.table.currentRow()
+        if row < 0:
+            QMessageBox.information(
+                self, "Diagnostics", "Select a node row first.")
+            return None
+        cell = self.table.item(row, 0)
+        return cell.text() if cell is not None else None
+
+    def _verb(self, label: str, fn) -> None:
+        node = self._selected_node()
+        if not node or self.ctx is None:
+            return
+        try:
+            fn(node)
+        except Exception as exc:   # noqa: BLE001
+            QMessageBox.warning(
+                self, f"{label} failed", f"{type(exc).__name__}: {exc}")
+
+    def _verb_start(self) -> None:
+        self._verb("Start", self.ctx.supervisor.start)
+
+    def _verb_stop(self) -> None:
+        self._verb("Stop", self.ctx.supervisor.stop)
+
+    def _verb_restart(self) -> None:
+        self._verb("Restart", self.ctx.supervisor.restart)
+
+    def _verb_diagnose(self) -> None:
+        node = self._selected_node()
+        if not node or self.ctx is None:
+            return
+        try:
+            diag = self.ctx.supervisor.diagnose(node)
+        except Exception as exc:   # noqa: BLE001
+            QMessageBox.warning(
+                self, "Diagnose failed",
+                f"{type(exc).__name__}: {exc}")
+            return
+        QMessageBox.information(
+            self, f"diagnose: {node}",
+            json.dumps(diag, indent=2, default=str))
+
+    # ── rendering ────────────────────────────────────────────────
+
+    def _refresh_table(self) -> None:
+        if self.ctx is None:
+            return
+        try:
+            rows = self.ctx.supervisor.ls()
+        except Exception:   # noqa: BLE001
+            return
+        self.table.setRowCount(len(rows))
+        for r, row in enumerate(rows):
+            age = row.get("health_age_s")
+            cells = (
+                row.get("id", ""),
+                str(row.get("tier", "")),
+                row.get("backend", ""),
+                row.get("state", ""),
+                f"{row.get('uptime_s', 0):.0f}s",
+                str(row.get("restarts", 0)),
+                row.get("restart_policy", ""),
+                ("—" if age is None else f"{age:.1f}s"),
+            )
+            for c, text in enumerate(cells):
+                item = QTableWidgetItem(text)
+                # State column: red unless running.
+                if c == 3 and "running" not in str(text):
+                    item.setForeground(Qt.red)
+                self.table.setItem(r, c, item)
+
+    def _on_bus_msg(self, msg: object) -> None:
+        topic = getattr(msg, "topic", "")
+        if topic == "/sys/log":
+            level = getattr(msg, "level", "?")
+            source = getattr(msg, "source", "?")
+            line = getattr(msg, "line", "")
+            self.log_view.append(f"[{level}] [{source}] {line}")
+
+
 # ── main window ────────────────────────────────────────────────────
 
 class CompanionMain(QMainWindow):
     def __init__(self, ctrl_addr: str,
-                 health_addr: str = DEFAULT_HEALTH_ADDR) -> None:
+                 health_addr: str = DEFAULT_HEALTH_ADDR,
+                 *, ctx: object = None) -> None:
         super().__init__()
+        # Chassis context (JaegerApp). None when run standalone via
+        # `python gui/mochi_companion.py`; populated by run_surface
+        # when this is the chassis's main surface. DiagnosticsPage
+        # reads it to talk to ctx.supervisor + ctx.bus.
+        self.ctx = ctx
         self.logger = logging.getLogger("MochiCompanion")
         self.setWindowTitle("Mochi Companion")
         self.resize(1280, 820)
@@ -3243,6 +3467,12 @@ class CompanionMain(QMainWindow):
         )
         self.pages["Editors"] = EditorsPage(self.procs)
         self.pages["Learn"] = LearnPage()
+        # Diagnostics — chassis supervisor view, ported from the
+        # jenkins-demo (Jaeger-Framework 0.1). Lights up only when
+        # the companion is running as the chassis's main surface
+        # (run_surface passes ctx); standalone path shows an
+        # "unavailable" empty state, no crash.
+        self.pages["Diagnostics"] = DiagnosticsPage(self.ctx)
         # Settings page — minimal first version with skin list.
         # Full picker (radio + preview) lands when there's >1 skin
         # to choose between.
@@ -4170,7 +4400,10 @@ def run_surface(ctx, spec):  # noqa: ARG001 — chassis contract
         "Mochi Companion booting as Jaeger Surface "
         "(ctrl=%s, health=%s).", ctrl_addr, health_addr,
     )
-    return CompanionMain(ctrl_addr, health_addr=health_addr)
+    # ctx is the JaegerApp — propagating it lets DiagnosticsPage
+    # call ctx.supervisor.ls()/start()/stop()/restart()/diagnose()
+    # and subscribe to /sys/log via ctx.bus.
+    return CompanionMain(ctrl_addr, health_addr=health_addr, ctx=ctx)
 
 
 def main() -> int:
