@@ -1,0 +1,78 @@
+# Mochi — Jaeger app format manifest (format 0.1)
+#
+# Phase B (additive, descriptive). main.py still boots through the
+# existing run_host(); this manifest is not consumed at runtime until
+# Phase C rebases main.py onto JaegerApp.
+#
+# Migration plan: ~/GITHUB/JROS/docs/JROS_APP_FRAMEWORK_PLAN.md §3.2
+# (Mochi migration map). Surface `factory` fields name the callables
+# Phase C will introduce — declared here so the topology is complete
+# now and Phase C is a wiring exercise, not a redesign.
+
+[app]
+name = "mochi"
+version = "0.1.0"
+requires_framework = ">=0.1"
+mode = "fused"                # shell + core in one process (plan §2.0)
+event_loop = "qt"             # Qt main thread owned by the shell
+ui = "pyside6"
+single_instance = true        # the "single Dock instance" rule
+autostart = false             # not split-mode yet — no LaunchAgent
+shell_quits_core = true       # close companion = quit (plan §1.1)
+config = "config.yaml"
+
+# Bus — ZMQ XPUB/XSUB broker. Ports preserved from config.yaml's
+# `infrastructure.broker` so subprocess nodes keep talking after Phase C.
+# Mochi's "frontend"/"backend" labels map: frontend=xpub (subscriber
+# face), backend=xsub (publisher face) — see app/bus/zmq.py docstring.
+[bus]
+backend = "zmq"
+xpub = "tcp://127.0.0.1:5555"
+xsub = "tcp://127.0.0.1:5557"
+
+# ── Nodes ─────────────────────────────────────────────────────────
+# Both Mochi nodes run as subprocesses today (core/plugin_registry.py)
+# and stay subprocesses on the chassis. Restart policy is on_failure
+# with the chassis's exponential backoff + burst limit — strictly
+# stronger than today's run_host(), which breaks its poll loop on the
+# first dead child.
+
+[[node]]
+id = "animation"
+tier = 3
+backend = "subprocess"
+module = "nodes.animation.node"
+restart = "on_failure"
+config_key = "animation"
+enabled = true
+
+[[node]]
+id = "llm"
+tier = 3
+backend = "subprocess"
+module = "agent.llm.node"
+restart = "on_failure"
+config_key = "llm"
+enabled = true
+
+# ── Surfaces ──────────────────────────────────────────────────────
+# Per format §2.7 every window is an in-shell Qt window, NOT a
+# subprocess. Mochi's current run_host() spawns the companion as a
+# subprocess plugin — that pattern retires in Phase C when the
+# companion becomes the shell's main surface inside one QApplication.
+
+[[surface]]
+id = "companion"              # the Wondershare-style companion GUI
+main = true
+factory = "gui.mochi_companion:run_surface"   # (planned — Phase C wires)
+enabled = true
+
+# Legacy Tk panel — superseded by the companion (see
+# config.yaml's SUPERSEDE_TK_PLAN comment from commits
+# 7b23cea → 1a52d1e). Kept declared so a rollback is one
+# `enabled = true` away.
+[[surface]]
+id = "legacy_tk"
+main = false
+factory = "gui.mochi_gui:run_surface"          # (planned — Phase C if needed)
+enabled = false
