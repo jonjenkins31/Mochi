@@ -25,15 +25,22 @@ terminating the children on shutdown. Phase C of the Mochi adoption
                                broker stops, slot released
 
 What's NOT migrated yet:
-  * ``transport/node_base.py`` (MochiNodeBase) — Phase D ports it to
+  * ``transport/node_base.py`` (MochiNodeBase) — still Mochi's
+    pre-format Node base. A future pass ports it to
     ``app.node.FrameNode`` so subprocess nodes read ``JAEGER_BUS_*``
-    natively. Until then the env-var translation below lets the
-    chassis-launched subprocesses keep reading ``MOCHI_BROKER_*``.
-  * ``transport/broker.py`` — orphaned now (chassis runs its own
-    broker). Cleaned up in Phase E.
-  * ``core/host_monitor.py``, ``core/plugin_registry.py`` — orphaned
-    here, removed in Phase E. ``chassis.health.HealthCache`` already
-    consumes ``/sys/node_health`` for "what's alive" queries.
+    natively and the env-var translation below can retire. Until
+    then, MochiNodeBase keeps reading ``MOCHI_BROKER_*`` and we
+    bridge.
+
+What WAS migrated (Phase E, 2026-06-13):
+  * ``transport/broker.py`` — deleted. The chassis runs its own
+    XPUB/XSUB broker thread (``app/bus/zmq.py: Broker``) on the
+    same ports.
+  * ``core/host_monitor.py`` — deleted. ``app.health.HealthCache``
+    subscribes to ``/sys/node_health`` and answers liveness queries.
+  * ``core/plugin_registry.py`` — deleted. ``app.supervisor`` is
+    now the lifecycle owner — restart policy + crash-loop protection
+    + diagnose, none of which run_host had.
 """
 
 from __future__ import annotations
