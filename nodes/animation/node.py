@@ -678,22 +678,23 @@ def main():
     """The main function for the Mochi node."""
     logger = setup_logger("MochiNode")
 
-    try:
-        with open("config.yaml", "r") as f:
-            config = yaml.safe_load(f)
-    except Exception as e:
-        logger.error(f"Cannot load config.yaml: {e}")
+    # JaegerApp chassis (Phase D): config arrives as JSON in
+    # JAEGER_NODE_CONFIG, sliced by config_key="animation" from
+    # Mochi/config.yaml. No cwd-relative file IO; standalone runs
+    # need to set JAEGER_NODE_CONFIG explicitly.
+    env_cfg_raw = os.environ.get("JAEGER_NODE_CONFIG")
+    if not env_cfg_raw:
+        logger.error(
+            "JAEGER_NODE_CONFIG missing — the animation node must be "
+            "spawned by the JaegerApp chassis (`python main.py` at "
+            "the Mochi repo root)."
+        )
         return
-
-    config = config or {}
-    env_cfg_raw = os.environ.get("MOCHI_PLUGIN_CONFIG_JSON")
-    if env_cfg_raw:
-        try:
-            env_cfg = json.loads(env_cfg_raw)
-            if isinstance(env_cfg, dict):
-                config = _merge_dicts(config, env_cfg)
-        except json.JSONDecodeError as exc:
-            logger.warning(f"Invalid MOCHI_PLUGIN_CONFIG_JSON: {exc}")
+    try:
+        config = json.loads(env_cfg_raw) or {}
+    except json.JSONDecodeError as exc:
+        logger.error(f"Invalid JAEGER_NODE_CONFIG payload: {exc}")
+        return
 
     node_config = config.get("node", {})
 

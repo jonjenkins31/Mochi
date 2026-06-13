@@ -1,3 +1,23 @@
+# Mochi — Jaeger app format config (Phase D)
+#
+# Behavior knobs (per spec §config). Structure (which nodes/surfaces
+# exist) lives in jaeger.toml; this file is what they're tuned to.
+#
+# Each [[node]] entry in jaeger.toml carries a config_key; the chassis
+# loads our slice by that key and hands it to the subprocess as
+# JAEGER_NODE_CONFIG. So `animation:` here ends up as the animation
+# node's whole config dict, and `llm:` becomes the llm node's.
+#
+# (Pre-Phase-C this was per-node config.yaml files spread under
+# nodes/animation/ and agent/llm/, loaded cwd-relative by run_host.
+# Phase D consolidates them here — see git log for the move history.)
+
+# ── Infrastructure: address book that survives the chassis ────────
+# Still consumed by main.py:_bridge_legacy_env() to translate into
+# MOCHI_BROKER_* / MOCHI_GUI_* env vars so pre-Phase-E node + GUI
+# code keeps reading the addresses it always read. The chassis itself
+# binds the broker to xpub/xsub from jaeger.toml [bus] — same ports,
+# named once, but [bus] is structural and lives in the manifest.
 infrastructure:
   broker:
     frontend_addr: "tcp://127.0.0.1:5555"
@@ -11,42 +31,125 @@ infrastructure:
     zoom: 4
     poll_ms: 5
 
-plugins:
-  - id: "animation"
-    type: "animation_node"
-    module: "nodes.animation.node"
-    cwd: "nodes/animation"
-    config_path: "nodes/animation/config.yaml"
-    enabled: true
-  - id: "llm"
-    type: "llm_node"
-    module: "agent.llm.node"
-    cwd: "agent/llm"
-    config_path: "agent/llm/config.yaml"
-    enabled: true
-  # Legacy Tk debug panel — SUPERSEDED by mochi_companion as of
-  # Phase 6 of docs/SUPERSEDE_TK_PLAN.md (commits 7b23cea → 1a52d1e).
-  # File kept in tree for one release as a rollback path; flip
-  # enabled:true and disable mochi_companion to fall back.
-  # Helper script: tools/launch_legacy_tk.sh
-  - id: "mochi_gui"
-    type: "gui"
-    entry: "gui/mochi_gui.py"
-    cwd: "gui"
-    enabled: false
-  # Wondershare-style companion (mochi-v4) — THE GUI.  Library +
-  # Packs + Home dashboard + Learn + Settings + skin-driven mini
-  # window.  Absorbs every feature the legacy Tk panel had:
-  #   - Node Status               → top toolbar status pill
-  #   - Nodes table               → Home → Active nodes card
-  #   - Mode On / Off             → Library card click + Stop button
-  #   - MochiScript Run / Stop    → Library TYPE=mscripts + Stop
-  #   - Color picker + matrix     → Settings → Renderer (advanced)
-  #   - Raw command + Quit Node   → Settings → Diagnostics (advanced)
-  #   - Launch helper buttons     → Editors tab + Open Mini Window
-  # See docs/OPERATOR_PRODUCT_PLAN.md + docs/SUPERSEDE_TK_PLAN.md.
-  - id: "mochi_companion"
-    type: "gui"
-    entry: "gui/mochi_companion.py"
-    cwd: "."
-    enabled: true
+# ── Animation node slice ──────────────────────────────────────────
+# Was: nodes/animation/config.yaml (now deleted; this is the source
+# of truth). The animation node receives this as JAEGER_NODE_CONFIG
+# (the chassis's slice_for(config, "animation")) and does
+# `config.get("node", {})` to pull its own settings.
+animation:
+  node:
+    id: "animation"
+    fps: 60
+    logical_size:
+      width: 288
+      height: 192
+    pub_address: "tcp://127.0.0.1:5555"
+    pub_backend_address: "tcp://127.0.0.1:5557"
+    ctrl_address: "tcp://127.0.0.1:5556"
+    bus_sub_address: "tcp://127.0.0.1:5555"
+    default_script: "assets/mscripts/demo_wink.mscript"
+    optional_topics: []
+    # Bus topics the animation node subscribes to. LLM replies are
+    # parsed for <play name="X"/> / <mode name="X"/> / <stop/> tags
+    # and routed through the same _process_node_command path used by
+    # the ctrl socket — so a parsed <play> behaves identically to a
+    # manual "play X" command typed from the CLI.
+    subscribe_topics:
+      - llm.reply
+      - ext.llm.reply
+    # Path to assets/CATALOG.json — when present, LLM-emitted names
+    # get resolved against the catalog (asset path lookup) before
+    # falling back to direct asset-name resolution. Build with
+    # ``tools/build_catalog.py``.
+    catalog_path: "assets/CATALOG.json"
+    capabilities:
+      controls:
+        - id: "mode"
+          label: "Mode"
+          type: "command"
+          command: "mode {value}"
+          input: "text"
+          description: "Activate an animation mode by name."
+        - id: "color"
+          label: "Solid Color"
+          type: "color"
+          command: "color solid_color {r} {g} {b}"
+          description: "Update the fallback solid color."
+        - id: "script"
+          label: "Play Script"
+          type: "file"
+          command: "play {path}"
+          filters: ["*.mscript"]
+          description: "Play an Mscript asset."
+      outputs:
+        - id: "frame"
+          label: "Frame Stream"
+          topic: "node.animation.frame"
+        - id: "events"
+          label: "Animation Events"
+          topic: "node.animation.event"
+
+  gui:
+    pub_address: "tcp://127.0.0.1:5556"
+
+  display:
+    sub_address: "tcp://127.0.0.1:5555"
+    zoom: 1
+    poll_ms: 5
+
+  display_players:
+    tv1:
+      image: "assets/video/player/tv1.png"
+      screen_bbox: [425, 289, 150, 150]
+      topmost: true
+      drag: true
+      stream:
+        enabled: true
+        sub_address: "tcp://127.0.0.1:5555"
+        poll_ms: 10
+    tv1_static:
+      image: "assets/video/player/tv1.png"
+      screen_bbox: [425, 289, 150, 150]
+      stream:
+        enabled: false
+
+# ── LLM node slice ────────────────────────────────────────────────
+# Was: agent/llm/config.yaml (now deleted). The llm node receives
+# this as JAEGER_NODE_CONFIG; _resolve_node_config walks
+# config.get("llm") then config.get("node") to find its dict.
+llm:
+  node:
+    id: "llm"
+    fps: 20
+    pub_address: "tcp://127.0.0.1:5555"
+    pub_backend_address: "tcp://127.0.0.1:5557"
+    ctrl_address: "tcp://127.0.0.1:5558"
+    sub_address: "tcp://127.0.0.1:5555"
+    subscribe_topics:
+      - ext.stt.text
+      - stt.text
+    publish_topics:
+      - ext.llm.reply
+      - llm.reply
+    model: "gemma3:12b"
+    # Animation-aware system prompt — generated from CATALOG.json by
+    # tools/build_system_prompt.py. Re-run after curating to refresh.
+    # To override with an inline string at experiment time, set
+    # ``system_prompt: "..."`` below (it takes precedence over the
+    # path).
+    system_prompt_path: "assets/SYSTEM_PROMPT.txt"
+    ollama_host: "http://localhost:11434"
+    ollama_timeout: 40
+    capabilities:
+      controls:
+        - id: "prompt"
+          label: "Prompt"
+          type: "text"
+          topic: "ext.stt.text"
+          description: "Send a user prompt to the assistant."
+      outputs:
+        - id: "reply"
+          label: "Assistant Reply"
+          topics:
+            - "ext.llm.reply"
+            - "llm.reply"

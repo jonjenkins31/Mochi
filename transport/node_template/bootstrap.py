@@ -55,33 +55,50 @@ def load_config(
     config_path: Path | None = None,
     *,
     logger: logging.Logger | None = None,
-    env_var: str = "MOCHI_PLUGIN_CONFIG_JSON",
+    env_var: str = "JAEGER_NODE_CONFIG",
 ) -> dict[str, Any]:
-    """Load a node configuration from YAML, applying JSON overrides."""
-    config_path = config_path or (PLUGIN_ROOT / "config.yaml")
+    """Load chassis-fed node config from the env.
+
+    JaegerApp chassis (Phase D, 2026-06-13) is the source of truth:
+    the parent process slices the app's ``config.yaml`` by the node's
+    ``config_key`` and hands it over as JSON in ``JAEGER_NODE_CONFIG``.
+    No cwd-relative file IO.
+
+    The optional ``config_path`` argument is preserved for callers
+    that want to point at a literal YAML file (tests, ad-hoc tools);
+    when set, it wins over the env. The default is env-only — which
+    is what every production node uses today.
+    """
     data: dict[str, Any] = {}
 
-    try:
-        if config_path.exists():
-            with config_path.open("r", encoding="utf-8") as fh:
-                data = yaml.safe_load(fh) or {}
-        else:
-            if logger:
+    if config_path is not None:
+        try:
+            if config_path.exists():
+                with config_path.open("r", encoding="utf-8") as fh:
+                    data = yaml.safe_load(fh) or {}
+            elif logger:
                 logger.warning("Config file missing: %s", config_path)
-    except Exception as exc:
-        if logger:
-            logger.error("Failed to read %s: %s", config_path, exc)
+        except Exception as exc:
+            if logger:
+                logger.error("Failed to read %s: %s", config_path, exc)
+        return data
 
     env_raw = os.environ.get(env_var)
-    if env_raw:
-        try:
-            env_cfg = json.loads(env_raw)
-            if isinstance(env_cfg, dict):
-                data = _merge_dicts(data, env_cfg)
-        except json.JSONDecodeError as exc:
-            if logger:
-                logger.warning("Invalid %s payload: %s", env_var, exc)
-
+    if not env_raw:
+        if logger:
+            logger.error(
+                "%s missing — the node must be spawned by the "
+                "JaegerApp chassis (`python main.py` at the Mochi "
+                "repo root).", env_var,
+            )
+        return data
+    try:
+        env_cfg = json.loads(env_raw)
+        if isinstance(env_cfg, dict):
+            data = env_cfg
+    except json.JSONDecodeError as exc:
+        if logger:
+            logger.error("Invalid %s payload: %s", env_var, exc)
     return data
 
 def _coerce_topic(value: bytes | str, *, logger: logging.Logger | None = None) -> bytes | None:

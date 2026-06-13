@@ -31,23 +31,16 @@ xpub = "tcp://127.0.0.1:5555"
 xsub = "tcp://127.0.0.1:5557"
 
 # ── Nodes ─────────────────────────────────────────────────────────
-# Both Mochi nodes run as subprocesses today (core/plugin_registry.py)
-# and stay subprocesses on the chassis. Restart policy is on_failure
-# with the chassis's exponential backoff + burst limit — strictly
-# stronger than today's run_host(), which breaks its poll loop on the
-# first dead child.
+# Both Mochi nodes run as subprocesses, supervised by the chassis.
+# Restart policy is on_failure with exponential backoff + burst limit
+# — strictly stronger than the run_host() that came before, which
+# broke its poll loop on the first dead child.
 #
-# DISABLED FOR PHASE C (2026-06-13): both nodes load their config via
-# cwd-relative open("config.yaml") (animation) / load_config() default
-# pointing at transport/node_template/config.yaml (llm). The chassis
-# spawns from cwd=Mochi/ — wrong dir for both. Enabling them in this
-# phase would start them with empty/default config, which looks like
-# Mochi works while silently misconfigured.
-#
-# Phase D restructures node config so they read JAEGER_NODE_CONFIG
-# (the chassis's per-node slice from config.yaml) and re-enables both.
-# Phase C ships chassis-owns-boot + surface only; supervisor table is
-# intentionally empty.
+# config_key picks each node's slice of config.yaml; the chassis
+# hands it to the subprocess as JAEGER_NODE_CONFIG, which both nodes
+# read as of Phase D (2026-06-13). The per-node config.yaml files
+# (nodes/animation/config.yaml, agent/llm/config.yaml) are now gone
+# — config.yaml at the repo root is the source of truth.
 
 [[node]]
 id = "animation"
@@ -56,7 +49,7 @@ backend = "subprocess"
 module = "nodes.animation.node"
 restart = "on_failure"
 config_key = "animation"
-enabled = false   # Phase D re-enables (see comment above)
+enabled = true
 
 [[node]]
 id = "llm"
@@ -65,7 +58,7 @@ backend = "subprocess"
 module = "agent.llm.node"
 restart = "on_failure"
 config_key = "llm"
-enabled = false   # Phase D re-enables (see comment above)
+enabled = true
 
 # ── Surfaces ──────────────────────────────────────────────────────
 # Per format §2.7 every window is an in-shell Qt window, NOT a
