@@ -36,6 +36,18 @@ xsub = "tcp://127.0.0.1:5557"
 # with the chassis's exponential backoff + burst limit — strictly
 # stronger than today's run_host(), which breaks its poll loop on the
 # first dead child.
+#
+# DISABLED FOR PHASE C (2026-06-13): both nodes load their config via
+# cwd-relative open("config.yaml") (animation) / load_config() default
+# pointing at transport/node_template/config.yaml (llm). The chassis
+# spawns from cwd=Mochi/ — wrong dir for both. Enabling them in this
+# phase would start them with empty/default config, which looks like
+# Mochi works while silently misconfigured.
+#
+# Phase D restructures node config so they read JAEGER_NODE_CONFIG
+# (the chassis's per-node slice from config.yaml) and re-enables both.
+# Phase C ships chassis-owns-boot + surface only; supervisor table is
+# intentionally empty.
 
 [[node]]
 id = "animation"
@@ -44,7 +56,7 @@ backend = "subprocess"
 module = "nodes.animation.node"
 restart = "on_failure"
 config_key = "animation"
-enabled = true
+enabled = false   # Phase D re-enables (see comment above)
 
 [[node]]
 id = "llm"
@@ -53,7 +65,7 @@ backend = "subprocess"
 module = "agent.llm.node"
 restart = "on_failure"
 config_key = "llm"
-enabled = true
+enabled = false   # Phase D re-enables (see comment above)
 
 # ── Surfaces ──────────────────────────────────────────────────────
 # Per format §2.7 every window is an in-shell Qt window, NOT a

@@ -1,210 +1,95 @@
-"""
-Root entry point for the Mochi host application.
+"""Mochi root entry — JaegerApp chassis (Jaeger app format 0.1).
 
-The host is responsible for launching shared infrastructure (e.g. the message
-broker) and spawning plugin processes such as the animation node.
+This file used to be the host: ~210 lines spawning a broker subprocess,
+loading plugin specs, popening each plugin, polling every 5s, and
+terminating the children on shutdown. Phase C of the Mochi adoption
+(plan §3.2) hands all of that to the chassis:
+
+  ``JaegerApp(PROJECT_ROOT).run()``
+      ├── load manifest        jaeger.toml (declared in Phase B)
+      ├── acquire instance     PID slot — second launch refuses
+      ├── load config          config.yaml — behavior knobs
+      ├── build bus            chassis ZMQ XPUB/XSUB broker thread
+      │                        (replaces transport/broker.py subprocess)
+      ├── start nodes          supervisor + subprocess backends
+      │                        (replaces core/plugin_registry.py + the
+      │                        Popen loop, adds systemd-style restart
+      │                        policy + crash-loop protection that
+      │                        run_host() never had)
+      ├── start surfaces       gui.mochi_companion:run_surface as the
+      │                        main Qt surface — replaces the companion
+      │                        being one more subprocess plugin
+      ├── run                  qt_app.exec()  (chassis owns the loop)
+      └── shutdown             reverse order, signal-safe, atexit-
+                               registered — windows die together,
+                               broker stops, slot released
+
+What's NOT migrated yet:
+  * ``transport/node_base.py`` (MochiNodeBase) — Phase D ports it to
+    ``app.node.FrameNode`` so subprocess nodes read ``JAEGER_BUS_*``
+    natively. Until then the env-var translation below lets the
+    chassis-launched subprocesses keep reading ``MOCHI_BROKER_*``.
+  * ``transport/broker.py`` — orphaned now (chassis runs its own
+    broker). Cleaned up in Phase E.
+  * ``core/host_monitor.py``, ``core/plugin_registry.py`` — orphaned
+    here, removed in Phase E. ``chassis.health.HealthCache`` already
+    consumes ``/sys/node_health`` for "what's alive" queries.
 """
 
 from __future__ import annotations
 
-import json
 import os
-import subprocess
 import sys
-import time
 from pathlib import Path
-from typing import Any, Optional
 
 import yaml
 
-from core.host_monitor import HostMonitor
-from core.plugin_registry import PluginProcess, load_plugin_specs
-
 PROJECT_ROOT = Path(__file__).resolve().parent
-BROKER_ENTRY = PROJECT_ROOT / "transport" / "broker.py"
-ROOT_CONFIG = PROJECT_ROOT / "config.yaml"
-
-DEFAULT_XPUB = "tcp://127.0.0.1:5555"
-DEFAULT_XSUB = "tcp://127.0.0.1:5557"
-DEFAULT_CTRL = "tcp://127.0.0.1:5556"
-DEFAULT_MONITOR_REP = "tcp://127.0.0.1:5560"
+sys.path.insert(0, str(PROJECT_ROOT))
 
 
-def _load_root_config() -> dict:
-    """
-    Load the shared Mochi configuration from the project root, returning an empty
-    dictionary when the file does not exist or cannot be parsed.
-    """
-    try:
-        with ROOT_CONFIG.open("r", encoding="utf-8") as fh:
-            return yaml.safe_load(fh) or {}
-    except FileNotFoundError:
-        print(f"Config not found at {ROOT_CONFIG}; using defaults.")
-    except Exception as exc:
-        print(f"Failed to read {ROOT_CONFIG}: {exc}; using defaults.")
-    return {}
+def _bridge_legacy_env() -> None:
+    """Translate Mochi's legacy env vars from config.yaml so
+    pre-Phase-D nodes (animation, llm) and the companion (which still
+    speaks raw addresses, not ``ctx.bus``) keep working.
 
+    The chassis broker binds to the same ports config.yaml already
+    declares, so subprocess nodes connect to the right endpoints just
+    by reading the same env vars they always did."""
+    cfg_path = PROJECT_ROOT / "config.yaml"
+    if not cfg_path.exists():
+        return
+    cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+    infra = cfg.get("infrastructure", {}) or {}
 
-def launch_broker(
-    python_executable: Optional[str] = None,
-    *,
-    xpub_addr: str,
-    xsub_addr: str,
-) -> subprocess.Popen:
-    """
-    Spawn the ZeroMQ broker that mediates between publishers and subscribers.
-    """
-    python = python_executable or sys.executable
-    if not BROKER_ENTRY.exists():
-        raise FileNotFoundError(f"Broker entry script missing: {BROKER_ENTRY}")
+    broker = infra.get("broker") or {}
+    os.environ.setdefault(
+        "MOCHI_BROKER_XPUB",
+        str(broker.get("frontend_addr", "tcp://127.0.0.1:5555")),
+    )
+    os.environ.setdefault(
+        "MOCHI_BROKER_XSUB",
+        str(broker.get("backend_addr", "tcp://127.0.0.1:5557")),
+    )
 
-    broker_env = os.environ.copy()
-    broker_env["MOCHI_BROKER_XPUB"] = xpub_addr
-    broker_env["MOCHI_BROKER_XSUB"] = xsub_addr
+    gui = infra.get("gui") or {}
+    os.environ.setdefault(
+        "MOCHI_GUI_CTRL_ADDR",
+        str(gui.get("ctrl_address", "tcp://127.0.0.1:5556")),
+    )
 
-    print(f"Launching Mochi broker (XPUB={xpub_addr}, XSUB={xsub_addr})")
-    return subprocess.Popen(
-        [python, str(BROKER_ENTRY)],
-        cwd=str(BROKER_ENTRY.parent),
-        env=broker_env,
+    display = infra.get("display") or {}
+    os.environ.setdefault(
+        "MOCHI_GUI_HEALTH_ADDR",
+        str(display.get("sub_address", "tcp://127.0.0.1:5555")),
     )
 
 
-def run_host():
-    """
-    Mochi Host Application
-    Launches and monitors Mochi plugins.
-    """
-    print("Starting Mochi Host...")
-    config = _load_root_config()
-    infra_cfg = config.get("infrastructure", {}) or {}
-    broker_cfg = infra_cfg.get("broker") or config.get("broker") or {}
-    monitor_cfg = infra_cfg.get("monitor") or config.get("monitor") or {}
-
-    xpub_addr = str(broker_cfg.get("frontend_addr") or DEFAULT_XPUB)
-    xsub_addr = str(broker_cfg.get("backend_addr") or os.environ.get("MOCHI_BROKER_XSUB") or DEFAULT_XSUB)
-    monitor_rep = str(monitor_cfg.get("rep_address") or DEFAULT_MONITOR_REP)
-
-    broker_process: Optional[subprocess.Popen] = None
-    plugin_processes: list[PluginProcess] = []
-
-    plugin_specs = load_plugin_specs(config, PROJECT_ROOT)
-    plugin_specs = [spec for spec in plugin_specs if spec.enabled]
-    if not plugin_specs:
-        print("No plugins scheduled to launch (all disabled in config). Host will start broker/monitor only.")
-
-    monitor = HostMonitor(frontend_addr=xpub_addr, rep_addr=monitor_rep)
-    monitor.start()
-    print(f"Host monitor listening on {monitor_rep}")
-
-    try:
-        broker_process = launch_broker(xpub_addr=xpub_addr, xsub_addr=xsub_addr)
-        for spec in plugin_specs:
-            env = os.environ.copy()
-            env.update({
-                "MOCHI_BROKER_XPUB": xpub_addr,
-                "MOCHI_BROKER_XSUB": xsub_addr,
-                "MOCHI_HOST_MONITOR_REP": monitor_rep,
-            })
-            cfg_payload = {}
-            node_cfg: dict[str, Any] = {}
-            if spec.config_path and spec.config_path.exists():
-                try:
-                    with spec.config_path.open("r", encoding="utf-8") as fh:
-                        cfg_payload = yaml.safe_load(fh) or {}
-                    if spec.config_key and isinstance(cfg_payload, dict):
-                        node_cfg = cfg_payload.get(spec.config_key, {}) or {}
-                    else:
-                        node_cfg = cfg_payload.get("node", {}) if isinstance(cfg_payload, dict) else {}
-                except Exception as exc:
-                    print(f"Warning: failed to load plugin config for '{spec.id}' ({spec.config_path}): {exc}")
-                    cfg_payload = {}
-                    node_cfg = {}
-            else:
-                node_cfg = {}
-
-            node_id = str(node_cfg.get("id") or spec.id or env.get("MOCHI_NODE_ID", ""))
-            if node_id:
-                env.setdefault("MOCHI_NODE_ID", node_id)
-
-            ctrl_addr = (
-                node_cfg.get("ctrl_address")
-                or node_cfg.get("transport", {}).get("ctrl")
-                or os.environ.get("MOCHI_NODE_CTRL_ADDR")
-                or DEFAULT_CTRL
-            )
-            env.setdefault("MOCHI_NODE_CTRL_ADDR", str(ctrl_addr))
-
-            optional_topics = node_cfg.get("optional_topics")
-            if optional_topics:
-                if isinstance(optional_topics, (list, tuple)):
-                    env.setdefault("MOCHI_NODE_OPTIONAL_TOPICS", ",".join(str(t) for t in optional_topics))
-                elif isinstance(optional_topics, str):
-                    env.setdefault("MOCHI_NODE_OPTIONAL_TOPICS", optional_topics)
-
-            if cfg_payload:
-                try:
-                    env["MOCHI_PLUGIN_CONFIG_JSON"] = json.dumps(cfg_payload)
-                except TypeError as exc:
-                    print(f"Warning: unable to serialise config for '{spec.id}' ({exc})")
-            if spec.env:
-                env.update({k: str(v) for k, v in spec.env.items()})
-            if spec.module:
-                existing = env.get("PYTHONPATH")
-                if existing:
-                    env["PYTHONPATH"] = os.pathsep.join([str(PROJECT_ROOT), existing])
-                else:
-                    env["PYTHONPATH"] = str(PROJECT_ROOT)
-
-            process = subprocess.Popen(
-                spec.command(),
-                cwd=str(spec.cwd),
-                env=env,
-            )
-            plugin_processes.append(PluginProcess(spec, process))
-            print(f"Plugin '{spec.id}' started with PID: {process.pid}")
-
-        # Keep the host running, monitoring plugins
-        while True:
-            time.sleep(5)
-            dead = [pp for pp in plugin_processes if pp.poll() is not None]
-            if dead:
-                for pp in dead:
-                    print(f"Plugin '{pp.spec.id}' exited with code {pp.poll()}")
-                break
-    except KeyboardInterrupt:
-        print("Host interrupted; shutting down.")
-    except FileNotFoundError as exc:
-        print(f"Error: {exc}")
-    except Exception as exc:
-        print(f"An error occurred while running the host: {exc}")
-    finally:
-        for plugin_proc in plugin_processes:
-            if plugin_proc.poll() is None:
-                print(f"Shutting down plugin '{plugin_proc.spec.id}'...")
-                plugin_proc.terminate()
-                try:
-                    plugin_proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    print(f"Plugin '{plugin_proc.spec.id}' did not exit promptly; forcing shutdown.")
-                    plugin_proc.kill()
-
-        if broker_process and broker_process.poll() is None:
-            print("Shutting down Mochi broker...")
-            broker_process.terminate()
-            try:
-                broker_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                print("Broker did not exit promptly; forcing shutdown.")
-                broker_process.kill()
-
-        monitor.stop()
-        monitor.join(timeout=2)
-
-
-def main():
-    run_host()
+def main() -> int:
+    _bridge_legacy_env()
+    from app import JaegerApp
+    return JaegerApp(PROJECT_ROOT).run()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
