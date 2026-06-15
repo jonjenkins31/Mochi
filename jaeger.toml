@@ -62,7 +62,7 @@ enabled = true
 id = "llm"
 tier = 3
 backend = "subprocess"
-module = "agent.llm.node"
+module = "agent.node"
 restart = "on_failure"
 config_key = "llm"
 enabled = true
@@ -76,7 +76,7 @@ enabled = true
 [[surface]]
 id = "companion"              # the Wondershare-style companion GUI
 main = true
-factory = "gui.mochi_companion:run_surface"   # (planned — Phase C wires)
+factory = "interfaces.mochi_companion:run_surface"   # (planned — Phase C)
 enabled = true
 
 # Legacy Tk panel — superseded by the companion (see
@@ -86,17 +86,17 @@ enabled = true
 [[surface]]
 id = "legacy_tk"
 main = false
-factory = "gui.mochi_gui:run_surface"          # (planned — Phase C if needed)
+factory = "interfaces.mochi_gui:run_surface"   # (planned — Phase C if needed)
 enabled = false
 
 # Tray — Pattern 1 + Tray persistent surface. NSStatusBar / Qt
 # QSystemTrayIcon. Declared as enabled=false today; the chassis
-# Surface contract for trays needs the gui/mochi_tray.py module
-# (planned) that exposes run_surface(ctx, spec) returning a
+# Surface contract for trays needs the interfaces/mochi_tray.py
+# module (planned) that exposes run_surface(ctx, spec) returning a
 # QSystemTrayIcon. When wired: tray shows current animation,
 # Library quick-pick, "Open Companion", "Quit Mochi".
 [[surface]]
 id = "tray"
 main = false
-factory = "gui.mochi_tray:run_surface"         # (planned — follow-up)
+factory = "interfaces.mochi_tray:run_surface"  # (planned — follow-up)
 enabled = false

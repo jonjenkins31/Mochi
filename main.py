@@ -16,7 +16,7 @@ terminating the children on shutdown. Phase C of the Mochi adoption
       │                        Popen loop, adds systemd-style restart
       │                        policy + crash-loop protection that
       │                        run_host() never had)
-      ├── start surfaces       gui.mochi_companion:run_surface as the
+      ├── start surfaces       interfaces.mochi_companion:run_surface as the
       │                        main Qt surface — replaces the companion
       │                        being one more subprocess plugin
       ├── run                  qt_app.exec()  (chassis owns the loop)

@@ -17,7 +17,7 @@ from transport.messages import (
 )
 from transport.node_base import MochiNodeBase
 
-from .ollama_client import OllamaClient
+from .adapters.ollama import OllamaClient
 from transport.node_template import (
     PROJECT_ROOT,
     build_optional_topics,
