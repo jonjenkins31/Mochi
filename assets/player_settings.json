@@ -1,6 +1,6 @@
 {
-  "canvas_w": 64,
-  "canvas_h": 64,
+  "canvas_w": 512,
+  "canvas_h": 512,
   "topmost": true,
   "opacity": 1.0,
   "default_framing": "fill"
