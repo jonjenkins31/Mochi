@@ -1,24 +1,31 @@
 # Mochi — Jaeger app format manifest (format 0.1)
 #
-# Phase B (additive, descriptive). main.py still boots through the
-# existing run_host(); this manifest is not consumed at runtime until
-# Phase C rebases main.py onto JaegerApp.
+# ─────────────────────────────────────────────────────────────────
+#  PATTERN 1 + TRAY (Jenkins Robotics standard, 2026-06-14)
+# ─────────────────────────────────────────────────────────────────
+#  macOS-native Qt app: menu bar persists when the last window
+#  closes; tray icon (planned) is the always-on indicator; Cmd+Q
+#  is the real quit. Same shape as Affinity, Spotify, Slack,
+#  Discord, ChatGPT desktop. Single Dock icon.
 #
-# Migration plan: ~/GITHUB/JROS/docs/JROS_APP_FRAMEWORK_PLAN.md §3.2
-# (Mochi migration map). Surface `factory` fields name the callables
-# Phase C will introduce — declared here so the topology is complete
-# now and Phase C is a wiring exercise, not a redesign.
+# Phases A-E + Diagnostics-tab landed: chassis owns boot, bus,
+# supervisor, surfaces. Today's Mochi behaves as Pattern 0 in
+# practice (close companion = quit); flipping shell_quits_core
+# to false makes it Pattern 1 — companion close keeps the menu bar
+# alive, File → New Companion reopens. Tray surface declared as a
+# stub; real tray wiring is follow-up work.
 
 [app]
 name = "mochi"
 version = "0.1.0"
 requires_framework = ">=0.1"
-mode = "fused"                # shell + core in one process (plan §2.0)
-event_loop = "qt"             # Qt main thread owned by the shell
+mode = "fused"                # single process, all windows in-shell
+event_loop = "qt"             # chassis owns QApplication.exec()
 ui = "pyside6"
-single_instance = true        # the "single Dock instance" rule
-autostart = false             # not split-mode yet — no LaunchAgent
-shell_quits_core = true       # close companion = quit (plan §1.1)
+single_instance = true        # one Dock icon, second launch refuses
+autostart = false             # operator adds to Login Items if desired
+shell_quits_core = false      # PATTERN 1: close window keeps app
+                              # alive; menu bar persists; Cmd+Q quits
 config = "config.yaml"
 
 # Bus — ZMQ XPUB/XSUB broker. Ports preserved from config.yaml's
@@ -80,4 +87,16 @@ enabled = true
 id = "legacy_tk"
 main = false
 factory = "gui.mochi_gui:run_surface"          # (planned — Phase C if needed)
+enabled = false
+
+# Tray — Pattern 1 + Tray persistent surface. NSStatusBar / Qt
+# QSystemTrayIcon. Declared as enabled=false today; the chassis
+# Surface contract for trays needs the gui/mochi_tray.py module
+# (planned) that exposes run_surface(ctx, spec) returning a
+# QSystemTrayIcon. When wired: tray shows current animation,
+# Library quick-pick, "Open Companion", "Quit Mochi".
+[[surface]]
+id = "tray"
+main = false
+factory = "gui.mochi_tray:run_surface"         # (planned — follow-up)
 enabled = false
