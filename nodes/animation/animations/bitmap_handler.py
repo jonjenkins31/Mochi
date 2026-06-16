@@ -23,7 +23,10 @@ Output:
 import numpy as np
 import os
 import json
+import logging
 from plugin_core.mochi_animations import Animation
+
+logger = logging.getLogger(__name__)
 
 class BitmapHandler(Animation):
     """
@@ -70,7 +73,7 @@ class BitmapHandler(Animation):
         if path:
             self._load_from_path(path)
         else:
-            print("Warning: BitmapHandler received no asset_path.")
+            logger.warning("BitmapHandler received no asset_path.")
 
         if "FG" in kwargs and isinstance(kwargs["FG"], list):
             self.on_color = np.array(kwargs["FG"], dtype=np.uint8)

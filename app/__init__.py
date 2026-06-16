@@ -13,8 +13,9 @@ Copy-ability rules (enforced by tests/test_app_format.py):
     jaeger.toml declares ``requires_framework`` against it.
 
 Layout:
-  app.py         the chassis — manifest → config → bus → nodes →
+  app.py         the chassis — manifest → config → bus → core → nodes →
                  surfaces → run → teardown
+  core.py        Core — the Tier-1 main-thread host role (NOT a node)
   node.py        Node + NodeState (the universal lifecycle contract)
   supervisor.py  NodeHandle + thread/subprocess backends, restart
                  policy (never|on_failure|always + backoff), diagnose
@@ -33,9 +34,17 @@ from .app import JaegerApp
 from .bus.api import Bus, MessageRegistry, RawMessage
 from .bus.inproc import InProcBus
 from .config import load_config
+from .core import Core, CoreMainThreadError
 from .health import HealthCache, NodeHealth
 from .logging import LogLine, log
-from .manifest import AppSpec, BusSpec, NodeSpec, SurfaceSpec, load_manifest
+from .manifest import (
+    AppSpec,
+    BusSpec,
+    CoreSpec,
+    NodeSpec,
+    SurfaceSpec,
+    load_manifest,
+)
 from .node import FrameNode, Node, NodeState
 from .supervisor import NodeHandle, Supervisor
 
@@ -46,10 +55,12 @@ FRAMEWORK_FORMAT = "0.1"
 __all__ = [
     "FRAMEWORK_FORMAT",
     "JaegerApp",
+    "Core", "CoreMainThreadError",
     "Node", "FrameNode", "NodeState",
     "Supervisor", "NodeHandle",
     "Bus", "InProcBus", "MessageRegistry", "RawMessage",
-    "AppSpec", "NodeSpec", "SurfaceSpec", "BusSpec", "load_manifest",
+    "AppSpec", "CoreSpec", "NodeSpec", "SurfaceSpec", "BusSpec",
+    "load_manifest",
     "load_config",
     "NodeHealth", "HealthCache",
     "LogLine", "log",

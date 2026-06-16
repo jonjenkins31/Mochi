@@ -48,8 +48,8 @@ from typing import Any
 
 from PySide6.QtCore import Qt, QObject, QSize, Signal, QTimer, QUrl
 from PySide6.QtGui import (
-    QFont, QIcon, QPixmap, QColor, QPalette, QDesktopServices, QMovie,
-    QImage,
+    QFont, QFontDatabase, QIcon, QPixmap, QColor, QPalette,
+    QDesktopServices, QMovie, QImage,
 )
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
@@ -63,6 +63,21 @@ from PySide6.QtWidgets import (
 )
 
 import zmq
+
+from core.companion_services import (
+    PlayerSettingsStore,
+    RecentStore,
+    UnsupportedAnimation,
+    color_command,
+    command_for_catalog_entry,
+    command_for_slot_value,
+    filter_catalog_entries,
+    framing_command,
+    load_catalog as load_catalog_file,
+    mode_off_command,
+    mode_on_command,
+    size_command,
+)
 
 GUI_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = GUI_DIR.parent
@@ -94,20 +109,7 @@ THUMBS_DIR   = PROJECT_ROOT / "assets" / "thumbs"
 PINNED_FILE  = PROJECT_ROOT / "assets" / "pinned.json"
 PLAYER_SETTINGS_FILE = PROJECT_ROOT / "assets" / "player_settings.json"
 LEARN_DIR    = PROJECT_ROOT / "docs" / "learn"
-
-# Player-window defaults, used when player_settings.json is missing
-# or malformed.  Operator-editable via Settings → Player.
-DEFAULT_PLAYER_SETTINGS: dict = {
-    "canvas_w": 512,
-    "canvas_h": 512,
-    "topmost":  True,
-    "opacity":  1.0,
-    # Render-side knob (lives in the same file for now so there's
-    # one settings sink the companion shows in one Settings tab).
-    # Sent to the animation node via the ``framing`` ctrl command at
-    # companion startup + whenever the operator saves it.
-    "default_framing": "stretch",
-}
+PLAYER_SETTINGS = PlayerSettingsStore(PLAYER_SETTINGS_FILE)
 
 
 def load_player_settings() -> dict:
@@ -117,45 +119,14 @@ def load_player_settings() -> dict:
     (operator note 2026-06-10).  Defaults applied for any missing
     keys so a partially-written file still works.
     """
-    out = dict(DEFAULT_PLAYER_SETTINGS)
-    if not PLAYER_SETTINGS_FILE.is_file():
-        return out
-    try:
-        data = json.loads(PLAYER_SETTINGS_FILE.read_text())
-        if isinstance(data, dict):
-            for k, default in DEFAULT_PLAYER_SETTINGS.items():
-                v = data.get(k, default)
-                # Type coerce — int for sizes, float for opacity,
-                # bool for topmost.
-                if isinstance(default, bool):
-                    out[k] = bool(v)
-                elif isinstance(default, int):
-                    try:
-                        out[k] = int(v)
-                    except (TypeError, ValueError):
-                        out[k] = default
-                elif isinstance(default, float):
-                    try:
-                        out[k] = float(v)
-                    except (TypeError, ValueError):
-                        out[k] = default
-                else:
-                    out[k] = v
-    except Exception:  # noqa: BLE001
-        pass
-    return out
+    return PLAYER_SETTINGS.load()
 
 
 def save_player_settings(settings: dict) -> None:
     """Atomic write — tmp + rename — so partial writes don't corrupt
     the settings file."""
     try:
-        PLAYER_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        merged = dict(DEFAULT_PLAYER_SETTINGS)
-        merged.update(settings or {})
-        tmp = PLAYER_SETTINGS_FILE.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(merged, indent=2) + "\n")
-        tmp.replace(PLAYER_SETTINGS_FILE)
+        PLAYER_SETTINGS.save(settings)
     except Exception as exc:  # noqa: BLE001
         print(f"[player] failed to persist settings: {exc}")
 MINI_LAUNCHER = GUI_DIR / "mochi_vdisplay_player_qt.py"
@@ -217,7 +188,7 @@ STYLESHEET = f"""
 QMainWindow, QWidget {{
     background: {BG_BASE};
     color: {TEXT_MAIN};
-    font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Helvetica Neue", "Segoe UI", Arial, sans-serif;
 }}
 
 /* Sidebar */
@@ -486,12 +457,7 @@ class ProcessRegistry(QObject):
 # ── catalog loader ─────────────────────────────────────────────────
 
 def load_catalog() -> dict:
-    if not CATALOG_PATH.is_file():
-        return {"entries": []}
-    try:
-        return json.loads(CATALOG_PATH.read_text())
-    except Exception:  # noqa: BLE001
-        return {"entries": []}
+    return load_catalog_file(CATALOG_PATH)
 
 
 def discover_skins() -> list[dict]:
@@ -1245,38 +1211,14 @@ class LibraryPage(QWidget):
         self._current_curation = curation
         self._rebuild_grid()
 
-    @staticmethod
-    def _is_curated(entry: dict) -> bool:
-        """Heuristic: the sidecar has been hand-touched (operator
-        added a curation field).  The scaffolder leaves ``author``
-        commented out, so a populated ``author`` is the simplest
-        proxy.  Once more reliable curation markers exist, refine."""
-        return bool(entry.get("author"))
-
     def _filtered(self) -> list[dict]:
-        results = []
-        for e in self.entries:
-            if (self._current_mood != "all"
-                    and e.get("mood") != self._current_mood):
-                continue
-            if (self._current_type != "all"
-                    and e.get("type") != self._current_type):
-                continue
-            if self._current_curation == "curated" and not self._is_curated(e):
-                continue
-            if self._current_curation == "uncurated" and self._is_curated(e):
-                continue
-            if self._search_text:
-                hay = " ".join([
-                    e.get("name", ""),
-                    e.get("type", ""),
-                    " ".join(e.get("tags", [])),
-                    e.get("hint", ""),
-                ]).lower()
-                if self._search_text not in hay:
-                    continue
-            results.append(e)
-        return results
+        return filter_catalog_entries(
+            self.entries,
+            mood=self._current_mood,
+            type_=self._current_type,
+            curation=self._current_curation,
+            search_text=self._search_text,
+        )
 
     def _rebuild_grid(self) -> None:
         # Clear existing
@@ -1294,38 +1236,16 @@ class LibraryPage(QWidget):
     def _on_card_click(self, entry: dict) -> None:
         """Click on a card → fire the animation through ctrl socket.
 
-        Sends the FILENAME STEM, not the curated display name.
-        ``entry["name"]`` becomes the sidecar's display name after
-        the build_catalog merge (e.g. "Happy Blink" with a space),
-        but the animation handlers + catalog lookup key on the
-        filename stem (``happy_blink``).  Path-derived stem is the
-        identity.
-
-        Also notifies the parent CompanionMain so Home's recent
-        strip updates (Phase 3 of the Tk supersede migration).
+        Command resolution is toolkit-neutral; this widget only sends
+        the resolved command and updates visible recent state.
         """
-        path = entry.get("path", "")
-        type_ = entry.get("type", "")
-        stem = Path(path).stem if path else entry.get("name", "")
-        # Catch-all for asset types we KNOW have no runtime handler
-        # yet — declarative JSONs without a registered renderer.
-        # Surfaces the gap explicitly instead of letting the renderer
-        # reject with the generic "not a valid command" error.
-        _NO_HANDLER_TYPES = {
-            "animations": "eye-blink JSONs (left/right eye sprite refs)",
-            "procedural": "procedural JSON configs (color_wheel)",
-        }
-        if type_ in _NO_HANDLER_TYPES:
-            print(
-                f"[library] type={type_!r} ({_NO_HANDLER_TYPES[type_]}) "
-                f"has no runtime handler yet — '{stem}' won't activate. "
-                f"Try a gif, math, mscript, or bitmap entry."
-            )
+        resolved = command_for_catalog_entry(entry)
+        if resolved is None:
             return
-        if type_ == "mscripts":
-            self.ctrl.send(f"play {path}")
-        else:
-            self.ctrl.send(f"node animation mode on {stem}")
+        if isinstance(resolved, UnsupportedAnimation):
+            print(f"[library] {resolved.message}")
+            return
+        self.ctrl.send(resolved.command)
         # Bubble up to Home so the recent strip updates.  Walk up
         # parents until we find the main window with a HomePage.
         w = self
@@ -1333,7 +1253,7 @@ class LibraryPage(QWidget):
             if hasattr(w, "pages"):
                 home = w.pages.get("Home")
                 if isinstance(home, HomePage):
-                    home.push_recent(stem)
+                    home.push_recent(resolved.recent_name)
                 break
             w = w.parent()
 
@@ -1717,14 +1637,10 @@ class PacksPage(QWidget):
         mode resolver handles dispatch (same path used by the Library
         page).
         """
-        if isinstance(slot_value, list):
-            slot_value = slot_value[0] if slot_value else None
-        if isinstance(slot_value, dict):
-            slot_value = slot_value.get("file") or slot_value.get("name")
-        if not slot_value:
+        resolved = command_for_slot_value(slot_value)
+        if resolved is None:
             return
-        stem = Path(str(slot_value)).stem
-        self.ctrl.send(f"node animation mode on {stem}")
+        self.ctrl.send(resolved.command)
 
     def _on_set_active(self, pack: dict) -> None:
         pack_id = pack.get("id")
@@ -1910,7 +1826,11 @@ class HomePage(QWidget):
         self.health = health
         self.sidebar = sidebar
         self.procs = procs
-        self._recent: list[str] = self._load_recent()
+        self._recent_store = RecentStore(
+            self.RECENT_FILE,
+            max_items=self.RECENT_MAX,
+        )
+        self._recent: list[str] = self._recent_store.load()
         # Diff-updated nodes table: one entry per node id, each
         # holding the row frame + its cell labels so refreshes can
         # setText in place (buttons persist across refreshes).
@@ -1960,36 +1880,15 @@ class HomePage(QWidget):
 
     # ── recent history ────────────────────────────────────────────
 
-    def _load_recent(self) -> list[str]:
-        if not self.RECENT_FILE.is_file():
-            return []
-        try:
-            data = json.loads(self.RECENT_FILE.read_text())
-            if isinstance(data, list):
-                return [str(x) for x in data if isinstance(x, str)]
-        except Exception:  # noqa: BLE001
-            pass
-        return []
-
-    def _save_recent(self) -> None:
-        try:
-            self.RECENT_FILE.parent.mkdir(parents=True, exist_ok=True)
-            self.RECENT_FILE.write_text(
-                json.dumps(self._recent[: self.RECENT_MAX], indent=2)
-                + "\n"
-            )
-        except Exception as exc:  # noqa: BLE001
-            print(f"[home] failed to persist recent.json: {exc}")
-
     def push_recent(self, name: str) -> None:
         """Companion calls this whenever an animation gets fired."""
         if not name:
             return
-        if name in self._recent:
-            self._recent.remove(name)
-        self._recent.insert(0, name)
-        self._recent = self._recent[: self.RECENT_MAX]
-        self._save_recent()
+        try:
+            self._recent = self._recent_store.push(name)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[home] failed to persist recent.json: {exc}")
+            return
         self._rebuild_recent_strip()
 
     # ── hero card ─────────────────────────────────────────────────
@@ -2363,11 +2262,11 @@ class HomePage(QWidget):
     # ── helpers ───────────────────────────────────────────────────
 
     def _fire(self, name: str) -> None:
-        self.ctrl.send(f"node animation mode on {name}")
+        self.ctrl.send(mode_on_command(name))
         self.push_recent(name)
 
     def _on_stop_clicked(self) -> None:
-        self.ctrl.send("node animation mode off")
+        self.ctrl.send(mode_off_command())
 
     def _launch_perf_monitor(self) -> None:
         script = GUI_DIR / "mochi_perf.py"
@@ -3093,7 +2992,7 @@ class DiagnosticsPage(QWidget):
     uptime, restarts, policy, health age) refreshed every 500 ms,
     plus the four operator verbs (Start / Stop / Restart / Diagnose)
     and a live ``/sys/log`` feed so chassis events ("node animation
-    started", "node llm died; restart in 1 s") are visible without
+    started", "node agent died; restart in 1 s") are visible without
     a terminal.
 
     When the page is constructed without a JaegerApp ``ctx`` —
@@ -3607,7 +3506,7 @@ class CompanionMain(QMainWindow):
     def _on_stop_clicked(self) -> None:
         """Send "mode off" to the animation node.  Matches the Tk
         panel's Turn Off button behaviour exactly."""
-        self.ctrl.send("node animation mode off")
+        self.ctrl.send(mode_off_command())
         self.logger.info("Stop clicked — sent 'mode off'")
 
     def _on_health_error(self, msg: str) -> None:
@@ -3635,13 +3534,13 @@ class CompanionMain(QMainWindow):
             # 2026-06-11.
             cw = max(8, int(settings.get("canvas_w", 512)))
             ch = max(8, int(settings.get("canvas_h", 512)))
-            self.ctrl.send(f"node animation size {cw}x{ch}")
+            self.ctrl.send(size_command(cw, ch))
             self.logger.info(
                 "synced render size to animation node: %dx%d", cw, ch,
             )
             framing = str(settings.get("default_framing", "stretch")).lower()
             if framing in ("fit", "fill", "stretch"):
-                self.ctrl.send(f"node animation framing {framing}")
+                self.ctrl.send(framing_command(framing))
                 self.logger.info(
                     "synced default framing to animation node: %s",
                     framing,
@@ -3653,7 +3552,7 @@ class CompanionMain(QMainWindow):
         ctrl path the Library card uses."""
         if not name:
             return
-        self.ctrl.send(f"node animation mode on {name}")
+        self.ctrl.send(mode_on_command(name))
         self.logger.info("pin fired — %s", name)
         # Record into Home's recent strip if Home is up.
         home = self.pages.get("Home")
@@ -3905,7 +3804,7 @@ class CompanionMain(QMainWindow):
         # Live-update the renderer's buffer size so the next animation
         # paints at the new resolution without a node restart.  Same
         # ctrl command companion uses on every startup.
-        self.ctrl.send(f"node animation size {w}x{h}")
+        self.ctrl.send(size_command(w, h))
         self.logger.info(
             "player canvas saved %dx%d + renderer size synced "
             "(re-open mini window to apply size change)", w, h,
@@ -3919,7 +3818,7 @@ class CompanionMain(QMainWindow):
         current = load_player_settings()
         current["default_framing"] = mode
         save_player_settings(current)
-        self.ctrl.send(f"node animation framing {mode}")
+        self.ctrl.send(framing_command(mode))
         self.logger.info(
             "default framing saved %s + sent to renderer", mode,
         )
@@ -4269,7 +4168,13 @@ class CompanionMain(QMainWindow):
         size = self._size_entry.text().strip()
         if "x" not in size.lower():
             return
-        self.ctrl.send(f"node animation size {size}")
+        try:
+            w_str, h_str = size.lower().split("x", 1)
+            w = int(w_str)
+            h = int(h_str)
+        except (TypeError, ValueError):
+            return
+        self.ctrl.send(size_command(w, h))
 
     def _apply_colour(self) -> None:
         parts = self._rgb_entry.text().split()
@@ -4281,11 +4186,9 @@ class CompanionMain(QMainWindow):
             return
         target = self._colour_target.currentText()
         if target == "current":
-            self.ctrl.send(f"node animation color {r} {g} {b}")
+            self.ctrl.send(color_command((r, g, b)))
         else:
-            self.ctrl.send(
-                f"node animation color {target} {r} {g} {b}"
-            )
+            self.ctrl.send(color_command((r, g, b), target=target))
 
     def _send_raw(self) -> None:
         text = self._raw_entry.text().strip()
@@ -4367,7 +4270,9 @@ def _set_qt_app_metadata(app: QApplication) -> None:
     app.setApplicationName("Mochi")
     app.setOrganizationName("Jenkins Robotics")
     app.setOrganizationDomain("jenkinsrobotics.github.io")
-    app.setFont(QFont("-apple-system", 13))
+    font = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
+    font.setPointSize(13)
+    app.setFont(font)
     # Dasai-Mochi-inspired app icon — drives the macOS Dock badge,
     # cmd-tab thumbnail, and window-frame icon. Built by
     # tools/build_app_icon.py.

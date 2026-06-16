@@ -6,7 +6,7 @@
 # Each [[node]] entry in jaeger.toml carries a config_key; the chassis
 # loads our slice by that key and hands it to the subprocess as
 # JAEGER_NODE_CONFIG. So `animation:` here ends up as the animation
-# node's whole config dict, and `llm:` becomes the llm node's.
+# node's whole config dict, and `agent:` becomes the agent node's.
 #
 # (Pre-Phase-C this was per-node config.yaml files spread under
 # nodes/animation/ and agent/llm/, loaded cwd-relative by run_host.
@@ -113,13 +113,14 @@ animation:
       stream:
         enabled: false
 
-# ── LLM node slice ────────────────────────────────────────────────
-# Was: agent/llm/config.yaml (now deleted). The llm node receives
-# this as JAEGER_NODE_CONFIG; _resolve_node_config walks
-# config.get("llm") then config.get("node") to find its dict.
-llm:
+# ── Agent node slice ──────────────────────────────────────────────
+# Was: agent/llm/config.yaml (now deleted). The agent node receives
+# this as JAEGER_NODE_CONFIG; _resolve_node_config still accepts a
+# legacy `llm:` wrapper for older experiments, but `agent:` is the
+# source of truth.
+agent:
   node:
-    id: "llm"
+    id: "agent"
     fps: 20
     pub_address: "tcp://127.0.0.1:5555"
     pub_backend_address: "tcp://127.0.0.1:5557"
@@ -131,6 +132,8 @@ llm:
     publish_topics:
       - ext.llm.reply
       - llm.reply
+    persona: "Mochi"
+    adapter: "ollama"
     model: "gemma3:12b"
     # Animation-aware system prompt — generated from CATALOG.json by
     # tools/build_system_prompt.py. Re-run after curating to refresh.
@@ -149,7 +152,7 @@ llm:
           description: "Send a user prompt to the assistant."
       outputs:
         - id: "reply"
-          label: "Assistant Reply"
+          label: "Agent Reply"
           topics:
             - "ext.llm.reply"
             - "llm.reply"

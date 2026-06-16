@@ -1,8 +1,13 @@
-"""Gemma-powered LLM node for Mochi."""
+"""Mochi agent node.
+
+This file remains the subprocess entrypoint used by ``jaeger.toml`` and the
+legacy transport topics. Durable agent behavior lives under ``agent/loop``,
+``agent/tools``, ``agent/prompts``, ``agent/personas``, and
+``agent/adapters``.
+"""
 
 from __future__ import annotations
 
-import datetime as dt
 import os
 from typing import Iterable, Sequence
 
@@ -17,7 +22,8 @@ from transport.messages import (
 )
 from transport.node_base import MochiNodeBase
 
-from .adapters.ollama import OllamaClient
+from .adapters.registry import build_adapter_registry
+from .loop.runtime import AgentRuntime
 from transport.node_template import (
     PROJECT_ROOT,
     build_optional_topics,
@@ -29,8 +35,8 @@ DEFAULT_SUBSCRIBE_TOPICS: tuple[bytes, ...] = (EXT_STT_TEXT, TOPIC_STT_TEXT)
 DEFAULT_PUBLISH_TOPICS: tuple[bytes, ...] = (EXT_LLM_REPLY, TOPIC_LLM_REPLY)
 
 
-class LLMNode(MochiNodeBase):
-    """Listens for STT text and responds with LLM replies via Ollama."""
+class AgentNode(MochiNodeBase):
+    """Listens for user text and responds with agent replies."""
 
     def __init__(
         self,
@@ -49,12 +55,13 @@ class LLMNode(MochiNodeBase):
             config.get("publish_topics"), defaults=DEFAULT_PUBLISH_TOPICS
         )
         if not self._publish_topics:
-            raise ValueError("LLM node must publish to at least one topic.")
+            raise ValueError("Agent node must publish to at least one topic.")
         self.capabilities = config.get("capabilities", {})
 
         ollama_host = config.get("ollama_host", "http://localhost:11434")
         timeout_s = float(config.get("ollama_timeout", 30))
         self.model = config.get("model", "gemma3:12b")
+        self.persona = config.get("persona", "Mochi")
         # System prompt resolution (in order of precedence):
         #   1. config.system_prompt          inline string (highest)
         #   2. config.system_prompt_path     file relative to project_root
@@ -84,11 +91,18 @@ class LLMNode(MochiNodeBase):
         else:
             self.system_prompt = ""
 
-        self._ollama = OllamaClient(
-            base_url=ollama_host,
-            model=self.model,
-            timeout=timeout_s,
+        adapter_name = config.get("adapter", "ollama")
+        self.adapters = build_adapter_registry(
+            active=adapter_name,
+            ollama_host=ollama_host,
+            ollama_model=self.model,
+            ollama_timeout=timeout_s,
             logger=self.logger,
+        )
+        self.runtime = AgentRuntime(
+            adapters=self.adapters,
+            persona=self.persona,
+            system_prompt=self.system_prompt,
         )
 
         self._sub_socket = self._ctx.socket(zmq.SUB)
@@ -102,7 +116,8 @@ class LLMNode(MochiNodeBase):
         self._last_reply_text: str | None = None
 
         self.logger.info(
-            "LLM node ready (model=%s, host=%s, subscribe=%s, publish=%s)",
+            "Agent node ready (adapter=%s, model=%s, host=%s, subscribe=%s, publish=%s)",
+            self.adapters.active,
             self.model,
             ollama_host,
             [t.decode("utf-8", errors="ignore") for t in self._subscribe_topics],
@@ -134,27 +149,8 @@ class LLMNode(MochiNodeBase):
                 seen.add(topic)
         return tuple(deduped)
 
-    def _quick_reply(self, text: str) -> str | None:
-        lowered = text.lower().strip()
-        if not lowered:
-            return None
-        if "time" in lowered:
-            return dt.datetime.now().strftime("The time is %H:%M:%S.")
-        if lowered.startswith("echo "):
-            return text[5:]
-        if lowered in {"hi", "hello"}:
-            return "Hello! How can I help?"
-        return None
-
     def _generate_reply(self, text: str) -> str:
-        quick = self._quick_reply(text)
-        if quick is not None:
-            return quick
-
-        response = self._ollama.generate(text, system_prompt=self.system_prompt or None)
-        if response:
-            return response
-        return "I'm sorry, I couldn't generate a response right now."
+        return self.runtime.respond(text)
 
     def _send_reply(self, reply: str, *, request: Msg) -> None:
         message = build(
@@ -176,7 +172,7 @@ class LLMNode(MochiNodeBase):
                 self.logger.error("Failed to publish reply on %s: %s", topic, exc, exc_info=True)
 
         self.enqueue_event(
-            "llm.reply",
+            "agent.reply",
             request_id=request.id,
             text=reply,
             topics=[t.decode("utf-8", errors="ignore") for t in self._publish_topics],
@@ -204,7 +200,7 @@ class LLMNode(MochiNodeBase):
 
             self._last_request_ts = timestamp
             self._messages_processed += 1
-            self.enqueue_event("llm.request", request_id=msg.id, text=msg.text)
+            self.enqueue_event("agent.request", request_id=msg.id, text=msg.text)
 
             reply = self._generate_reply(msg.text)
             self._last_reply_text = reply
@@ -220,36 +216,50 @@ class LLMNode(MochiNodeBase):
         if action == "model" and len(parts) >= 2:
             new_model = parts[1]
             self.model = new_model
-            self._ollama.set_model(new_model)
-            self.enqueue_event("llm.config.model", model=new_model)
+            ollama = self.adapters.adapters.get("ollama")
+            if hasattr(ollama, "set_model"):
+                ollama.set_model(new_model)
+            self.enqueue_event("agent.config.model", model=new_model)
             self.logger.info("Model switched to %s", new_model)
+        elif action == "adapter" and len(parts) >= 2:
+            adapter = parts[1]
+            if self.adapters.use(adapter):
+                self.enqueue_event("agent.config.adapter", adapter=adapter)
+                self.logger.info("Adapter switched to %s", adapter)
+            else:
+                self.logger.warning("Unknown adapter: %s", adapter)
         elif action == "system":
             prompt = " ".join(parts[1:]).strip()
             self.system_prompt = prompt
-            self.enqueue_event("llm.config.system_prompt", length=len(prompt))
+            self.runtime.system_prompt = prompt
+            self.enqueue_event("agent.config.system_prompt", length=len(prompt))
             self.logger.info("System prompt updated (%d chars)", len(prompt))
         elif action == "status":
             self.logger.info(
-                "Model=%s system_prompt_len=%d processed=%d",
+                "Adapter=%s model=%s system_prompt_len=%d processed=%d",
+                self.adapters.active,
                 self.model,
                 len(self.system_prompt),
                 self._messages_processed,
             )
         else:
-            self.logger.warning("Unknown LLM command: %s", command)
+            self.logger.warning("Unknown agent command: %s", command)
 
     # ------------------------------------------------------------------ metadata
     def get_health_details(self) -> dict:
         return {
             "logical_size": {"width": 0, "height": 0},
             "model": self.model,
+            "adapter": self.adapters.active,
+            "persona": self.persona,
             "messages_processed": self._messages_processed,
             "last_request_ts": self._last_request_ts,
+            **self.runtime.health(),
         }
 
     def get_meta_details(self) -> dict:
         return {
-            "description": "Gemma LLM node",
+            "description": "Mochi agent node",
             "subscribe_topics": [
                 topic.decode("utf-8", errors="ignore") for topic in self._subscribe_topics
             ],
@@ -262,16 +272,20 @@ class LLMNode(MochiNodeBase):
     # ------------------------------------------------------------------ teardown
     def on_shutdown(self) -> None:
         try:
+            self.runtime.flush()
             self._sub_socket.close(linger=0)
         except Exception:
             pass
-        self.logger.info("LLM node shutdown complete.")
+        self.logger.info("Agent node shutdown complete.")
 
 
 def _resolve_node_config(raw_config: dict) -> dict:
     node_config: dict = {}
+    agent_section = raw_config.get("agent")
+    if isinstance(agent_section, dict):
+        node_config = agent_section.get("node") or agent_section
     llm_section = raw_config.get("llm")
-    if isinstance(llm_section, dict):
+    if not node_config and isinstance(llm_section, dict):
         node_config = llm_section.get("node") or llm_section
     if not node_config:
         node_config = raw_config.get("node", {}) or {}
@@ -279,24 +293,27 @@ def _resolve_node_config(raw_config: dict) -> dict:
 
 
 def main() -> None:
-    logger = setup_logging("LLMNode")
+    logger = setup_logging("AgentNode")
     config = load_config(logger=logger)
     node_config = _resolve_node_config(config)
 
-    node_id = os.environ.get("MOCHI_NODE_ID") or node_config.get("id") or "llm"
+    node_id = os.environ.get("MOCHI_NODE_ID") or node_config.get("id") or "agent"
     optional_topics = build_optional_topics(
         node_config,
         logger=logger,
         extra=DEFAULT_PUBLISH_TOPICS,
     )
 
-    node = LLMNode(
+    node = AgentNode(
         node_id=node_id,
         config=node_config,
         project_root=str(PROJECT_ROOT),
         optional_topics=optional_topics or None,
     )
     node.run()
+
+
+LLMNode = AgentNode
 
 
 if __name__ == "__main__":

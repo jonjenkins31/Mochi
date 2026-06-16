@@ -321,7 +321,18 @@ class Supervisor:
                         level="warn", bus=self._bus)
                 elif now >= pending[h.spec.id]:
                     pending.pop(h.spec.id)
-                    h.restart()
+                    try:
+                        h.restart()
+                    except Exception as exc:  # noqa: BLE001
+                        h.failure_times.append(time.monotonic())
+                        h.failure_times = h.failure_times[-_BURST_LIMIT * 2:]
+                        h.last_error = (
+                            f"restart failed: {type(exc).__name__}: {exc}"
+                        )
+                        log("supervisor",
+                            f"node {h.spec.id} {h.last_error}",
+                            level="error", bus=self._bus)
+                        continue
                     log("supervisor", f"node {h.spec.id} restarted "
                         f"(restart #{h.restarts})", bus=self._bus)
 

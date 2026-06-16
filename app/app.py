@@ -1,6 +1,6 @@
 """JaegerApp — the chassis. Every app boots the same way:
 
-    manifest → instance slot → config → bus → nodes → surfaces → run
+    manifest → instance slot → config → bus → core → nodes → surfaces → run
                                                                   ↓
                        teardown (reverse order, signal-safe, atexit)
 
@@ -17,6 +17,7 @@ Desktop-grade guarantees owned here (spec §checklist):
 from __future__ import annotations
 
 import atexit
+import fcntl
 import importlib
 import os
 import pathlib
@@ -27,6 +28,7 @@ from typing import Any
 from .bus.api import Bus, MessageRegistry
 from .bus.inproc import InProcBus
 from .config import load_config, slice_for
+from .core import Core
 from .health import HealthCache
 from .logging import log
 from .manifest import AppSpec, NodeSpec, load_manifest
@@ -72,10 +74,13 @@ class JaegerApp:
         self.health: HealthCache | None = None
         self.supervisor: Supervisor | None = None
         self.surfaces = SurfaceManager()
+        self.core: Core | None = None
         self._broker: Any = None
         self._run_dir = self.root / ".run"
+        self._lock_file = self._run_dir / f"{self.spec.name}.lock"
         self._slot_file = self._run_dir / f"{self.spec.name}.pid"
         self._registry_file = self._run_dir / f"{self.spec.name}.children.json"
+        self._lock_handle: Any = None
         self._slot_held = False
         self._shutdown_done = False
         self._qt_app: Any = None
@@ -85,35 +90,42 @@ class JaegerApp:
     def boot(self) -> "JaegerApp":
         """Phases 1-6. Separated from run() so headless tests can
         boot, poke, and shut down without an event loop."""
-        self._acquire_instance()
-        cfg_path = self.root / self.spec.config
-        self.config = load_config(cfg_path) if cfg_path.exists() else {}
-        self._build_bus()
-        self.health = HealthCache(self.bus)
-        self._start_nodes()
-        self._install_signals()
-        atexit.register(self.shutdown)
-        log(self.spec.name,
-            f"booted: {len([n for n in self.spec.nodes if n.enabled])} "
-            f"nodes, bus={self.spec.bus.backend}, "
-            f"mode={self.spec.mode}", bus=self.bus)
-        return self
+        try:
+            self._acquire_instance()
+            if self.spec.config:
+                cfg_path = self.root / self.spec.config
+                self.config = load_config(cfg_path) if cfg_path.exists() else {}
+            else:
+                self.config = {}
+            self._build_bus()
+            self.health = HealthCache(self.bus)
+            self._init_core()
+            self._start_nodes()
+            self._install_signals()
+            atexit.register(self.shutdown)
+            log(self.spec.name,
+                f"booted: {len([n for n in self.spec.nodes if n.enabled])} "
+                f"nodes, bus={self.spec.bus.backend}, "
+                f"mode={self.spec.mode}", bus=self.bus)
+            return self
+        except Exception:
+            self.shutdown()
+            raise
 
     def run(self) -> int:
         """boot() + block on the manifest's event loop + teardown."""
-        self.boot()
         try:
+            self.boot()
             if self.spec.event_loop == "qt":
                 return self._run_qt()
             if self.spec.event_loop == "none":
-                return 0   # caller drives (tests, scripts)
+                return 0
             raise ValueError(
                 f"event_loop {self.spec.event_loop!r} not implemented "
                 "in format 0.1 (qt | none)"
             )
         finally:
-            if self.spec.event_loop != "none":
-                self.shutdown()
+            self.shutdown()
         return 0
 
     def shutdown(self) -> None:
@@ -128,6 +140,11 @@ class JaegerApp:
             pass
         if self.supervisor is not None:
             self.supervisor.stop_all()
+        if self.core is not None:
+            try:
+                self.core.stop()
+            except Exception:  # noqa: BLE001
+                pass
         if self._broker is not None:
             try:
                 self._broker.stop()
@@ -147,12 +164,28 @@ class JaegerApp:
         if not self.spec.single_instance:
             return
         self._run_dir.mkdir(parents=True, exist_ok=True)
+        lock_handle = self._lock_file.open("a+", encoding="utf-8")
+        try:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            try:
+                pid = int(self._slot_file.read_text().strip() or "0")
+            except (FileNotFoundError, ValueError):
+                pid = 0
+            lock_handle.close()
+            detail = f"pid {pid}" if pid else "unknown pid"
+            raise SecondInstanceError(
+                f"{self.spec.name} is already running ({detail}) — "
+                "quit it first (a second launch never doubles the app)"
+            ) from None
+        self._lock_handle = lock_handle
         if self._slot_file.exists():
             try:
                 pid = int(self._slot_file.read_text().strip() or "0")
             except ValueError:
                 pid = 0
             if pid and _pid_alive(pid):
+                self._release_instance_lock()
                 raise SecondInstanceError(
                     f"{self.spec.name} is already running (pid {pid}) — "
                     "quit it first (a second launch never doubles the app)"
@@ -169,6 +202,20 @@ class JaegerApp:
             except OSError:
                 pass
             self._slot_held = False
+        self._release_instance_lock()
+
+    def _release_instance_lock(self) -> None:
+        if self._lock_handle is None:
+            return
+        try:
+            fcntl.flock(self._lock_handle.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        try:
+            self._lock_handle.close()
+        except OSError:
+            pass
+        self._lock_handle = None
 
     def _build_bus(self) -> None:
         if self.spec.bus.backend == "zmq":
@@ -182,6 +229,15 @@ class JaegerApp:
             self.bus = ZmqBus(self.registry, xsub=xsub, xpub=xpub)
         else:
             self.bus = InProcBus()
+
+    def _init_core(self) -> None:
+        core_spec = self.spec.core
+        if not core_spec.enabled or not core_spec.factory:
+            return
+        cfg = slice_for(self.config, core_spec.config_key)
+        fn = resolve_ref(core_spec.factory)
+        self.core = fn(self.bus, {**core_spec.args, **cfg})
+        self.core.setup()
 
     def _start_nodes(self) -> None:
         self.supervisor = Supervisor(health=self.health, bus=self.bus)

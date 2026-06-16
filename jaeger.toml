@@ -1,19 +1,16 @@
 # Mochi — Jaeger app format manifest (format 0.1)
 #
 # ─────────────────────────────────────────────────────────────────
-#  PATTERN 1 + TRAY (Jenkins Robotics standard, 2026-06-14)
+#  PATTERN 0 UNTIL TRAY REOPEN EXISTS (2026-06-14)
 # ─────────────────────────────────────────────────────────────────
-#  macOS-native Qt app: menu bar persists when the last window
-#  closes; tray icon (planned) is the always-on indicator; Cmd+Q
-#  is the real quit. Same shape as Affinity, Spotify, Slack,
-#  Discord, ChatGPT desktop. Single Dock icon.
+#  macOS-native Qt app with a single Dock icon. Until the tray/menu
+#  reopen surface is implemented, closing the companion quits Mochi
+#  so the operator cannot strand the core headless behind the
+#  single-instance lock.
 #
 # Phases A-E + Diagnostics-tab landed: chassis owns boot, bus,
-# supervisor, surfaces. Today's Mochi behaves as Pattern 0 in
-# practice (close companion = quit); flipping shell_quits_core
-# to false makes it Pattern 1 — companion close keeps the menu bar
-# alive, File → New Companion reopens. Tray surface declared as a
-# stub; real tray wiring is follow-up work.
+# supervisor, surfaces. Flip shell_quits_core back to false only
+# when a tray/menu action can reopen the companion and quit Mochi.
 
 [app]
 name = "mochi"
@@ -24,8 +21,8 @@ event_loop = "qt"             # chassis owns QApplication.exec()
 ui = "pyside6"
 single_instance = true        # one Dock icon, second launch refuses
 autostart = false             # operator adds to Login Items if desired
-shell_quits_core = false      # PATTERN 1: close window keeps app
-                              # alive; menu bar persists; Cmd+Q quits
+shell_quits_core = true       # close companion = quit until tray/reopen
+                              # behavior is wired
 config = "config.yaml"
 
 # Bus — ZMQ XPUB/XSUB broker. Ports preserved from config.yaml's
@@ -58,14 +55,12 @@ restart = "on_failure"
 config_key = "animation"
 enabled = true
 
-[[node]]
-id = "llm"
-tier = 3
-backend = "subprocess"
-module = "agent.node"
-restart = "on_failure"
-config_key = "llm"
-enabled = true
+# Tier 1: the agent — the Core. Built on the main thread after the bus and
+# before renderer/surfaces. It owns model/persona/tool flow and publishes
+# legacy `llm.reply` envelopes for the animation node.
+[core]
+factory = "agent.loop.core:make_core"
+config_key = "agent"
 
 # ── Surfaces ──────────────────────────────────────────────────────
 # Per format §2.7 every window is an in-shell Qt window, NOT a

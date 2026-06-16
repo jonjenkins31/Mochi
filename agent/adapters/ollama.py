@@ -8,6 +8,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
+from .base import ChatTurn
+
 
 @dataclass
 class OllamaClient:
@@ -85,3 +87,29 @@ class OllamaClient:
             return response_text.strip()
 
         return None
+
+
+@dataclass
+class OllamaAdapter:
+    base_url: str
+    model: str
+    timeout: float = 30.0
+    logger: logging.Logger | None = None
+
+    name: str = "ollama"
+
+    def __post_init__(self) -> None:
+        self.client = OllamaClient(
+            base_url=self.base_url,
+            model=self.model,
+            timeout=self.timeout,
+            logger=self.logger,
+        )
+
+    def complete(self, *, prompt: str, history: list[ChatTurn]) -> str | None:
+        last = history[-1].text if history else ""
+        return self.client.generate(last, system_prompt=prompt or None)
+
+    def set_model(self, model: str) -> None:
+        self.model = model
+        self.client.set_model(model)

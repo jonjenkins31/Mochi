@@ -25,6 +25,7 @@ from app.app import SecondInstanceError, resolve_ref  # noqa: E402
 from app.bus.api import MessageRegistry, RawMessage  # noqa: E402
 from app.bus.inproc import InProcBus  # noqa: E402
 from app.config import load_config, slice_for  # noqa: E402
+from app.core import Core, CoreMainThreadError  # noqa: E402
 from app.health import HealthCache, NodeHealth  # noqa: E402
 from app.manifest import load_manifest  # noqa: E402
 from app.node import FrameNode, Node, NodeState  # noqa: E402
@@ -85,6 +86,10 @@ class DyingNode(Node):
 
 def make_dying(bus: Any, config: dict[str, Any]) -> Node:
     return DyingNode(bus=bus, **config)
+
+
+def make_broken(_: Any, __: dict[str, Any]) -> Node:
+    raise RuntimeError("factory exploded")
 
 
 # ── manifest ───────────────────────────────────────────────────────
@@ -177,6 +182,113 @@ def test_manifest_qt_requires_a_main_surface(tmp_path):
                                  'event_loop = "qt"')
     with pytest.raises(ValueError, match="main surface"):
         load_manifest(_write_app(tmp_path, bad))
+
+
+# ── core (Tier-1 host role) ────────────────────────────────────────
+
+_CORE_EVENTS: list[str] = []
+
+
+class _ProbeCore(Core):
+    def __init__(self, *, bus: Any, **_: Any) -> None:
+        super().__init__(bus=bus)
+        self.setup_called = False
+        self.stop_called = False
+
+    def setup(self) -> None:
+        _CORE_EVENTS.append("core.setup")
+        self.setup_called = True
+
+    def stop(self) -> None:
+        _CORE_EVENTS.append("core.stop")
+        self.stop_called = True
+
+
+def make_probe_core(bus: Any, config: dict[str, Any]) -> _ProbeCore:
+    return _ProbeCore(bus=bus, **config)
+
+
+class _OrderNode(Node):
+    def __init__(self, *, bus: Any, **_: Any) -> None:
+        super().__init__(bus=bus, name="order-node", tick_interval_s=0.01)
+
+    def setup(self) -> None:
+        _CORE_EVENTS.append("node.setup")
+
+
+def make_order_node(bus: Any, config: dict[str, Any]) -> Node:
+    return _OrderNode(bus=bus, **config)
+
+
+_CORE_MANIFEST = """
+[app]
+name = "core-app"
+requires_framework = ">=0.1"
+event_loop = "none"
+
+[bus]
+backend = "inproc"
+
+[core]
+factory = "tests.test_app_format:make_probe_core"
+
+[[node]]
+id = "order-node"
+tier = 3
+backend = "thread"
+factory = "tests.test_app_format:make_order_node"
+restart = "never"
+"""
+
+
+def test_manifest_parses_core(tmp_path):
+    spec = load_manifest(_write_app(tmp_path, _CORE_MANIFEST))
+    assert spec.core.factory == "tests.test_app_format:make_probe_core"
+    assert spec.core.enabled is True
+
+
+def test_manifest_refuses_enabled_core_without_factory(tmp_path):
+    bad = _CORE_MANIFEST.replace(
+        'factory = "tests.test_app_format:make_probe_core"', "enabled = true")
+    with pytest.raises(ValueError, match="core.*needs"):
+        load_manifest(_write_app(tmp_path, bad))
+
+
+def test_core_constructed_off_main_thread_raises():
+    import threading
+    bus = InProcBus()
+    errs: list[Exception] = []
+
+    def build():
+        try:
+            _ProbeCore(bus=bus)
+        except CoreMainThreadError as exc:
+            errs.append(exc)
+
+    t = threading.Thread(target=build)
+    t.start()
+    t.join()
+    assert errs and isinstance(errs[0], CoreMainThreadError)
+    assert isinstance(_ProbeCore(bus=bus), Core)
+    bus.close()
+
+
+def test_core_inits_on_main_thread_before_nodes_and_is_not_supervised(tmp_path):
+    _CORE_EVENTS.clear()
+    app = JaegerApp(_write_app(tmp_path, _CORE_MANIFEST)).boot()
+    try:
+        assert app.core is not None and app.core.setup_called
+        assert _CORE_EVENTS[0] == "core.setup"
+        assert _wait_for(lambda: "node.setup" in _CORE_EVENTS)
+        assert (_CORE_EVENTS.index("core.setup")
+                < _CORE_EVENTS.index("node.setup"))
+        node_ids = {row["id"] for row in app.supervisor.ls()}
+        assert "order-node" in node_ids
+        assert "core" not in node_ids and "core-app" not in node_ids
+    finally:
+        app.shutdown()
+    assert app.core.stop_called
+    assert _CORE_EVENTS[-1] == "core.stop"
 
 
 # ── config ─────────────────────────────────────────────────────────
@@ -375,6 +487,31 @@ def test_supervisor_never_policy_stays_down():
         bus.close()
 
 
+def test_supervisor_restart_failure_is_recorded(monkeypatch):
+    monkeypatch.setattr(supervisor_mod, "_BACKOFF_BASE_S", 0.02)
+    monkeypatch.setattr(supervisor_mod, "_BACKOFF_CAP_S", 0.02)
+
+    class BrokenRestart(ThreadHandle):
+        def restart(self) -> None:
+            raise RuntimeError("restart exploded")
+
+    bus = InProcBus()
+    sup = Supervisor(bus=bus)
+    try:
+        spec = NodeSpec(id="dying", factory="x:y", restart="on_failure")
+        handle = BrokenRestart(spec, lambda: DyingNode(bus=bus))
+        sup.add(handle)
+        sup.start_all()
+        assert _wait_for(
+            lambda: "restart exploded" in handle.last_error,
+            timeout_s=3.0,
+        )
+        assert handle.restarts == 0
+    finally:
+        sup.stop_all()
+        bus.close()
+
+
 # ── the chassis, headless ──────────────────────────────────────────
 
 
@@ -397,6 +534,26 @@ def test_app_boots_runs_verbs_and_shuts_down(tmp_path):
         app.shutdown()
         app.shutdown()   # idempotent
     assert not (tmp_path / ".run" / "conftest-app.pid").exists()
+
+
+def test_run_owns_shutdown_for_none_event_loop(tmp_path):
+    root = _write_app(tmp_path)
+    assert JaegerApp(root).run() == 0
+    assert not (tmp_path / ".run" / "conftest-app.pid").exists()
+
+
+def test_boot_failure_rolls_back_instance_slot(tmp_path):
+    bad = _GOOD_MANIFEST.replace(
+        'factory = "tests.test_app_format:make_ticker"',
+        'factory = "tests.test_app_format:make_broken"',
+    )
+    root = _write_app(tmp_path, bad)
+    with pytest.raises(RuntimeError, match="factory exploded"):
+        JaegerApp(root).boot()
+    assert not (tmp_path / ".run" / "conftest-app.pid").exists()
+    _write_app(tmp_path)
+    app = JaegerApp(root).boot()
+    app.shutdown()
 
 
 def test_second_instance_refused(tmp_path):

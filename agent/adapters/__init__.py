@@ -1,7 +1,14 @@
-"""LLM backend adapters — one module per provider.
+"""LLM backend adapters."""
 
-Each adapter exposes a client class consumable by agent/node.py.
-Today: ollama only. Future backends slot in alongside.
-"""
+from .base import ChatAdapter, ChatTurn
+from .ollama import OllamaAdapter, OllamaClient
+from .registry import AdapterRegistry, build_adapter_registry
 
-from .ollama import OllamaClient  # noqa: F401
+__all__ = [
+    "AdapterRegistry",
+    "ChatAdapter",
+    "ChatTurn",
+    "OllamaAdapter",
+    "OllamaClient",
+    "build_adapter_registry",
+]

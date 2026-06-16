@@ -51,6 +51,34 @@ Three audiences:
 These are not mutually exclusive — the SAME codebase, with
 different UI surfaces, serves all three.
 
+## 2.1 Architecture rule: logic outlives the GUI
+
+Mochi should treat PySide6 as a replaceable shell, not as the home
+of product logic. Today the surface is Qt; tomorrow it may be Swift,
+TUI, web, or a robot-attached panel. The universal behavior must live
+outside widgets:
+
+- Renderer behavior, animation selection, scripts, LLM command
+  parsing, asset catalog rules, persistence, and bus protocols belong
+  in nodes, `core/`, `agent/`, `nodes/animation/`, or small pure
+  service modules.
+- GUI files should render state, collect user intent, and translate
+  that intent into typed bus messages or narrow service calls.
+- Toolkit-specific bridge code is allowed, but should be thin:
+  Qt signals, timers, model adapters, and widget lifecycle belong in
+  the surface; domain decisions do not.
+- A future Swift surface should be able to reuse the same catalog,
+  commands, nodes, scripts, and message contracts without porting
+  PySide widget classes.
+
+Current status: the runtime core mostly follows this rule
+(`nodes/animation`, `agent`, `transport`, `app`). First cleanup pass
+extracted catalog filtering, recent persistence, player settings, and
+animation command resolution into `core/companion_services.py`. The
+companion still owns some logic that should gradually move behind
+toolkit-neutral services/adapters, especially live preview renderer
+reuse and process launching.
+
 ## 3. What's shipped on mochi-v4 (current state)
 
 ### Core framework
@@ -58,10 +86,12 @@ different UI surfaces, serves all three.
 ```
 mochi-v4/
 ├── agent/
-│   └── llm/                          ← Ollama-backed LLM node
-│       ├── node.py                       (parses <play name="X"/>
-│       ├── ollama_client.py               tags out of replies +
-│       └── config.yaml                    fires animations)
+│   ├── node.py                       ← subprocess entrypoint
+│   ├── loop/                         ← transport-neutral turn logic
+│   ├── adapters/                     ← Ollama + mock adapter slots
+│   ├── tools/                        ← deterministic agent tools
+│   ├── prompts/ and personas/        ← prompt/persona assembly
+│   └── README.md                     ← commands + adapter notes
 ├── nodes/
 │   └── animation/                    ← 7 renderer backends:
 │       ├── node.py                       gif / sprite / png /
@@ -303,6 +333,9 @@ would find most useful:
    - `gui/companion/widgets/` (cards, badges, filter rows)
    - `gui/companion/theme.py` (the QSS block + colour constants)
    - `gui/companion/app.py` (CompanionMain + main())
+   - `core/catalog_service.py`, `core/recent_service.py`,
+     `core/animation_commands.py` (toolkit-neutral logic)
+   - `interfaces/qt_adapters/` (Qt-only model/signal adapters)
 2. Are there **Qt resource lifecycle bugs** I haven't caught?  I
    shipped a use-after-free in `_refresh_nodes_table` that
    manifested only when the QTimer ran live.  Are there similar
