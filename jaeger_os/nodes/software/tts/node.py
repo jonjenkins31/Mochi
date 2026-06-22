@@ -42,7 +42,7 @@ import threading
 import time
 from typing import Any, Protocol
 
-from jaeger_os import topics
+from jaeger_os.transport import topics
 from jaeger_os.nodes.base import Node
 from jaeger_os.transport import Bus
 

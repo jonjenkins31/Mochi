@@ -136,7 +136,7 @@ class MathAdapter:
     def set_runtime_param(self, key: str, value: Any) -> None:
         """Push a real-time parameter update to the running
         MathScript.  Lip-sync uses this to feed amplitude from
-        :class:`jaeger_os.topics.TtsChunk` events into the script
+        :class:`jaeger_os.transport.topics.TtsChunk` events into the script
         between frames.
 
         The script reads the value at its next ``render_into``

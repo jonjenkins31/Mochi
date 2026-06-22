@@ -20,7 +20,7 @@ behind — backpressure here is the Bus's queue, not the camera.
 
 from __future__ import annotations
 
-from jaeger_os import topics
+from jaeger_os.transport import topics
 from jaeger_os.nodes.base import Node
 from jaeger_os.nodes.hardware.vision.adapters import CameraAdapter, FrameEnvelope
 from jaeger_os.transport import Bus

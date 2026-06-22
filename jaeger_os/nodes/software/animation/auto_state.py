@@ -25,7 +25,7 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-from jaeger_os import topics
+from jaeger_os.transport import topics
 from jaeger_os.transport import Bus
 
 

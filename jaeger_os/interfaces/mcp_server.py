@@ -7,7 +7,7 @@ always-on. It boots the agent in-process and exposes a small tool surface
 over the MCP stdio transport. All agent/boot output is forced to stderr so
 the MCP JSON-RPC stream on stdout stays clean.
 
-Run: ``jaeger mcp`` (or ``python -m jaeger_os.mcp_server``).
+Run: ``jaeger mcp`` (or ``python -m jaeger_os.interfaces.mcp_server``).
 """
 
 from __future__ import annotations

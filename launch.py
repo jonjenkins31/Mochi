@@ -498,7 +498,7 @@ def health(env: dict[str, str]) -> int:
     is the single source for both the user-facing CLI and this launcher.
     Runs against the dev instance via the dev env."""
     return subprocess.run(
-        [str(VENV_PY), "-m", "jaeger_os.run", "--doctor", "--doctor-check"],
+        [str(VENV_PY), "-m", "jaeger_os.cli.run", "--doctor", "--doctor-check"],
         env=env,
     ).returncode
 

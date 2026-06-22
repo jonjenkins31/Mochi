@@ -3,7 +3,7 @@
 "Transports, not endpoints": one protocol, many transports. The Swift app
 speaks it over stdio (``jaeger bridge``); the MCP server, a web backend, or
 any third-party client speaks the *same* frames over the *same* SDK
-(:class:`jaeger_os.client.JrosClient`). A future WebSocket transport bridges
+(:class:`jaeger_os.interfaces.client.JrosClient`). A future WebSocket transport bridges
 the in-process chassis bus to these identical frames — so a new surface is a
 transport, not a re-implementation.
 

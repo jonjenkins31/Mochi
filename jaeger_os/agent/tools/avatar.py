@@ -286,18 +286,22 @@ def _publish_animation(
 ) -> dict[str, Any]:
     """Publish an :class:`AnimationCommand` on the bus.  If ``wait``,
     block briefly on the matching :class:`AnimationState` event."""
-    from jaeger_os import topics
+    from jaeger_os.transport import topics
     from jaeger_os.nodes import runtime
 
     runtime.ensure_animation_node()
     bus = runtime.get_bus()
 
     cid = uuid.uuid4().hex
+    # Carry the emotion label alongside the resolved asset so face/avatar
+    # surfaces can show "happy" without re-deriving it from asset_path.
+    _params = dict(params or {})
+    _params.setdefault("emotion", emotion)
     cmd = topics.AnimationCommand(
         adapter=adapter,
         asset_path=asset_path,
         duration_ms=duration_ms,
-        params=dict(params or {}),
+        params=_params,
         node_id="brain",
         correlation_id=cid,
     )
