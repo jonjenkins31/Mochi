@@ -1,11 +1,490 @@
-# Mochi — animated character companion
+<!-- Banner — drop an image at assets/banner.png, then uncomment ↓
+<p align="center">
+  <img src="assets/banner.png" alt="JROS" width="100%">
+</p>
+-->
 
-> A modular ZeroMQ-bus-driven framework for building animated
-> character displays.  Inspired by the Dasai Mochi3 desktop toy,
-> reimagined as an open, extensible platform for animation
-> education, character packs, and operator-driven performance.
+<h1 align="center">JROS — Jaeger Robot Operating Software</h1>
 
-Part of the **Jenkins Robotics** open-source robotics + AI stack.
+<p align="center">
+  <em>A Mac-native, Python-first operating framework for embodied AI agents.</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/JenkinsRobotics/JROS/releases"><img src="https://img.shields.io/badge/version-0.3.0-2EA44F?style=for-the-badge" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2EA44F?style=for-the-badge" alt="License"></a>
+  <img src="https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-555555?style=for-the-badge" alt="Platform">
+  <a href="https://discord.gg/sAnE5pRVyT"><img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://www.youtube.com/@Jenkins_Robotics"><img src="https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube"></a>
+</p>
+
+---
+
+## What is JROS?
+
+JROS is the operating framework for **Jaegers** — humanoid robots, drones,
+and digital AI agents that share a single coherent runtime. It provides the
+**nervous system** (transport, nodes, topics) and the **brain** (agent loop,
+memory, learned skills) so the same agent code runs on an LED-faced drone or
+a chat-only desktop companion.
+
+Built from real hardware pain, JROS runs on Apple Silicon and Jetson Orin —
+no Docker, no special OS versions, no dependency hell. **One curl line
+installs the whole stack.**
+
+- 🧠 **Local-first** — runs entirely on-device on an in-process LLM. No cloud account required.
+- 🛠️ **~70 built-in tools across 11 toolset categories** — files (read / write / edit / search), memory, web, code execution, scheduling, background processes, kanban, delegation. A 20-tool CORE is always visible; the rest are reachable via `describe_tool` / `load_toolset` when scoping is enabled.
+- 📋 **Kanban task board** — the agent plans multi-step work as cards; Deep Think jobs live on the same board. `/board` to view it.
+- 📚 **Self-authored skills** — the agent researches, writes, smoke-tests, benchmarks, and versions its own skills.
+- 🖥️ **Computer use** — the flagship skill: drive any macOS app through the accessibility tree (see the screen, click, type, work menus).
+- 🌙 **Deep Think** — an idle "deep sleep" mode that swaps to a heavier coder model and drains a skill-development queue.
+- 🔌 **Model-agnostic** — opt into LM Studio, an OpenAI-compatible endpoint, or Anthropic Claude. Local stays the default.
+- 🔒 **6-tier permission ladder** — every tool is gated; high-risk actions are confirmation-prompted and audit-logged.
+- 🤖 **Embodiment-ready** — the body contract and the capability-gated skill loader are already in place for hardware.
+
+> **Status — `0.3.0` released.** Voice pipeline rebuild + skill
+> system v3 + persona prefill. The 0.2.x in-process Rich TUI stays
+> as the operator surface; the 0.3.0 work layers underneath it:
+>
+> - **Persistent TTS output stream** — one long-lived OutputStream
+>   opens at warm time, stays alive for the session.  Two backends,
+>   config-toggled via `config.voice.audio_backend`:
+>     - `sounddevice` (default) — PortAudio, with the output device
+>       resolved LIVE via CoreAudio so it follows Settings → Sound.
+>     - `avaudio` — PyObjC AVAudioEngine, direct
+>       `scheduleBuffer:completionHandler:` (no PortAudio in the loop).
+> - **Skill system v3** — unified `jros.skill/v3` manifest schema
+>   (id, version, origin, package, runtime, domains, embodiment,
+>   permissions, capabilities with per-capability scoring bands +
+>   levels, dependencies, artifacts, entrypoint, body, provenance).
+>   Capability state persists in `<instance>/capabilities/`; promotion
+>   /demotion rules update the live band the router consults.
+> - **Persona prefill** — wizard-time YAML templates in
+>   `jaeger_os/personas/` prefill `identity.yaml` + `soul.md` when a
+>   new instance is created.  Zero runtime cost on existing instances.
+> - **Whisper STT hardening** — `is_non_speech_marker()` suppresses
+>   `[BLANK_AUDIO]` / `(beep)` / `[music]` in follow-up + no-wake-word
+>   modes.  Optional AEC plumbing on `_MicStream`.
+> - **Gemma 4 12B-it Q4** added to the model registry; promoted to the
+>   24 GB tier asleep pick (Mac Mini sweet spot — leaderboard #1 at
+>   94.9 % routing on the 2026-06-04 bench).
+> - **`./launch`** — sandbox launcher with a real-verification boot
+>   scroll (every row a check the launcher actually performs against
+>   the instance bundle).  Housekeeping flags: `--status`, `--stop`,
+>   `--restart`, `--reset-audio`, `--clean-logs`, `--health`.
+>
+> See `CHANGELOG.md` for the full entry and the explicit "Skipped
+> from the upstream 0.3.0 plan" list. The Swift desktop app stays in
+> tree as archived code. The multi-process daemon scaffold was removed
+> 2026-06-14 when JROS converged on fused mode; the `rich_tui` surface
+> is parked in tree (GUI design preserved) for the windowed-app
+> rework — neither is wired into install or run yet.
+
+---
+
+## The Two Layers
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                      AGENT (BRAIN)                          │
+│         perceive → plan → act    +  memory  +  skills        │
+│         one loop per Jaeger body                             │
+└──────────────────────────┬─────────────────────────────────┘
+                           │  invokes
+┌──────────────────────────▼─────────────────────────────────┐
+│                   NODES (NERVOUS SYSTEM)                     │
+│    tts │ stt │ llm │ vision │ motors │ leds │ mcu_serial     │
+│    pluggable, hot-swappable, transport-agnostic              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Nodes** are processes that do one thing — capture audio, run TTS, drive
+servos, talk to a Teensy. They speak over standardized topics (ZMQ + UDP).
+
+**Agents** are the brain. They subscribe to perception topics, reason with
+an LLM, look up memories, plan an action sequence, and dispatch it to nodes.
+
+A Jaeger is the union of **one agent loop** and **a configured set of nodes**.
+
+---
+
+## Prerequisites
+
+- **Python 3.11 or 3.12** (not 3.13 yet — some native deps lack 3.13 wheels).
+- **A C/C++ toolchain** — `llama-cpp-python` and `pywhispercpp` build
+  native code. macOS: `xcode-select --install`. Debian/Ubuntu:
+  `sudo apt install build-essential`.
+- **PortAudio** — for microphone / speaker I/O. macOS: `brew install portaudio`.
+  Debian/Ubuntu: `sudo apt install portaudio19-dev`.
+
+## Quick Start
+
+**One-line install** — clones JROS to `~/jaeger`, sets up a venv,
+installs the full runtime, scaffolds `~/.jaeger/`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JenkinsRobotics/JROS/master/scripts/install.sh | bash
+```
+
+Then:
+
+```bash
+cd ~/jaeger
+./run.sh setup           # create your first agent (wizard: memory tier,
+                         # model choice, voice). Default name is auto-picked.
+./run.sh                 # launch the default agent
+```
+
+Or scaffold a named agent:
+
+```bash
+./run.sh setup lilith         # create "lilith" via the wizard
+./run.sh --instance lilith    # launch "lilith"
+```
+
+Manage multiple agents:
+
+```bash
+./run.sh list                 # show every installed agent
+./run.sh delete eren          # remove "eren" (asks you to type the name)
+./run.sh help                 # full subcommand cheatsheet
+```
+
+That's the whole flow. The single install pulls the **entire**
+runtime — local LLM, Kokoro TTS, Whisper STT, vision, the
+external-model pipeline, messaging bridges. Nothing is left behind
+an extra. A GGUF model is fetched from Hugging Face on first run, and
+nothing else phones home.
+
+**Upgrades** — same one-line, idempotent:
+
+```bash
+cd ~/jaeger && git pull && ./install.sh
+```
+
+Or re-run the curl command — it detects an existing clone and just
+pulls + re-installs.
+
+**Pinning a release** — for reproducible installs:
+
+```bash
+JAEGER_REF=0.3.0 curl -fsSL \
+  https://raw.githubusercontent.com/JenkinsRobotics/JROS/0.3.0/scripts/install.sh | bash
+```
+
+**Custom install location** — override with an env var:
+
+```bash
+JAEGER_HOME=/opt/jaeger curl -fsSL \
+  https://raw.githubusercontent.com/JenkinsRobotics/JROS/master/scripts/install.sh | bash
+```
+
+**Where everything lives** — two clear buckets, side by side:
+
+| Layer | Path | What |
+|---|---|---|
+| **Framework** | `~/jaeger/jaeger_os/` | The code (git-tracked, upgraded by `git pull`) |
+| **Operator state** | `~/jaeger/.jaeger_os/instances/<name>/` | Each agent's persona, config, memory, skills, prompts, workspace, logs, credentials — one folder per agent |
+
+The two sibling dirs at the install root make the framework / operator
+split obvious. Operator state is fully `.gitignore`d; framework upgrades
+never touch it. See [`dev/docs/architecture/system_runtime_user.md`](dev/docs/architecture/system_runtime_user.md)
+for the design rationale.
+
+**Manual install (no curl)** — if you'd rather see every step:
+
+```bash
+git clone https://github.com/JenkinsRobotics/JROS.git ~/jaeger
+cd ~/jaeger
+./install.sh
+./run.sh setup     # create your first agent
+./run.sh           # launch it
+```
+
+---
+
+## Daily use (0.3.0)
+
+The 0.2.x in-process Rich TUI is still the operator surface in 0.3.0.
+Pick whichever launch path matches what you're doing.
+
+**Run a named agent** — the production-flow:
+
+```bash
+./run.sh --instance lilith        # in-process TUI for the 'lilith' instance
+./run.sh --instance lilith --no-voice   # text-only (no mic, no Kokoro warm)
+```
+
+**Sandbox dev loop** — for working on JROS itself.  The `./launch`
+wrapper boots the in-repo sandbox at `sandbox/.jaeger_os/instances/jros-dev/`
+with a real-verification boot scroll, then hands the terminal to the
+TUI.  Daily flags:
+
+```bash
+./launch                           # boot the sandbox TUI
+./launch --status                  # what's running across modes
+./launch --stop                    # kill a lingering TUI singleton
+./launch --restart                 # stop, then boot
+./launch --health                  # preflight checks and exit
+./launch --reset-audio             # sudo killall coreaudiod
+./launch --clean-logs              # truncate <instance>/run/jaeger.log
+./launch --no-voice                # tell the TUI to skip voice startup
+```
+
+The `./launch` boot scroll runs every check before handing off:
+sandbox bundle, library import resolution, instance manifest schema,
+GGUF model on disk, AVAudioEngine bridge import, Whisper assets,
+Kokoro package, skill registry walk, TUI module import.  A red row
+stops boot with the actual reason.
+
+**Pick the audio backend** — 0.3.0 ships two persistent-stream backends
+for TTS.  Configure once in your instance's `config.yaml`:
+
+```yaml
+voice:
+  audio_backend: sounddevice    # PortAudio (default; macOS Settings-default device live-resolved)
+  # or:
+  # audio_backend: avaudio       # PyObjC AVAudioEngine, direct AVAudioPlayerNode scheduling
+```
+
+Or override per-run without editing the config:
+
+```bash
+JAEGER_AUDIO_BACKEND=avaudio ./launch
+JAEGER_AUDIO_OUTPUT="Mac Studio Speakers" ./launch   # sounddevice device override
+```
+
+**Bench against the model registry leaderboard** — runs the full
+59-case flat bench and updates `dev/benchmark/HISTORY.md`:
+
+```bash
+./dev/benchmark/run_flat_bench.py             # full corpus
+./dev/benchmark/run_flat_bench.py --limit 5   # 5-case smoke
+./dev/benchmark/run_flat_bench.py --tags routing,multistep
+```
+
+The 2026-06-04 leaderboard row for `gemma-4-26B-A4B-it-Q4_K_M` is
+**55/59 (93 %)** at `permissions.mode=allow`; bench history is
+regenerated on every run.
+
+---
+
+## Architecture direction (0.4+)
+
+**0.3.0 ships the brain.** 0.4.0 wires the spine — the node-based
+embodied architecture that turns JROS from a Mac-side agent into a
+robot operating framework that drives JP01-class hardware.
+
+The position no one else owns:
+
+> **JROS = ROS + Agentic AI + Mac-first local hardware.**
+> One developer, one Mac, one robot.  Local LLM thinks; dedicated
+> hardware nodes do the perception and action.  Same code laptop or
+> fleet, no Docker, no cloud.
+
+### The 0.4 picture
+
+```
+                   ┌──────────────────────────────────────┐
+                   │           BRAIN NODE  (Mac)           │
+                   │                                       │
+                   │   LLM (Gemma) + agent loop            │
+                   │   In-process: tools, memory, skills,  │
+                   │                permissions, persona   │
+                   │                                       │
+                   │   Tools = networking shims:           │
+                   │     text_to_speech → /act/speech      │
+                   │     listen         → /sense/transcript│
+                   │     vision_analyze → /sense/vision_analysis │
+                   │     computer_use   → /act/motion etc. │
+                   └────────────┬──────────────────────────┘
+                                │ ZMQ pub/sub (or inproc in monolith mode)
+              ┌─────────────────┼──────────────────┐
+              │                 │                  │
+     ┌────────▼─────┐   ┌───────▼──────┐   ┌───────▼──────┐
+     │  audio_in    │   │   audio_out  │   │   vision     │
+     │  (Mac mic)   │   │   (Mac spk)  │   │   (Jetson)   │
+     └──────┬───────┘   └──────▲───────┘   └──────────────┘
+            │                  │
+     ┌──────▼───────┐    ┌─────┴────────┐
+     │   stt        │    │   tts        │   ← own nodes, backend-swappable
+     │  (Whisper)   │    │  (Kokoro)    │     (tomorrow: MLX-TTS, NeuTTS,
+     └──────────────┘    └──────────────┘      Mistral Voxtral STT, …)
+            │
+            ▼ /sense/transcript      ┌─────────────────────────────────┐
+                                     │  Canonical topic namespaces      │
+                                     │    /sense/audio_in   binary mic  │
+                                     │    /sense/transcript  STT text   │
+                                     │    /sense/camera_frame raw frames│
+                                     │    /sense/vision_analysis scene  │
+                                     │    /sense/proprio     encoder+IMU│
+                                     │    /act/speech        text→TTS   │
+                                     │    /act/audio_out     binary spk │
+                                     │    /act/motion        motor cmd  │
+                                     │    /act/light         LED cmd    │
+                                     └─────────────────────────────────┘
+              ┌─────────────────────────────────┐
+              │                                 │
+     ┌────────▼─────────┐              ┌────────▼────────────┐
+     │  motor_ctrl      │              │   led_ctrl          │
+     │  (ESP32, MC01)   │              │   (Teensy, AVC01)   │
+     └──────────────────┘              └─────────────────────┘
+```
+
+**Key architectural decisions** (locked 2026-06-06):
+
+1. **One brain process, N hardware-bound peripheral nodes.**  Not
+   one-node-per-tool — that's the ROS 2 mistake (extreme
+   granularity).  The brain's tools, memory, and skill registry
+   stay in-process for sub-microsecond function-call latency.
+2. **STT and TTS get their own nodes.**  Voice pipelines evolve;
+   today's Kokoro becomes tomorrow's MLX-TTS without touching the
+   brain.  Same topic contract, swap the subscriber.
+3. **Tool ↔ node contract** — *"A tool does the networking, the
+   node does the execution."*  The agent's tool signatures
+   (`text_to_speech("hi")`, `listen(seconds=5)`) stay identical.
+   What changes is the implementation: in-process call becomes
+   `bus.publish("/act/speech", …)` + correlation-ID wait for the
+   `/sense/spoken` ack.
+4. **The brain doesn't know where its peripherals run.**  Same
+   code laptop or fleet — only the transport changes (`inproc://`
+   → `tcp://` when nodes move across boards).
+
+See [`dev/docs/ROADMAP_0.4.md`](dev/docs/ROADMAP_0.4.md) for the
+full track breakdown.
+
+### How JROS fits next to ROS and Hermes
+
+| | **ROS 2** | **Hermes / agent frameworks** | **JROS** |
+|---|---|---|---|
+| Embodied robotics | ✅ industry standard | ❌ doesn't think about bodies | ✅ Mac → Jetson → Teensy → ESP32 first-class |
+| Local LLM agent | ❌ no agent layer | ❌ assumes cloud | ✅ Gemma local, no internet needed |
+| Mac-native dev | ❌ Linux + Docker | ✅ runs on Mac | ✅ Mac-first since 0.2 |
+| Transport weight | ❌ DDS (~2 GB install) | n/a (single process) | ✅ ZMQ (50 KB) |
+| Learning curve | hard | easy | medium — one Python file per node |
+| One-Mac development | painful | easy | ✅ monolithic mode = same code, no IPC |
+| Multi-board production | ✅ designed for it | ❌ no | ✅ flip a config flag |
+| Operator UX out of the box | ❌ build your own | n/a | ✅ TUI + (Track F) web inspector |
+| Crash isolation per subsystem | ✅ best | ❌ none | ✅ per node when split |
+
+**The pitch in one line:** the only framework where a local LLM
+agent thinks and a dedicated set of hardware nodes act — designed
+for one developer driving one robot from a Mac.
+
+---
+
+## Reference Jaegers
+
+| Jaeger | Form | Role |
+|---|---|---|
+| **Lilith** | Digital — local LLM with adjustable personality, runs on Mac | First JROS-native agent — proves the `jaeger-os` agent layer before JP01 inherits it. |
+| **JP01** | Drone — Mac + Jetson + Teensy + ESP32 + LED panel + servos + cameras + mics | First hardware Jaeger — inherits Lilith's agent unchanged, adds hardware middleware. |
+
+The strategy is **agent first, body second**: Lilith proves the brain in
+software, then JP01 puts a body around the same brain. A new Jaeger is a
+config file plus a logic node — not a fork of the runtime.
+
+---
+
+## Repo Layout
+
+```
+JROS/                       ← clone goes here (default ~/jaeger)
+├── install.sh              ← venv + deps; safe to re-run
+├── run.sh                  ← launcher
+├── requirements.txt        ← runtime deps (installed into .venv)
+├── scripts/install.sh      ← curl one-liner target (user-facing)
+├── jaeger_os/              ← framework code (git-tracked)
+│   ├── run.py, main.py     ← entry points
+│   ├── core/, cli/, plugins/, skills/, prompts/, assets/, interfaces/
+│   ├── migrations/         ← per-version migration scripts
+│   └── models/             ← downloaded GGUF weights (gitignored except README)
+├── .jaeger_os/             ← operator state (gitignored)
+│   ├── instances/<name>/   ← each agent's full state, one folder per agent
+│   ├── models/             ← shared model cache
+│   ├── backups/            ← `./run.sh backup` output
+│   └── jaeger.env          ← sourceable instance pin
+├── dev/docs/               ← architecture + design notes
+├── dev/tests/              ← framework test suite
+├── dev/benchmark/          ← bench corpus + sweep + sanity probe
+├── dev/scripts/            ← dev_env.sh, run_tests.sh, generators
+├── sandbox/                ← in-repo isolated test install (gitignored)
+├── pyproject.toml          ← pytest + ruff config
+├── README.md, CHANGELOG.md, LICENSE
+└── .git/, .gitignore
+```
+
+Two clear buckets at the install root: `jaeger_os/` (framework, owned
+by upstream) and `.jaeger_os/` (operator state, gitignored). `git pull`
+only touches the first; instance memory/logs/credentials survive every
+upgrade.
+
+---
+
+## Benchmarking models locally
+
+JROS ships two complementary benches under `benchmark/` for picking
+which local model to run:
+
+- **`run_flat_bench.py` + `run_model_sweep.py`** — *task* benchmark.
+  Runs the 59-case corpus (routing, multistep, recovery, multi-turn,
+  context, safety, hallucination, cross-turn) per model and writes
+  per-run rows + summary under `benchmark/flat/<model>/<ts>/`. The
+  sweep auto-runs hybrid thinking models (Qwen3.x, gemma-4) in BOTH
+  modes — once with thinking ON, once OFF — so the leaderboard shows
+  the deep-think vs direct-mode tradeoff side-by-side.
+- **`run_model_sanity.py`** — *hardware-health* benchmark, separate
+  from task accuracy. Per model: GPU layer offload + Metal/CPU buffer
+  split (did it fully fit?), raw tok/s on a fixed prompt (compare a
+  35B-A3B and a 9B on generation speed alone), and for hybrid models
+  the think vs direct token-count and wall-clock so you can see what
+  reasoning mode actually costs per query.
+
+Useful env knobs (all bench-scoped, default off):
+
+- `JAEGER_BENCH_THINKING=auto|on|off` — force hybrid models into a
+  specific mode for a run (cloud-style toggle, same as Claude /
+  GPT-o1 / Gemini's `thinking` flag).
+- `JAEGER_BENCH_MODEL_TIMEOUT=<seconds>` — per-model wall-clock cap
+  for the sweep (default `3600`).
+- `JAEGER_BENCH_STALL_S=<seconds>` — per-call stall watchdog (default
+  `120`; reasoning models still get bumped to a `300s` floor).
+
+Results aggregate into `benchmark/HISTORY.md` — leaderboard with a
+weighted `Score` column (tools / real-time / context / multi-turn /
+safety), per-category counts, and safety as a hard gate (any safety
+failure → `DQ` regardless of other scores).
+
+---
+
+## Documentation
+
+| Doc | What |
+|---|---|
+| [`dev/docs/setup.md`](dev/docs/setup.md) | Canonical install, upgrade, and uninstall guide |
+| [`dev/docs/architecture/system_runtime_user.md`](dev/docs/architecture/system_runtime_user.md) | Three-layer architecture — System / Runtime / User |
+| [`dev/docs/external_models.md`](dev/docs/external_models.md) | Running the agent on LM Studio / OpenAI / Anthropic Claude |
+| [`dev/docs/deep_think_design.md`](dev/docs/deep_think_design.md) | Deep Think — the idle skill-development mode |
+| [`dev/docs/marketplace_spec.md`](dev/docs/marketplace_spec.md) | The skill marketplace |
+| [`dev/docs/physical_skills_status.md`](dev/docs/physical_skills_status.md) | Where embodiment / physical skills stand |
+| [`dev/docs/kanban_design.md`](dev/docs/kanban_design.md) | The kanban task board |
+| [`dev/docs/hermes_tool_parity.md`](dev/docs/hermes_tool_parity.md) | Tool-surface audit vs. Hermes Agent |
+
+The full JROS spec — architecture, transport, the node standard, the agent
+and skill systems — continues to land under `dev/docs/`.
+
+---
+
+## Roadmap
+
+- **0.1 — Agent layer.** Local-first agent, 54 tools, self-authored skills,
+  the `computer_use` skill, the kanban task board, Deep Think, the
+  external-model pipeline. ✅ *shipped*
+- **0.2 — Node standard.** ZMQ + UDP transport, the node/plugin contract,
+  the first hardware nodes.
+- **0.3 — Lilith.** The first JROS-native digital Jaeger.
+- **0.4 — JP01.** The first hardware Jaeger — same brain, a body around it.
 
 ---
 
@@ -21,233 +500,8 @@ Built in the open by **[Jenkins Robotics](https://jenkinsrobotics.github.io)**.
 **Support** — [Patreon](https://www.patreon.com/JenkinsRobotics) ·
 [Venmo](https://venmo.com/u/JenkinsRobotics)
 
-Mochi is one piece of the larger Jenkins Robotics ecosystem —
-home robotics, voice AI companions, animated avatars, and
-educational hands-on robotics + animation.  Discord is the
-fastest way to ask questions or share what you've authored.
-The rest of the stack (JROS, VoiceLLM, AgenticLLM, Hermes, JP01
-robot firmware) lives at
-[github.com/jonathanjenkins](https://github.com/jonathanjenkins).
-
 ---
-
-## What Mochi does
-
-- **Renders animations** of every common type on a small virtual
-  display: PNG / bitmap / GIF / sprite / video / procedural
-  (Python) / declarative JSON / scripted (MochiScript)
-- **Companion app** (Wondershare-style Qt UI) for browsing 167+
-  catalogued animations, picking character packs, configuring
-  scenes + triggers, and teaching others about animation
-  techniques
-- **Frameless mini window** that floats on your desktop with
-  customisable body skins (CRT bezel, JDM dash, whatever you
-  author)
-- **ZeroMQ bus** between the renderer node, agent node, and
-  companion app — so the same architecture scales from "single
-  app on my desk" to "distributed across multiple machines"
-
-## Quick start
-
-```bash
-git clone https://github.com/jonathanjenkins/Mochi.git
-cd Mochi
-python3 -m venv venv
-source venv/bin/activate         # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Boot the broker + animation node + LLM node + legacy Tk GUI
-python main.py
-
-# In a separate terminal — open the new Wondershare-style companion
-python gui/mochi_companion.py
-```
-
-In the companion app's top toolbar, click **Open Mini Window** to
-spawn the frameless TV-bezel overlay.  Click any animation in the
-**Library** tab to fire it.
-
-## What's inside
-
-### Top-level layout
-
-| Path | Role |
-| --- | --- |
-| `main.py` | Host entry point.  Reads `config.yaml`, launches the broker (`transport/broker.py`) + each enabled plugin. |
-| `agent/` | The cognitive node (LLM brain — picks animations from context). |
-| `nodes/` | Peripheral nodes — `nodes/animation/` is the renderer with 7 backend types. |
-| `transport/` | The ZeroMQ bus + topics + message envelopes + base-node class. |
-| `core/` | Shared infrastructure (host monitor + plugin registry). |
-| `gui/` | Desktop tooling — companion app, mini window overlay, legacy Tk control panel, perf monitor, CLI helper. |
-| `tools/` | Content editors (sprite / bitmap / mscript) + catalog/prompt generators. |
-| `assets/` | Animations + skins + packs + generated catalogs. |
-| `docs/` | Architectural docs + the Learn tab content. |
-
-### Companion app (`gui/mochi_companion.py`)
-
-Wondershare-inspired Qt UI with 9 sidebar surfaces.  As of
-mochi-v4 / `SUPERSEDE_TK_PLAN.md` Phase 6, it absorbed every
-feature of the legacy Tk debug panel:
-
-| Tab | What's there |
-| --- | --- |
-| **Home** | Operator dashboard — active animation hero card, recent strip, Active-nodes table (with per-node Stop + Reset), Open Perf Monitor button. |
-| **Library** | 4-col card grid of all catalogued animations.  Three filter dimensions (Mood / Type / Curation) + search.  Click → fires via the bus. |
-| **Packs** | Pack browser — empty state → grid → slot detail view → Set Active. |
-| **Scenes / Triggers / Schedule** | Stubs (Phase B + C of the original plan). |
-| **Editors** | Tiles for Sprite / Bitmap / MochiScript editors + Mochi Studio.  Click "Open" to launch as subprocess. |
-| **Learn** | 9-chapter markdown viewer covering every animation type Mochi supports. |
-| **Settings** | Skin picker + advanced toggle revealing Renderer (color picker + canvas size + reset) and Diagnostics (raw command + quit node). |
-
-**Top toolbar:**
-- Live status pill (animation node mode / size / fps / mem)
-- Stop button (deactivates the current animation)
-- Community shortcuts (▶ YouTube · ♥ Patreon · ◯ Discord · ? Help)
-- Open Mini Window button (frameless Qt overlay with active skin)
-
-**Sidebar bottom:** Jenkins Robotics promo card with YouTube + Patreon CTAs.
-
-### Animation types Mochi can render
-
-| Type | Count today | Adapter file |
-| --- | --- | --- |
-| GIFs | 68 | `nodes/animation/animations/gif_handler.py` |
-| Video | 31 | `nodes/animation/animations/video_handler.py` |
-| Math (procedural Python) | 26 | `nodes/animation/animations/math_handler.py` |
-| MochiScript | 18 | `nodes/animation/plugin_core/mscript_engine.py` |
-| Eye animations (JSON) | 6 | `nodes/animation/animations/__init__.py` |
-| PNG | 6 | `nodes/animation/animations/image_handler.py` |
-| Bitmaps (1-bit) | 5 | `nodes/animation/animations/bitmap_handler.py` |
-| Icons | 4 | `nodes/animation/animations/image_handler.py` |
-| BMP (raw) | 2 | `nodes/animation/animations/bitmap_handler.py` |
-| Procedural | 1 | `nodes/animation/animations/math_handler.py` |
-
-Each type has its own chapter under
-[`docs/learn/`](docs/learn/index.md) explaining the history,
-how it works, and how Mochi renders it.
-
-## Project docs
-
-| Doc | What it covers |
-| --- | --- |
-| [`docs/OPERATOR_PRODUCT_PLAN.md`](docs/OPERATOR_PRODUCT_PLAN.md) | Comparable-product research (Dasai Mochi3, EMO, Vector, Eilik, VTube Studio, Divoom, Shimeji) + phased build plan. |
-| [`docs/PACK_CONVENTION.md`](docs/PACK_CONVENTION.md) | How character/style packs are authored (`assets/packs/<id>/pack.yaml`). |
-| [`docs/SKIN_CONVENTION.md`](docs/SKIN_CONVENTION.md) | How body / bezel skins are authored (`assets/skins/<id>/`). |
-| [`docs/ANIMATION_REVIEW.md`](docs/ANIMATION_REVIEW.md) | The LLM-track review (animation-aware system prompt + bridge). |
-| [`docs/future_multi_timeline.md`](docs/future_multi_timeline.md) | The multi-channel timeline idea (split mscript into general timeline + motor DSL). |
-| [`docs/messaging.md`](docs/messaging.md) | ZeroMQ addresses + topic conventions + message payloads. |
-| [`docs/learn/index.md`](docs/learn/index.md) | The Learn tab content — animation history + per-type explainers. |
-
-## Authoring content
-
-### Add a new animation
-
-Drop the file under `assets/<type>/` (matching one of the
-supported types).  Run `python tools/build_catalog.py`.  The
-animation appears in the companion's Library on next refresh.
-
-### Author a character pack
-
-See [`docs/PACK_CONVENTION.md`](docs/PACK_CONVENTION.md).  Short
-version:
-
-```
-assets/packs/<your_id>/
-├── pack.yaml          # required: schema + slot map
-├── idle.gif           # named slot files (operator picks slot names)
-├── happy.gif
-├── ...
-└── README.md          # optional
-```
-
-The pack auto-appears on the companion's Packs tab.
-
-### Author a skin (body / bezel)
-
-See [`docs/SKIN_CONVENTION.md`](docs/SKIN_CONVENTION.md).
-
-```
-assets/skins/<your_id>/
-├── body.png           # required: alpha-cutout body image
-├── meta.yaml          # required: screen_bbox + window defaults
-└── README.md          # optional
-```
-
-The skin auto-appears in the companion's Settings.
-
-## Host monitor + control
-
-The host monitor caches node health/meta/event messages.  Reach
-it at `monitor.rep_address` from `config.yaml`:
-
-```bash
-python tools/monitor_cli.py --pretty GET health
-```
-
-Or send raw ZMQ commands to the animation node's ctrl socket:
-
-```bash
-python gui/control_cli.py "node animation mode on solid_color"
-python gui/control_cli.py "node animation color solid_color 255 0 128"
-python gui/control_cli.py "node animation size 64x64"
-```
-
-## Developing nodes
-
-- Place node code under `nodes/<your_node>/` and provide an entry
-  script following the pattern in `nodes/animation/node.py`
-- Use `transport.make_node_topics(<node_id>)` for the PUB/SUB
-  topic helpers; call `describe_node_catalog` to publish a `meta`
-  announcement at startup
-- Emit health metrics (`node.<id>.health`) + structured event
-  payloads (`node.<id>.event`) so tooling stays in sync
-- Drop a `config.yaml` next to your `node.py` declaring transport
-  addresses, defaults, and a `capabilities` block for GUI metadata
-- Append a block to the root `config.yaml`'s `plugins:` list with
-  `id`, `module` (or `entry`), `cwd`, and `config_path`
-
-The existing animation node is the canonical template — it
-maintains its own control loop, queues structured events,
-publishes frames through the broker so multiple subscribers can
-consume them without additional wiring.
-
-## Companion projects in the Jenkins Robotics stack
-
-- **[JROS](https://github.com/jonathanjenkins/JROS)** — Jenkins
-  Robot Operating System.  The full undertaking: agent + voice +
-  vision + animation + motor.  Mochi is the structural pattern
-  testbed for JROS's animation pipeline.
-- **[VoiceLLM](https://github.com/jonathanjenkins/VoiceLLM)** —
-  standalone voice agent (Eve) — STT + LLM + TTS.  Lessons fed
-  back into JROS.
-- **[AgenticLLM / python_jaeger](https://github.com/jonathanjenkins/AgenticLLM)** —
-  standalone tool-using LLM agent.  Lessons fed back into JROS.
-- **JP01 firmware** — the hardware side: ESP32 robot controllers
-  + LED matrix display drivers.
-
-## Contributing
-
-1. Branch from `main`
-2. Run `python -m compileall .` plus any relevant smoke tests
-3. Open a PR describing the change + any new config requirements
 
 ## License
 
-See [LICENSE](LICENSE).
-
----
-
-### Stay connected
-
-If you got this far, you probably care about open-source
-robotics + animation + AI.
-
-**Follow** — [Discord](https://discord.gg/sAnE5pRVyT) ·
-[YouTube](https://www.youtube.com/@Jenkins_Robotics) ·
-[Instagram](https://www.instagram.com/jenkinsrobotics/) ·
-[Facebook](https://www.facebook.com/jenkinsrobotics/)
-
-**Support** — [Patreon](https://www.patreon.com/JenkinsRobotics) ·
-[Venmo](https://venmo.com/u/JenkinsRobotics)
-
-Thanks for reading.
+[Apache-2.0](LICENSE) © Jenkins Robotics

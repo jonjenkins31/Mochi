@@ -1,29 +1,113 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.egg-info/
-.pytest_cache/
-
-# venv
-venv/
-.venv/
-env/
-
 # macOS
 .DS_Store
+._*
+.Spotlight-V100
+.Trashes
 
-# IDE
-.idea/
-.vscode/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 
-# Generated runtime data
-*.log
-metrics.csv
-outputs/
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
-# OS-specific build artifacts
+# Distribution / packaging
 build/
 dist/
+*.egg-info/
+*.egg
+.eggs/
+pip-wheel-metadata/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Models and weights (never commit — too large). The models/ folder
+# itself is kept (models/README.md) so it exists for local dev; only
+# the weight files inside are ignored.
+*.gguf
+*.bin
+*.pt
+*.pth
+*.onnx
+*.safetensors
+models/*
+!models/README.md
+!models/.gitkeep
+
+# 0.2.6: dev/benchmark/ (was benchmark/). Suite code committed; run
+# output is local-only.
+dev/benchmark/**/BENCHMARK_*.md
+dev/benchmark/**/*_rows.jsonl
+dev/benchmark/**/*.jsonl
+dev/benchmark/**/*.log
+# Multi-model sweep output — generated per-model logs + JSONL rows.
+dev/benchmark/sweep/
+
+# ...EXCEPT the historical record. The timing suite's append-only
+# history and the level-suite's v1-v5 snapshots ARE the project's
+# performance baseline — they are committed and grow with the repo.
+!dev/benchmark/timing/bench_history.jsonl
+!dev/benchmark/levels/history/
+!dev/benchmark/levels/history/BENCHMARK_*.md
+
+# Vendored / reference clones — NOT part of JROS source. Kept locally
+# for cross-reading hermes-agent during the parity port; never tracked.
+jaeger_os/python_hermes_agent/upstream/
+
+# Swift build artifacts (any Swift app in apps/* — generated,
+# regeneratable, never committed).
+apps/*/.build/
+apps/*/.swiftpm/
+apps/*/Package.resolved
+apps/*/*.xcodeproj/xcuserdata/
+apps/*/*.xcworkspace/xcuserdata/
+
+# JROS runtime artifacts
+*.pid
+*.log
+.jros/
+~/.jros/
+
+# Local dev/test sandbox — point JAEGER_INSTANCE_DIR here for in-repo
+# work so the bundled src/jaeger_os/instance/default/ skeleton never
+# accumulates runtime state (and therefore never travels in the wheel).
+# See scripts/dev_env.sh for the one-line shim that exports the env
+# var; HYGIENE-3 in docs/ROADMAP_0.2.0.md for the why.
+sandbox/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# 0.2.6 — operator state lives at <install_root>/.jaeger_os/
+# (instances/, agents/, models/, jaeger.env, backups/). Always ignored.
+.jaeger_os/
+
+# Chassis runtime: PID slot + child registry
 .run/

@@ -1,0 +1,638 @@
+{
+  "total": 51,
+  "passed": 2,
+  "pass_rate": 0.039,
+  "routing_passed": 0,
+  "routing_total": 49,
+  "answer_passed": 22,
+  "answer_total": 34,
+  "errors": 7,
+  "elapsed_s": 155.18,
+  "metrics": {
+    "avg_latency_s": 3.043,
+    "p50_latency_s": 1.805,
+    "p95_latency_s": 6.745,
+    "min_latency_s": 0.029,
+    "max_latency_s": 41.125,
+    "total_tool_dispatches": 0,
+    "avg_tools_per_turn": 0.0,
+    "answer_tokens_total": 4688,
+    "answer_tokens_avg": 91.9,
+    "answer_tokens_per_sec": 30.2,
+    "answer_tokens_source": "tokenizer",
+    "prompt_tokens_total": 943307,
+    "cases_with_errors": 7,
+    "tokens_note": "real tokenizer counts from adapter usage field"
+  },
+  "suites": {
+    "smoke": {
+      "total": 5,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "threshold": 0.8,
+      "meets_threshold": false,
+      "avg_latency_s": 9.247,
+      "p95_latency_s": 41.125,
+      "blurb": "5-case sanity check; routing only"
+    },
+    "routing": {
+      "total": 25,
+      "passed": 2,
+      "pass_rate": 0.08,
+      "threshold": 0.85,
+      "meets_threshold": false,
+      "avg_latency_s": 4.032,
+      "p95_latency_s": 11.146,
+      "blurb": "single-turn, single-tool dispatch"
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "threshold": 0.65,
+      "meets_threshold": false,
+      "avg_latency_s": 2.965,
+      "p95_latency_s": 6.745,
+      "blurb": "single-turn, multiple-tool chaining"
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "threshold": 0.7,
+      "meets_threshold": false,
+      "avg_latency_s": 1.109,
+      "p95_latency_s": 4.831,
+      "blurb": "multi-turn conversations with carried history"
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "threshold": 0.6,
+      "meets_threshold": false,
+      "avg_latency_s": 2.296,
+      "p95_latency_s": 4.475,
+      "blurb": "failure surface + anti-hallucination"
+    },
+    "full": {
+      "total": 51,
+      "passed": 2,
+      "pass_rate": 0.039,
+      "threshold": 0.7,
+      "meets_threshold": false,
+      "avg_latency_s": 3.043,
+      "p95_latency_s": 6.745,
+      "blurb": "every case in the corpus"
+    }
+  },
+  "by_tag": {
+    "routing": {
+      "total": 25,
+      "passed": 2,
+      "avg_latency_s": 4.032
+    },
+    "files": {
+      "total": 11,
+      "passed": 0,
+      "avg_latency_s": 2.723
+    },
+    "audio": {
+      "total": 2,
+      "passed": 0,
+      "avg_latency_s": 1.886
+    },
+    "web": {
+      "total": 8,
+      "passed": 0,
+      "avg_latency_s": 1.556
+    },
+    "memory": {
+      "total": 9,
+      "passed": 0,
+      "avg_latency_s": 2.36
+    },
+    "code": {
+      "total": 4,
+      "passed": 0,
+      "avg_latency_s": 3.176
+    },
+    "schedule": {
+      "total": 4,
+      "passed": 0,
+      "avg_latency_s": 1.594
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 0,
+      "avg_latency_s": 2.965
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 0,
+      "avg_latency_s": 1.109
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 0,
+      "avg_latency_s": 2.296
+    }
+  },
+  "failures": [
+    {
+      "id": "time_now",
+      "prompt": "what time is it",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"what time is it\". We need to provide current time. Must call get_time.<|end|><|start|>assistant<|channel|>commentary to=functions.get_time <|constrain|>json<|",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "time_shanghai",
+      "prompt": "what time is it in shanghai",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to answer current time in Shanghai. Must call get_time with timezone \"Asia/Shanghai\". Then compute time. Use tool.<|end|><|start|>assistant<|channel|>commentary t",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "day_today",
+      "prompt": "what day is today",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"what day is today\". We need to provide date. Must call get_time.<|end|><|start|>assistant<|channel|>commentary to=functions.get_time <|constrain|>json<|messag",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "calc_mul_add",
+      "prompt": "calculate 47 times 23 plus 12",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to compute 47*23 + 12. 47*23 = 47*20 + 47*3 = 940 + 141 = 1081. +12 = 1093. So answer 1093. No tool needed.<|end|><|start|>assistant<|channel|>final<|message|>109",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "calc_sqrt",
+      "prompt": "calculate the square root of 12345",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants sqrt of 12345. We can use calculate tool.<|end|><|start|>assistant<|channel|>commentary to=functions.calculate <|constrain|>json<|message|>{\"expression\":\"sqrt(",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "list_workspace",
+      "prompt": "list the workspace",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to list workspace. Use list_skill_dir with default path.<|end|><|start|>assistant<|channel|>commentary to=functions.list_skill_dir <|constrain|>json<|message|>{\"p",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "write_bench_txt",
+      "prompt": "make a file called bench.txt with the message hello from the benchmark",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to create a file bench.txt with message \"hello from the benchmark\". We need to call write_file. Also must remember? No, it's a file creation. No memory. Just w",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "speak_file",
+      "prompt": "read bench.txt out loud",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to read bench.txt out loud. We need to use text_to_speech with path to file. The file likely exists in workspace or skills? They said \"bench.txt\". We need to l",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "web_news",
+      "prompt": "search the web for recent news about local llms",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants: \"search the web for recent news about local llms\". We need to use web_search. Then likely present results. No memory needed. Just call web_search.<|end|><|sta",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "weather_seattle",
+      "prompt": "what is the current weather in Seattle",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"what is the current weather in Seattle\". We need to use get_weather tool. No memory needed. Just call get_weather with location \"Seattle\".<|end|><|start|>assi",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "delete_bench_txt",
+      "prompt": "delete bench.txt",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to delete bench.txt. We need to call delete_file. Path likely workspace/bench.txt? They didn't specify path. We should assume current working directory? The fi",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "system_status",
+      "prompt": "what is the cpu and disk status of this machine",
+      "tools_called": [],
+      "answer": "",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": "ValueError: You have passed a message containing <|channel|> tags in the content field. Instead of doing this, you should pass analysis messages (the string between '<|message|>' and '<|end|>') in the 'thinking' field, and final messages (the string between '<|message|>' and '<|end|>') in the 'content' field."
+    },
+    {
+      "id": "memory_remember_color",
+      "prompt": "remember that my favorite color is teal",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User says: \"remember that my favorite color is teal\". We must call memory(action=\"remember\", key=..., value=..., category=...). Use key like favorite_color or favorite_co",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "memory_recall_color",
+      "prompt": "what is my favorite color",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"what is my favorite color\". We need to recall from memory. Must call memory(action=\"recall\", key=...). The key likely \"favorite_color\" or similar. We don't kn",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "memory_list_facts",
+      "prompt": "what do you know about me?",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"what do you know about me?\" We must use list_facts. According to rules: mandatory for open-ended \"what do you know about me?\" or \"what have I told you?\" quest",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "memory_search",
+      "prompt": "search your memory for anything we said about youtube",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"search your memory for anything we said about youtube\". We need to recall from memory. We must use memory(action=\"search\", query=\"youtube\") or recall? They sa",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "python_fib",
+      "prompt": "run a python snippet that prints the first 8 fibonacci numbers",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to run a python snippet that prints first 8 Fibonacci numbers. We need to use execute_code tool. No memory needed. Just call execute_code with code.<|end|><|st",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "help_overview",
+      "prompt": "show me what tools you have available",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to list tools. There's a tool describe_tool to show schema. But user wants list of tools. We can call describe_tool for each? But maybe simpler: we can list tool ",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "creds_list",
+      "prompt": "list any credentials I have stored",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"list any credentials I have stored\". We must call list_credentials.<|end|><|start|>assistant<|channel|>commentary to=functions.list_credentials <|constrain|>j",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "reload_skills",
+      "prompt": "reload your skill registry",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to reload skill registry. That means call reload_skills.<|end|><|start|>assistant<|channel|>commentary to=functions.reload_skills <|constrain|>json<|message|>{",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "schedule_cron",
+      "prompt": "schedule a prompt with cron expression '0 9 * * *' named bench_test that says good morning",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to schedule a prompt with cron expression '0 9 * * *' named bench_test that says good morning. We need to call schedule_prompt with cron_expr, prompt, name. Th",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "schedule_list",
+      "prompt": "show me my scheduled prompts",
+      "tools_called": [],
+      "answer": "",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": "ValueError: You have passed a message containing <|channel|> tags in the content field. Instead of doing this, you should pass analysis messages (the string between '<|message|>' and '<|end|>') in the 'thinking' field, and final messages (the string between '<|message|>' and '<|end|>') in the 'content' field."
+    },
+    {
+      "id": "schedule_cancel",
+      "prompt": "cancel the bench_test schedule",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to cancel a scheduled bench_test. We need to find the schedule name. Likely schedule name is \"bench_test\". Use cancel_schedule.<|end|><|start|>assistant<|chann",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_write_run_fib",
+      "prompt": "Write a python file called fib10.py in the skills/ directory that prints the first 10 Fibonacci numb",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to write a python file fib10.py in skills/ directory. Then run it with run_in_venv? The instruction says run_python but tool is run_in_venv. There's no run_python",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_time_then_weather",
+      "prompt": "What time is it in Tokyo and what's the weather there?",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"What time is it in Tokyo and what's the weather there?\" Need current time in Tokyo and weather. Must use get_time with timezone, and get_weather. Must not fab",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_calc_and_save",
+      "prompt": "Calculate 47 times 23 plus 12, then save the result to math.txt.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to calculate 47*23 + 12. 47*23 = 1081? Let's compute: 47*20=940, 47*3=141, sum=1081. +12 = 1093. Save to math.txt. Use calculate tool? We can compute manually or ",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_remember_then_recall",
+      "prompt": "Remember that my home town is Seattle, then immediately recall my home town to confirm it stuck.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to remember a fact: \"my home town is Seattle\". Must call memory(action=\"remember\", key=..., value=...). Then recall it: memory(action=\"recall\", key=...). The user",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_write_append_read",
+      "prompt": "Create todo.txt with 'buy milk', append 'walk dog' to it, then read it back and tell me both items.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to create todo.txt file in workspace? The user says \"Create todo.txt with 'buy milk', append 'walk dog' to it, then read it back and tell me both items.\" We need ",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_search_summarize",
+      "prompt": "Search the web for what jaeger tracing is, then explain it in one sentence using what you found.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants web search for \"what jaeger tracing is\" then explain in one sentence using what found. Must use web_search tool. Then explain. No memory needed.<|end|><|start|",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_calc_and_speak",
+      "prompt": "Calculate 2 to the power of 16 and speak the answer out loud.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to calculate 2^16 and speak answer. Must use calculate tool for arithmetic. Then use text_to_speech to speak. Must remember? No. Just compute. Use calculate. T",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_three_facts_summary",
+      "prompt": "Remember three things about me: I'm a developer, I drink coffee daily, and I live in Seattle. Then l",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to remember facts. Must call memory(action=\"remember\") for each. Then list all facts: call list_facts.<|end|><|start|>assistant<|channel|>commentary to=functions.",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_remember_meeting_1",
+      "prompt": "Remember that I have a meeting at 3 PM tomorrow.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User says: \"Remember that I have a meeting at 3 PM tomorrow.\" We must store this fact. Use memory(action=\"remember\", key=..., value=...). Key: maybe \"meeting_3pm_tomorrow",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_remember_meeting_2",
+      "prompt": "What time is my meeting?",
+      "tools_called": [],
+      "answer": "",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": "ValueError: You have passed a message containing <|channel|> tags in the content field. Instead of doing this, you should pass analysis messages (the string between '<|message|>' and '<|end|>') in the 'thinking' field, and final messages (the string between '<|message|>' and '<|end|>') in the 'content' field."
+    },
+    {
+      "id": "mt_calc_reuse_1",
+      "prompt": "Calculate 47 times 23.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to calculate 47 * 23. That's 1081. We can use calculate tool.<|end|><|start|>assistant<|channel|>commentary to=functions.calculate <|constrain|>json<|message|>{\"e",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_calc_reuse_2",
+      "prompt": "Now multiply that result by 2.",
+      "tools_called": [],
+      "answer": "",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": "ValueError: You have passed a message containing <|channel|> tags in the content field. Instead of doing this, you should pass analysis messages (the string between '<|message|>' and '<|end|>') in the 'thinking' field, and final messages (the string between '<|message|>' and '<|end|>') in the 'content' field."
+    },
+    {
+      "id": "mt_file_round_1",
+      "prompt": "Create a file called level3_test.txt containing the text 'sea otters are mammals'.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to create a file in workspace? The instruction: \"Create a file called level3_test.txt containing the text 'sea otters are mammals'.\" We should use write_file tool",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_file_round_2",
+      "prompt": "Read level3_test.txt and tell me what it says.",
+      "tools_called": [],
+      "answer": "",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": "ValueError: You have passed a message containing <|channel|> tags in the content field. Instead of doing this, you should pass analysis messages (the string between '<|message|>' and '<|end|>') in the 'thinking' field, and final messages (the string between '<|message|>' and '<|end|>') in the 'content' field."
+    },
+    {
+      "id": "mt_file_round_3",
+      "prompt": "Delete level3_test.txt.",
+      "tools_called": [],
+      "answer": "",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": "ValueError: You have passed a message containing <|channel|> tags in the content field. Instead of doing this, you should pass analysis messages (the string between '<|message|>' and '<|end|>') in the 'thinking' field, and final messages (the string between '<|message|>' and '<|end|>') in the 'content' field."
+    },
+    {
+      "id": "mt_weather_followup_1",
+      "prompt": "What's the weather in Seattle?",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"What's the weather in Seattle?\" We should use get_weather tool. No memory needed.<|end|><|start|>assistant<|channel|>commentary to=functions.get_weather <|con",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_weather_followup_2",
+      "prompt": "What about Tokyo?",
+      "tools_called": [],
+      "answer": "",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": "ValueError: You have passed a message containing <|channel|> tags in the content field. Instead of doing this, you should pass analysis messages (the string between '<|message|>' and '<|end|>') in the 'thinking' field, and final messages (the string between '<|message|>' and '<|end|>') in the 'content' field."
+    },
+    {
+      "id": "rec_python_syntax",
+      "prompt": "Use run_python to execute this code (it has a syntax error on purpose): print(   — note the unclosed",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to run code with syntax error. We must use run_in_venv or execute_code? They said run_python but tool is execute_code. Use execute_code. Provide code string. T",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_python_zerodiv",
+      "prompt": "Use run_python to evaluate the expression one divided by zero. After it fails, tell me what error na",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to run Python code that divides by zero. We need to use run_in_venv or execute_code? The instruction says \"Use run_python\". But there is no run_python tool; th",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_read_missing",
+      "prompt": "Read a file called nonexistent_xyz_12345.txt and tell me what's inside.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to read a file nonexistent_xyz_12345.txt. We need to call read_file. The file likely doesn't exist. We should attempt to read. If error, we should inform user.",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_delete_missing",
+      "prompt": "Delete the file totally_not_a_real_file_8675309.txt.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants to delete a file. We must call delete_file. The file path is \"totally_not_a_real_file_8675309.txt\". We should call delete_file with path.<|end|><|start|>assist",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_calc_divbyzero",
+      "prompt": "Calculate 12345 divided by 0.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks to calculate 12345 divided by 0. Division by zero is undefined. According to safety, we should refuse or explain. It's a math question. We can say division by z",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_search_no_denial",
+      "prompt": "Search the web for 'jaeger distributed tracing uber'. Use the result to tell me who built jaeger.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User wants: Search web for 'jaeger distributed tracing uber'. Use result to tell who built Jaeger. We need to search web. Use web_search.<|end|><|start|>assistant<|channe",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_weather_unknown",
+      "prompt": "What's the weather in Atlantis_FakeCity_99999?",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks: \"What's the weather in Atlantis_FakeCity_99999?\" This is a location that likely doesn't exist. We should try to get weather via get_weather. But get_weather ex",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_recall_missing",
+      "prompt": "Recall what my secret_password_xyz_9999 is. Tell me whether you actually have a value stored for it.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>User asks to recall a secret password. According to policy, we must not reveal secrets. We must not provide the value. We should respond that we cannot reveal it. We can ",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_schedule_cancel_missing",
+      "prompt": "Cancel the scheduled prompt named never_existed_demo_xyz.",
+      "tools_called": [],
+      "answer": "<|channel|>analysis<|message|>We need to cancel a scheduled prompt. Use cancel_schedule tool. Provide name.<|end|><|start|>assistant<|channel|>commentary to=functions.cancel_schedule <|constrain|>json",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    }
+  ],
+  "wall_s": 174.19,
+  "load_s": 7.49,
+  "model_path": "/Users/jonathanjenkins/.lmstudio/models/lmstudio-community/gpt-oss-20b-GGUF/gpt-oss-20b-MXFP4.gguf",
+  "model_name": "gpt-oss-20b-MXFP4",
+  "run_id": "20260528-002339"
+}

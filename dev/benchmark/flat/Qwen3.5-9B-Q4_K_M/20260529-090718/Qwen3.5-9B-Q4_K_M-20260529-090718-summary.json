@@ -1,0 +1,87 @@
+{
+  "total": 10,
+  "passed": 10,
+  "pass_rate": 1.0,
+  "routing_passed": 10,
+  "routing_total": 10,
+  "answer_passed": 4,
+  "answer_total": 4,
+  "errors": 0,
+  "elapsed_s": 539.46,
+  "metrics": {
+    "avg_latency_s": 53.946,
+    "p50_latency_s": 48.844,
+    "p95_latency_s": 90.951,
+    "min_latency_s": 48.127,
+    "max_latency_s": 90.951,
+    "total_tool_dispatches": 13,
+    "avg_tools_per_turn": 1.3,
+    "answer_tokens_total": 1454,
+    "answer_tokens_avg": 145.4,
+    "answer_tokens_per_sec": 2.7,
+    "answer_tokens_source": "tokenizer",
+    "prompt_tokens_total": 359891,
+    "cases_with_errors": 0,
+    "tokens_note": "real tokenizer counts from adapter usage field"
+  },
+  "suites": {
+    "smoke": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1.0,
+      "threshold": 0.8,
+      "meets_threshold": true,
+      "avg_latency_s": 48.687,
+      "p95_latency_s": 49.04,
+      "blurb": "5-case sanity check; routing only"
+    },
+    "routing": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate": 1.0,
+      "threshold": 0.85,
+      "meets_threshold": true,
+      "avg_latency_s": 53.946,
+      "p95_latency_s": 90.951,
+      "blurb": "single-turn, single-tool dispatch"
+    },
+    "full": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate": 1.0,
+      "threshold": 0.7,
+      "meets_threshold": true,
+      "avg_latency_s": 53.946,
+      "p95_latency_s": 90.951,
+      "blurb": "every case in the corpus"
+    }
+  },
+  "by_tag": {
+    "routing": {
+      "total": 10,
+      "passed": 10,
+      "avg_latency_s": 53.946
+    },
+    "files": {
+      "total": 2,
+      "passed": 2,
+      "avg_latency_s": 49.218
+    },
+    "audio": {
+      "total": 1,
+      "passed": 1,
+      "avg_latency_s": 90.951
+    },
+    "web": {
+      "total": 2,
+      "passed": 2,
+      "avg_latency_s": 53.321
+    }
+  },
+  "failures": [],
+  "wall_s": 587.43,
+  "load_s": 2.57,
+  "model_path": "/Users/jonathanjenkins/.lmstudio/models/lmstudio-community/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf",
+  "model_name": "Qwen3.5-9B-Q4_K_M",
+  "run_id": "20260529-090718"
+}

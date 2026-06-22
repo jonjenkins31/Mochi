@@ -1,0 +1,40 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/primary.swiftdeps"
+  },
+  "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/AvatarApp.swift": {
+    "dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/AvatarApp.d",
+    "object": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/AvatarApp.swift.o",
+    "swiftmodule": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/AvatarApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/AvatarApp.swiftdeps",
+    "diagnostics": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/AvatarApp.dia"
+  },
+  "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/ContentView.swift": {
+    "dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/ContentView.d",
+    "object": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/ContentView.swift.o",
+    "swiftmodule": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/ContentView.swiftdeps",
+    "diagnostics": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/ContentView.dia"
+  },
+  "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/FrameDecoder.swift": {
+    "dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/FrameDecoder.d",
+    "object": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/FrameDecoder.swift.o",
+    "swiftmodule": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/FrameDecoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/FrameDecoder.swiftdeps",
+    "diagnostics": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/FrameDecoder.dia"
+  },
+  "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/RendererView.swift": {
+    "dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/RendererView.d",
+    "object": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/RendererView.swift.o",
+    "swiftmodule": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/RendererView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/RendererView.swiftdeps",
+    "diagnostics": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/RendererView.dia"
+  },
+  "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/WebSocketClient.swift": {
+    "dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/WebSocketClient.d",
+    "object": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/WebSocketClient.swift.o",
+    "swiftmodule": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/WebSocketClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/WebSocketClient.swiftdeps",
+    "diagnostics": "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/WebSocketClient.dia"
+  }
+}

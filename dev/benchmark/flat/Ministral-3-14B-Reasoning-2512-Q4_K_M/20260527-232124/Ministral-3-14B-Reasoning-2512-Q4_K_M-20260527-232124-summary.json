@@ -1,0 +1,638 @@
+{
+  "total": 51,
+  "passed": 2,
+  "pass_rate": 0.039,
+  "routing_passed": 0,
+  "routing_total": 49,
+  "answer_passed": 14,
+  "answer_total": 34,
+  "errors": 0,
+  "elapsed_s": 160.97,
+  "metrics": {
+    "avg_latency_s": 3.156,
+    "p50_latency_s": 1.121,
+    "p95_latency_s": 4.135,
+    "min_latency_s": 0.462,
+    "max_latency_s": 94.368,
+    "total_tool_dispatches": 0,
+    "avg_tools_per_turn": 0.0,
+    "answer_tokens_total": 937,
+    "answer_tokens_avg": 18.4,
+    "answer_tokens_per_sec": 5.8,
+    "answer_tokens_source": "tokenizer",
+    "prompt_tokens_total": 817218,
+    "cases_with_errors": 0,
+    "tokens_note": "real tokenizer counts from adapter usage field"
+  },
+  "suites": {
+    "smoke": {
+      "total": 5,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "threshold": 0.8,
+      "meets_threshold": false,
+      "avg_latency_s": 19.665,
+      "p95_latency_s": 94.368,
+      "blurb": "5-case sanity check; routing only"
+    },
+    "routing": {
+      "total": 25,
+      "passed": 2,
+      "pass_rate": 0.08,
+      "threshold": 0.85,
+      "meets_threshold": false,
+      "avg_latency_s": 4.802,
+      "p95_latency_s": 3.678,
+      "blurb": "single-turn, single-tool dispatch"
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "threshold": 0.65,
+      "meets_threshold": false,
+      "avg_latency_s": 2.043,
+      "p95_latency_s": 5.122,
+      "blurb": "single-turn, multiple-tool chaining"
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "threshold": 0.7,
+      "meets_threshold": false,
+      "avg_latency_s": 1.214,
+      "p95_latency_s": 1.957,
+      "blurb": "multi-turn conversations with carried history"
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "threshold": 0.6,
+      "meets_threshold": false,
+      "avg_latency_s": 1.516,
+      "p95_latency_s": 2.806,
+      "blurb": "failure surface + anti-hallucination"
+    },
+    "full": {
+      "total": 51,
+      "passed": 2,
+      "pass_rate": 0.039,
+      "threshold": 0.7,
+      "meets_threshold": false,
+      "avg_latency_s": 3.156,
+      "p95_latency_s": 4.135,
+      "blurb": "every case in the corpus"
+    }
+  },
+  "by_tag": {
+    "routing": {
+      "total": 25,
+      "passed": 2,
+      "avg_latency_s": 4.802
+    },
+    "files": {
+      "total": 11,
+      "passed": 0,
+      "avg_latency_s": 1.605
+    },
+    "audio": {
+      "total": 2,
+      "passed": 0,
+      "avg_latency_s": 1.063
+    },
+    "web": {
+      "total": 8,
+      "passed": 0,
+      "avg_latency_s": 1.295
+    },
+    "memory": {
+      "total": 9,
+      "passed": 0,
+      "avg_latency_s": 1.593
+    },
+    "code": {
+      "total": 4,
+      "passed": 0,
+      "avg_latency_s": 2.933
+    },
+    "schedule": {
+      "total": 4,
+      "passed": 0,
+      "avg_latency_s": 0.846
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 0,
+      "avg_latency_s": 2.043
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 0,
+      "avg_latency_s": 1.214
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 0,
+      "avg_latency_s": 1.516
+    }
+  },
+  "failures": [
+    {
+      "id": "time_now",
+      "prompt": "what time is it",
+      "tools_called": [],
+      "answer": "get_time{}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "time_shanghai",
+      "prompt": "what time is it in shanghai",
+      "tools_called": [],
+      "answer": "get_time{\"timezone\": \"Asia/Shanghai\"}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "day_today",
+      "prompt": "what day is today",
+      "tools_called": [],
+      "answer": "get_time{}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "calc_mul_add",
+      "prompt": "calculate 47 times 23 plus 12",
+      "tools_called": [],
+      "answer": "calculate{\"expression\": \"47 * 23 + 12\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "calc_sqrt",
+      "prompt": "calculate the square root of 12345",
+      "tools_called": [],
+      "answer": "calculate{\"expression\": \"sqrt(12345)\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "list_workspace",
+      "prompt": "list the workspace",
+      "tools_called": [],
+      "answer": "list_skill_dir{\"path\": \"workspace\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "write_bench_txt",
+      "prompt": "make a file called bench.txt with the message hello from the benchmark",
+      "tools_called": [],
+      "answer": "write_file{\"path\": \"bench.txt\", \"content\": \"hello from the benchmark\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "speak_file",
+      "prompt": "read bench.txt out loud",
+      "tools_called": [],
+      "answer": "text_to_speech{\"path\": \"bench.txt\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "web_news",
+      "prompt": "search the web for recent news about local llms",
+      "tools_called": [],
+      "answer": "web_search{\"query\": \"recent news about local LLMs\", \"max_results\": 5}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "weather_seattle",
+      "prompt": "what is the current weather in Seattle",
+      "tools_called": [],
+      "answer": "get_weather{\"location\": \"Seattle\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "delete_bench_txt",
+      "prompt": "delete bench.txt",
+      "tools_called": [],
+      "answer": "delete_file{\"path\": \"bench.txt\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "system_status",
+      "prompt": "what is the cpu and disk status of this machine",
+      "tools_called": [],
+      "answer": "system_status{}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "memory_remember_color",
+      "prompt": "remember that my favorite color is teal",
+      "tools_called": [],
+      "answer": "remember{\"key\": \"favorite_color\", \"value\": \"teal\", \"category\": \"preferences\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "memory_recall_color",
+      "prompt": "what is my favorite color",
+      "tools_called": [],
+      "answer": "recall{\"key\": \"favorite color\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "memory_list_facts",
+      "prompt": "what do you know about me?",
+      "tools_called": [],
+      "answer": "list_facts{}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "memory_search",
+      "prompt": "search your memory for anything we said about youtube",
+      "tools_called": [],
+      "answer": "memory{\"action\": \"search\", \"query\": \"youtube\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "python_fib",
+      "prompt": "run a python snippet that prints the first 8 fibonacci numbers",
+      "tools_called": [],
+      "answer": "execute_code{\"code\": \"def fibonacci(n):\\n    a, b = 0, 1\\n    for _ in range(n):\\n        print(a, end=' ')\\n        a, b = b, a + b\\n\\nfibonacci(8)\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "help_overview",
+      "prompt": "show me what tools you have available",
+      "tools_called": [],
+      "answer": "list_plugins{}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "creds_list",
+      "prompt": "list any credentials I have stored",
+      "tools_called": [],
+      "answer": "list_credentials{}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "reload_skills",
+      "prompt": "reload your skill registry",
+      "tools_called": [],
+      "answer": "reload_skills{}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "schedule_cron",
+      "prompt": "schedule a prompt with cron expression '0 9 * * *' named bench_test that says good morning",
+      "tools_called": [],
+      "answer": "get_time{}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "schedule_list",
+      "prompt": "show me my scheduled prompts",
+      "tools_called": [],
+      "answer": "list_schedules{}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "schedule_cancel",
+      "prompt": "cancel the bench_test schedule",
+      "tools_called": [],
+      "answer": "cancel_schedule{\"name\": \"bench_test\"}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_write_run_fib",
+      "prompt": "Write a python file called fib10.py in the skills/ directory that prints the first 10 Fibonacci numb",
+      "tools_called": [],
+      "answer": "write_file{\"content\": \"def fib10():\\n    a, b = 0, 1\\n    for _ in range(10):\\n        print(a, end=' ')\\n        a, b = b, a + b\\n\\nif __name__ == \\\"__main__\\\":\\n    fib10()\", \"path\": \"skills/fib10.p",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_time_then_weather",
+      "prompt": "What time is it in Tokyo and what's the weather there?",
+      "tools_called": [],
+      "answer": "get_time{\"timezone\": \"Asia/Tokyo\"}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_calc_and_save",
+      "prompt": "Calculate 47 times 23 plus 12, then save the result to math.txt.",
+      "tools_called": [],
+      "answer": "calculate{\"expression\": \"47 * 23 + 12\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_remember_then_recall",
+      "prompt": "Remember that my home town is Seattle, then immediately recall my home town to confirm it stuck.",
+      "tools_called": [],
+      "answer": "remember{\"key\": \"home_town\", \"value\": \"Seattle\"}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_write_append_read",
+      "prompt": "Create todo.txt with 'buy milk', append 'walk dog' to it, then read it back and tell me both items.",
+      "tools_called": [],
+      "answer": "write_file{\"content\": \"buy milk\", \"path\": \"todo.txt\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_search_summarize",
+      "prompt": "Search the web for what jaeger tracing is, then explain it in one sentence using what you found.",
+      "tools_called": [],
+      "answer": "web_search{\"query\": \"jaeger tracing\"}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_calc_and_speak",
+      "prompt": "Calculate 2 to the power of 16 and speak the answer out loud.",
+      "tools_called": [],
+      "answer": "calculate{\"expression\": \"2 ** 16\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_three_facts_summary",
+      "prompt": "Remember three things about me: I'm a developer, I drink coffee daily, and I live in Seattle. Then l",
+      "tools_called": [],
+      "answer": "remember{\"key\": \"occupation\", \"value\": \"developer\", \"category\": \"identity\"}remember{\"key\": \"daily_habit\", \"value\": \"drink coffee\", \"category\": \"preferences\"}remember{\"key\": \"location\", \"value\": \"Seatt",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_remember_meeting_1",
+      "prompt": "Remember that I have a meeting at 3 PM tomorrow.",
+      "tools_called": [],
+      "answer": "remember{\"key\": \"meeting_tomorrow_3pm\", \"value\": \"3 PM tomorrow\", \"category\": \"schedule\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_remember_meeting_2",
+      "prompt": "What time is my meeting?",
+      "tools_called": [],
+      "answer": "recall{\"key\": \"meeting_tomorrow_3pm\"}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_calc_reuse_1",
+      "prompt": "Calculate 47 times 23.",
+      "tools_called": [],
+      "answer": "calculate{\"expression\": \"47 * 23\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_calc_reuse_2",
+      "prompt": "Now multiply that result by 2.",
+      "tools_called": [],
+      "answer": "calculate{\"expression\": \"1081 * 2\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_file_round_1",
+      "prompt": "Create a file called level3_test.txt containing the text 'sea otters are mammals'.",
+      "tools_called": [],
+      "answer": "write_file{\"content\": \"sea otters are mammals\", \"path\": \"level3_test.txt\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_file_round_2",
+      "prompt": "Read level3_test.txt and tell me what it says.",
+      "tools_called": [],
+      "answer": "read_file{\"path\": \"level3_test.txt\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_file_round_3",
+      "prompt": "Delete level3_test.txt.",
+      "tools_called": [],
+      "answer": "delete_file{\"path\": \"level3_test.txt\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_weather_followup_1",
+      "prompt": "What's the weather in Seattle?",
+      "tools_called": [],
+      "answer": "get_weather{\"location\": \"Seattle\"}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_weather_followup_2",
+      "prompt": "What about Tokyo?",
+      "tools_called": [],
+      "answer": "get_weather{\"location\": \"Tokyo\"}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_python_syntax",
+      "prompt": "Use run_python to execute this code (it has a syntax error on purpose): print(   — note the unclosed",
+      "tools_called": [],
+      "answer": "execute_code{\"code\": \"print(  # note the unclosed parenthesis\", \"timeout_s\": 10}",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_python_zerodiv",
+      "prompt": "Use run_python to evaluate the expression one divided by zero. After it fails, tell me what error na",
+      "tools_called": [],
+      "answer": "execute_code{\"code\": \"1 / 0\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_read_missing",
+      "prompt": "Read a file called nonexistent_xyz_12345.txt and tell me what's inside.",
+      "tools_called": [],
+      "answer": "read_file{\"path\": \"nonexistent_xyz_12345.txt\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_delete_missing",
+      "prompt": "Delete the file totally_not_a_real_file_8675309.txt.",
+      "tools_called": [],
+      "answer": "delete_file{\"path\": \"totally_not_a_real_file_8675309.txt\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_calc_divbyzero",
+      "prompt": "Calculate 12345 divided by 0.",
+      "tools_called": [],
+      "answer": "I cannot perform that calculation because division by zero is undefined.",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_search_no_denial",
+      "prompt": "Search the web for 'jaeger distributed tracing uber'. Use the result to tell me who built jaeger.",
+      "tools_called": [],
+      "answer": "web_search{\"query\": \"jaeger distributed tracing uber\"}",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_weather_unknown",
+      "prompt": "What's the weather in Atlantis_FakeCity_99999?",
+      "tools_called": [],
+      "answer": "I can't fetch the weather for a fictional or non-existent location like \"Atlantis_FakeCity_99999.\" Please provide a real city or place name, and I'll get the weather for you.",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_recall_missing",
+      "prompt": "Recall what my secret_password_xyz_9999 is. Tell me whether you actually have a value stored for it.",
+      "tools_called": [],
+      "answer": "recall{\"key\": \"secret_password_xyz_9999\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_schedule_cancel_missing",
+      "prompt": "Cancel the scheduled prompt named never_existed_demo_xyz.",
+      "tools_called": [],
+      "answer": "cancel_schedule{\"name\": \"never_existed_demo_xyz\"}",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    }
+  ],
+  "wall_s": 168.84,
+  "load_s": 6.48,
+  "model_path": "/Users/jonathanjenkins/.lmstudio/models/lmstudio-community/Ministral-3-14B-Reasoning-2512-GGUF/Ministral-3-14B-Reasoning-2512-Q4_K_M.gguf",
+  "model_name": "Ministral-3-14B-Reasoning-2512-Q4_K_M",
+  "run_id": "20260527-232124"
+}

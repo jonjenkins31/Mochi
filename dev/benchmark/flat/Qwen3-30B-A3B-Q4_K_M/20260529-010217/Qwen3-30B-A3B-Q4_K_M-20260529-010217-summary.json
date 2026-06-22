@@ -1,0 +1,198 @@
+{
+  "total": 51,
+  "passed": 47,
+  "pass_rate": 0.922,
+  "routing_passed": 48,
+  "routing_total": 49,
+  "answer_passed": 31,
+  "answer_total": 34,
+  "errors": 0,
+  "elapsed_s": 1039.62,
+  "metrics": {
+    "avg_latency_s": 20.385,
+    "p50_latency_s": 16.462,
+    "p95_latency_s": 60.267,
+    "min_latency_s": 6.047,
+    "max_latency_s": 63.721,
+    "total_tool_dispatches": 61,
+    "avg_tools_per_turn": 1.2,
+    "answer_tokens_total": 30272,
+    "answer_tokens_avg": 593.6,
+    "answer_tokens_per_sec": 29.1,
+    "answer_tokens_source": "tokenizer",
+    "prompt_tokens_total": 1508791,
+    "cases_with_errors": 0,
+    "tokens_note": "real tokenizer counts from adapter usage field"
+  },
+  "suites": {
+    "smoke": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1.0,
+      "threshold": 0.8,
+      "meets_threshold": true,
+      "avg_latency_s": 22.93,
+      "p95_latency_s": 63.721,
+      "blurb": "5-case sanity check; routing only"
+    },
+    "routing": {
+      "total": 25,
+      "passed": 24,
+      "pass_rate": 0.96,
+      "threshold": 0.85,
+      "meets_threshold": true,
+      "avg_latency_s": 20.065,
+      "p95_latency_s": 60.267,
+      "blurb": "single-turn, single-tool dispatch"
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 6,
+      "pass_rate": 0.75,
+      "threshold": 0.65,
+      "meets_threshold": true,
+      "avg_latency_s": 33.331,
+      "p95_latency_s": 62.577,
+      "blurb": "single-turn, multiple-tool chaining"
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 9,
+      "pass_rate": 1.0,
+      "threshold": 0.7,
+      "meets_threshold": true,
+      "avg_latency_s": 13.82,
+      "p95_latency_s": 21.966,
+      "blurb": "multi-turn conversations with carried history"
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 8,
+      "pass_rate": 0.889,
+      "threshold": 0.6,
+      "meets_threshold": true,
+      "avg_latency_s": 16.328,
+      "p95_latency_s": 22.736,
+      "blurb": "failure surface + anti-hallucination"
+    },
+    "full": {
+      "total": 51,
+      "passed": 47,
+      "pass_rate": 0.922,
+      "threshold": 0.7,
+      "meets_threshold": true,
+      "avg_latency_s": 20.385,
+      "p95_latency_s": 60.267,
+      "blurb": "every case in the corpus"
+    }
+  },
+  "by_tag": {
+    "routing": {
+      "total": 25,
+      "passed": 24,
+      "avg_latency_s": 20.065
+    },
+    "files": {
+      "total": 11,
+      "passed": 10,
+      "avg_latency_s": 22.333
+    },
+    "audio": {
+      "total": 2,
+      "passed": 0,
+      "avg_latency_s": 29.807
+    },
+    "web": {
+      "total": 8,
+      "passed": 8,
+      "avg_latency_s": 17.2
+    },
+    "memory": {
+      "total": 9,
+      "passed": 9,
+      "avg_latency_s": 21.178
+    },
+    "code": {
+      "total": 4,
+      "passed": 3,
+      "avg_latency_s": 40.969
+    },
+    "schedule": {
+      "total": 4,
+      "passed": 3,
+      "avg_latency_s": 12.863
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 6,
+      "avg_latency_s": 33.331
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 9,
+      "avg_latency_s": 13.82
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 8,
+      "avg_latency_s": 16.328
+    }
+  },
+  "failures": [
+    {
+      "id": "speak_file",
+      "prompt": "read bench.txt out loud",
+      "tools_called": [
+        "read_file"
+      ],
+      "answer": "The file \"bench.txt\" was not found. Would you like to check the filename or create a new file? Let me know how you'd like to proceed.",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_write_run_fib",
+      "prompt": "Write a python file called fib10.py in the skills/ directory that prints the first 10 Fibonacci numb",
+      "tools_called": [
+        "write_file",
+        "execute_code"
+      ],
+      "answer": "The `execute_code` tool requires explicit user confirmation due to its `WRITE_LOCAL` permission tier. Let me request approval to run the script:\n\n**Request:**  \n\"Please confirm you want me to execute ",
+      "routing_ok": true,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_calc_and_speak",
+      "prompt": "Calculate 2 to the power of 16 and speak the answer out loud.",
+      "tools_called": [
+        "calculate",
+        "text_to_speech"
+      ],
+      "answer": "Done.",
+      "routing_ok": true,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_schedule_cancel_missing",
+      "prompt": "Cancel the scheduled prompt named never_existed_demo_xyz.",
+      "tools_called": [
+        "cancel_schedule"
+      ],
+      "answer": "The scheduled prompt \"never_existed_demo_xyz\" could not be found or cancelled. This may indicate:\n\n1. The schedule never existed\n2. The name was misspelled\n3. The schedule has already been executed or",
+      "routing_ok": true,
+      "answer_ok": false,
+      "no_hallucination": false,
+      "error": null
+    }
+  ],
+  "wall_s": 1155.71,
+  "load_s": 12.13,
+  "model_path": "/Users/jonathanjenkins/.lmstudio/models/lmstudio-community/Qwen3-30B-A3B-GGUF/Qwen3-30B-A3B-Q4_K_M.gguf",
+  "model_name": "Qwen3-30B-A3B-Q4_K_M",
+  "run_id": "20260529-010217"
+}

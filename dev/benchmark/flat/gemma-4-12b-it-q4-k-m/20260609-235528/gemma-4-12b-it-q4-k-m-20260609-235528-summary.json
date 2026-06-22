@@ -1,0 +1,90 @@
+{
+  "total": 10,
+  "passed": 10,
+  "pass_rate": 1.0,
+  "routing_passed": 10,
+  "routing_total": 10,
+  "answer_passed": 4,
+  "answer_total": 4,
+  "errors": 0,
+  "elapsed_s": 108.79,
+  "metrics": {
+    "avg_latency_s": 10.879,
+    "p50_latency_s": 3.548,
+    "p95_latency_s": 57.216,
+    "min_latency_s": 2.961,
+    "max_latency_s": 57.216,
+    "total_tool_dispatches": 10,
+    "avg_tools_per_turn": 1.0,
+    "answer_tokens_total": 617,
+    "answer_tokens_avg": 61.7,
+    "answer_tokens_per_sec": 5.7,
+    "answer_tokens_source": "tokenizer",
+    "prompt_tokens_total": 260192,
+    "cases_with_errors": 0,
+    "tokens_note": "real tokenizer counts from adapter usage field"
+  },
+  "suites": {
+    "smoke": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1.0,
+      "threshold": 0.8,
+      "meets_threshold": true,
+      "avg_latency_s": 14.017,
+      "p95_latency_s": 57.216,
+      "blurb": "5-case sanity check; routing only"
+    },
+    "routing": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate": 1.0,
+      "threshold": 0.85,
+      "meets_threshold": true,
+      "avg_latency_s": 10.879,
+      "p95_latency_s": 57.216,
+      "blurb": "single-turn, single-tool dispatch"
+    },
+    "full": {
+      "total": 10,
+      "passed": 10,
+      "pass_rate": 1.0,
+      "threshold": 0.7,
+      "meets_threshold": true,
+      "avg_latency_s": 10.879,
+      "p95_latency_s": 57.216,
+      "blurb": "every case in the corpus"
+    }
+  },
+  "by_tag": {
+    "routing": {
+      "total": 10,
+      "passed": 10,
+      "avg_latency_s": 10.879
+    },
+    "files": {
+      "total": 2,
+      "passed": 2,
+      "avg_latency_s": 6.173
+    },
+    "audio": {
+      "total": 1,
+      "passed": 1,
+      "avg_latency_s": 3.548
+    },
+    "web": {
+      "total": 2,
+      "passed": 2,
+      "avg_latency_s": 11.404
+    }
+  },
+  "failures": [],
+  "wall_s": 112.09,
+  "load_s": 99.03,
+  "peak_load": 6.12,
+  "model_path": "gemma-4-12b-it-q4_k_m",
+  "model_name": "gemma-4-12b-it-q4-k-m",
+  "run_id": "20260609-235528",
+  "thinking_mode": "auto",
+  "benchmark_version": "1.1"
+}

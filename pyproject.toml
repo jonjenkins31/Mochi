@@ -1,0 +1,42 @@
+# JROS — Jaeger-OS.
+#
+# 0.2.3+: JROS is no longer distributed as a pip package. Operators
+# clone the repo and run ./install.sh (or use the one-line curl
+# installer in scripts/install.sh). Runtime dependencies are pinned
+# in requirements.txt. The README has the full install flow.
+#
+# This file only carries config for dev tooling (pytest, ruff). The
+# package itself is imported by adding the install root to PYTHONPATH
+# (which run.sh does automatically), not by installing it.
+#
+# 0.2.6: dev-only material moved under dev_-prefixed directories so the
+# repo root makes the framework/dev distinction obvious:
+#
+#   <repo>/
+#   ├── jaeger_os/        ← framework code (the product)
+#   ├── install.sh, run.sh, requirements.txt, scripts/install.sh
+#   ├── README.md, CHANGELOG.md, LICENSE
+#   ├── dev/docs/         ← architecture, design notes (dev)
+#   ├── dev/tests/        ← test suite (dev)
+#   ├── dev/benchmark/    ← bench corpus + harness (dev)
+#   ├── dev/scripts/      ← dev_env.sh, run_tests.sh, … (dev)
+#   └── sandbox/          ← in-repo test install (gitignored)
+#
+# See dev/docs/setup.md for the canonical install / upgrade story.
+
+[tool.pytest.ini_options]
+testpaths = ["dev/tests"]
+# Marker tiers — the bench, daemon, model-load, UI, and integration
+# suites take real wall time. Mark them and skip by default; the
+# ``dev/scripts/run_tests.sh`` driver picks the right subset for CI vs
+# local iteration. New tests should pick the closest marker that
+# applies (or none — unmarked = fast deterministic unit test).
+markers = [
+    "slow: tests that fork real processes or do real network I/O (a few seconds each).",
+    "integration: cross-module end-to-end paths; may touch the filesystem heavily.",
+    "model: tests that load a real GGUF / external LLM; minutes-scale.",
+    "ui: TUI / rumps tray tests that may render to a terminal or display.",
+    "subprocess: tests that spawn a real Python subprocess (boot, daemon, bench).",
+    "smoke: a tiny set tagged so ``pytest -m smoke`` is a 30-second sanity check.",
+    "regression: pins a specific bug fix — run on every PR even when narrowing markers.",
+]

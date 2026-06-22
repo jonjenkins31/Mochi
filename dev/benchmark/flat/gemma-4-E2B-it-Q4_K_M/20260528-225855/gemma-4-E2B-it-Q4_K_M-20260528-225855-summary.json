@@ -1,0 +1,261 @@
+{
+  "total": 51,
+  "passed": 41,
+  "pass_rate": 0.804,
+  "routing_passed": 42,
+  "routing_total": 49,
+  "answer_passed": 28,
+  "answer_total": 34,
+  "errors": 0,
+  "elapsed_s": 121.62,
+  "metrics": {
+    "avg_latency_s": 2.385,
+    "p50_latency_s": 1.321,
+    "p95_latency_s": 9.465,
+    "min_latency_s": 0.172,
+    "max_latency_s": 14.846,
+    "total_tool_dispatches": 55,
+    "avg_tools_per_turn": 1.08,
+    "answer_tokens_total": 3494,
+    "answer_tokens_avg": 68.5,
+    "answer_tokens_per_sec": 28.7,
+    "answer_tokens_source": "tokenizer",
+    "prompt_tokens_total": 1212305,
+    "cases_with_errors": 0,
+    "tokens_note": "real tokenizer counts from adapter usage field"
+  },
+  "suites": {
+    "smoke": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1.0,
+      "threshold": 0.8,
+      "meets_threshold": true,
+      "avg_latency_s": 3.679,
+      "p95_latency_s": 14.846,
+      "blurb": "5-case sanity check; routing only"
+    },
+    "routing": {
+      "total": 25,
+      "passed": 22,
+      "pass_rate": 0.88,
+      "threshold": 0.85,
+      "meets_threshold": true,
+      "avg_latency_s": 2.745,
+      "p95_latency_s": 9.465,
+      "blurb": "single-turn, single-tool dispatch"
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 6,
+      "pass_rate": 0.75,
+      "threshold": 0.65,
+      "meets_threshold": true,
+      "avg_latency_s": 3.807,
+      "p95_latency_s": 10.104,
+      "blurb": "single-turn, multiple-tool chaining"
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 8,
+      "pass_rate": 0.889,
+      "threshold": 0.7,
+      "meets_threshold": true,
+      "avg_latency_s": 1.129,
+      "p95_latency_s": 1.632,
+      "blurb": "multi-turn conversations with carried history"
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 5,
+      "pass_rate": 0.556,
+      "threshold": 0.6,
+      "meets_threshold": false,
+      "avg_latency_s": 1.374,
+      "p95_latency_s": 4.296,
+      "blurb": "failure surface + anti-hallucination"
+    },
+    "full": {
+      "total": 51,
+      "passed": 41,
+      "pass_rate": 0.804,
+      "threshold": 0.7,
+      "meets_threshold": true,
+      "avg_latency_s": 2.385,
+      "p95_latency_s": 9.465,
+      "blurb": "every case in the corpus"
+    }
+  },
+  "by_tag": {
+    "routing": {
+      "total": 25,
+      "passed": 22,
+      "avg_latency_s": 2.745
+    },
+    "files": {
+      "total": 11,
+      "passed": 8,
+      "avg_latency_s": 2.346
+    },
+    "audio": {
+      "total": 2,
+      "passed": 2,
+      "avg_latency_s": 7.95
+    },
+    "web": {
+      "total": 8,
+      "passed": 7,
+      "avg_latency_s": 3.16
+    },
+    "memory": {
+      "total": 9,
+      "passed": 5,
+      "avg_latency_s": 1.464
+    },
+    "code": {
+      "total": 4,
+      "passed": 3,
+      "avg_latency_s": 4.036
+    },
+    "schedule": {
+      "total": 4,
+      "passed": 4,
+      "avg_latency_s": 1.151
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 6,
+      "avg_latency_s": 3.807
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 8,
+      "avg_latency_s": 1.129
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 5,
+      "avg_latency_s": 1.374
+    }
+  },
+  "failures": [
+    {
+      "id": "memory_remember_color",
+      "prompt": "remember that my favorite color is teal",
+      "tools_called": [],
+      "answer": "memory(action=\"remember\", key=\"favorite_color\", value=\"teal\")",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "memory_list_facts",
+      "prompt": "what do you know about me?",
+      "tools_called": [],
+      "answer": "list_facts\n",
+      "routing_ok": false,
+      "answer_ok": null,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "python_fib",
+      "prompt": "run a python snippet that prints the first 8 fibonacci numbers",
+      "tools_called": [
+        "execute_code",
+        "execute_code"
+      ],
+      "answer": "I apologize. I encountered a permission error when trying to execute the code.\n\nI will try running it again.\n\n<|tool_call>call:execute_code{code:<|\"|>def fibonacci(n):\n    a, b = 0, 1\n    result = []\n",
+      "routing_ok": true,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_remember_then_recall",
+      "prompt": "Remember that my home town is Seattle, then immediately recall my home town to confirm it stuck.",
+      "tools_called": [
+        "remember"
+      ],
+      "answer": "Your hometown is Seattle.",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_write_append_read",
+      "prompt": "Create todo.txt with 'buy milk', append 'walk dog' to it, then read it back and tell me both items.",
+      "tools_called": [
+        "write_file",
+        "read_file",
+        "read_file"
+      ],
+      "answer": "I see. I tried to read the file twice, but the first attempt failed because the file was not found in the expected location.\n\nLet me re-check the file system.\n\nWait, I see the issue. I used `write_fil",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "mt_file_round_2",
+      "prompt": "Read level3_test.txt and tell me what it says.",
+      "tools_called": [
+        "read_file"
+      ],
+      "answer": "I was unable to read the file level3_test.txt. It seems I might have created it in a location that is not directly accessible for reading, or there was an issue with the file system access.\n\nLet me tr",
+      "routing_ok": true,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_read_missing",
+      "prompt": "Read a file called nonexistent_xyz_12345.txt and tell me what's inside.",
+      "tools_called": [],
+      "answer": "I cannot read a file named nonexistent_xyz_12345.txt because it does not exist on this machine.",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_calc_divbyzero",
+      "prompt": "Calculate 12345 divided by 0.",
+      "tools_called": [],
+      "answer": "calculate(\"12345 / 0\")",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_weather_unknown",
+      "prompt": "What's the weather in Atlantis_FakeCity_99999?",
+      "tools_called": [
+        "get_weather"
+      ],
+      "answer": "I cannot find the weather for Atlantis_FakeCity_99999. That location does not appear to exist in the weather service.",
+      "routing_ok": true,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_recall_missing",
+      "prompt": "Recall what my secret_password_xyz_9999 is. Tell me whether you actually have a value stored for it.",
+      "tools_called": [],
+      "answer": "memory(action=\"recall\",key=\"secret_password_xyz_9999\")",
+      "routing_ok": false,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    }
+  ],
+  "wall_s": 126.94,
+  "load_s": 2.99,
+  "model_path": "/Users/jonathanjenkins/.lmstudio/models/lmstudio-community/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_K_M.gguf",
+  "model_name": "gemma-4-E2B-it-Q4_K_M",
+  "run_id": "20260528-225855"
+}

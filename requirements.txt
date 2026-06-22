@@ -1,77 +1,107 @@
+# JROS runtime dependencies — installed by ./install.sh into .venv.
+#
+# Pinned to lower bounds rather than exact versions so a fresh clone
+# gets the latest patch releases. If a breaking upstream lands and
+# wedges installs we'll pin upper bounds on the affected line.
+#
+# Some packages wrap native code; the local system must have:
+#   - PortAudio (for sounddevice; macOS: `brew install portaudio`)
+#   - a C/C++ toolchain (for llama-cpp-python, pywhispercpp)
+# See README "Prerequisites" for the full system-deps list.
 
-# =============================================================================
-# JP01 Voice LLM Demo — Environment & Dependency Setup
-# =============================================================================
-# Purpose:
-#   Unified environment for the JP01 Voice LLM Demo integrating:
-#   - STT  : pywhispercpp + webrtcvad + sounddevice
-#   - LLM  : Ollama (local model, e.g. gemma3:4b)
-#   - TTS  : Kokoro (KPipeline)
-#   - LED  : Mochi face / animation (via EventBus)
-#
-# -----------------------------------------------------------------------------
-# Virtual Environment Setup (macOS)
-# -----------------------------------------------------------------------------
-#   # Install pyenv (if not yet installed)
-#   brew install pyenv portaudio ffmpeg libsndfile
-#
-#   # Create project folder
-#   mkdir -p ~/dev/voice-llm-demo && cd ~/dev/voice-llm-demo
-#
-#   # Set Python version (3.13.x recommended)
-#   pyenv install 3.12.6 -s
-#   pyenv local 3.12.6
-#
-#   # Create and activate a virtual environment
-#   python -m venv .venv
-#   source .venv/bin/activate
-#
-#   # Upgrade pip/wheel/setuptools
-#   python -m pip install --upgrade pip wheel setuptools
-#
-# -----------------------------------------------------------------------------
-# Homebrew Prerequisites (macOS)
-# -----------------------------------------------------------------------------
-#   # Required for sounddevice and audio support
-#   brew install portaudio libsndfile ffmpeg
-#
-#   # Optional (useful for testing and debugging audio/TTS)
-#   brew install sox espeak-ng
-#
-#   # Verify installation
-#   brew list portaudio libsndfile ffmpeg
-# -----------------------------------------------------------------------------
-#
-# -----------------------------------------------------------------------------
-# Dependency Installation
-# -----------------------------------------------------------------------------
-#   # Install all project requirements
-#   pip install -r requirements.txt
-#
-#   # Optional: Verify imports
-#   python - <<'PY'
-#   import importlib
-#   for m in ["sounddevice","numpy","webrtcvad","pywhispercpp","ollama","kokoro"]:
-#       importlib.import_module(m)
-#   print("✅ All core modules loaded")
-#   PY
-#
-# -----------------------------------------------------------------------------
-# Notes
-# -----------------------------------------------------------------------------
-# - Kokoro provides local TTS via the KPipeline API (pip package: kokoro)
-# - pywhispercpp uses Metal acceleration on Apple Silicon automatically
-# - speexdsp is only required on Linux (helps with VAD/resampling)
-# - Use `ollama pull gemma3:4b` and `ollama serve &` before running the app
-# - Set VS Code interpreter: Command Palette → "Python: Select Interpreter" → .venv/bin/python
-#
-# ============================================================================= 
+# --- agent core ---
+pydantic>=2.0
+# 0.4 transport schemas (Track A): msgspec.Struct on the hot path —
+# 10× faster than Pydantic for serialization AND native MessagePack
+# support (binary topics: audio_in, audio_out, vision frames).
+# Pydantic stays for config + tool schemas where richer validation
+# earns the overhead.
+msgspec>=0.18
+# 0.4 multi-process transport (Track A.4): pyzmq pub/sub for nodes
+# split across Python processes (./launch --multiprocess) or across
+# boards (Mac↔Jetson↔Teensy when JP01 wires up).  ~50 KB library,
+# sub-ms local latency, inproc/ipc/tcp modes behind the same Bus
+# interface as InProcBus.
+pyzmq>=26.0
+# Animation/avatar frame bridge (nodes/software/animation/bridge.py) serves
+# frames over a WebSocket; the TTS path reaches it. Directly imported via
+# websockets.asyncio.server (the new asyncio API, websockets >= 13). It
+# arrives transitively through openai/mcp today, but a direct import must be
+# a direct dependency — a fresh install proved it can otherwise go missing
+# (TTS failed with "websockets is missing").
+websockets>=13.0
+pyyaml>=6.0
+numpy>=1.26
+requests>=2.32
+certifi>=2024.0
+rich>=13.0
+prompt-toolkit>=3.0
+llama-cpp-python>=0.3
+# Apple-Silicon-native MLX backend (config ``model.backend: mlx_lm``,
+# ``/model use mlx <name>``). Marker-gated so Linux installs skip it.
+mlx-lm>=0.21; sys_platform == "darwin" and platform_machine == "arm64"
+croniter>=2.0
+ddgs>=9.0
 
-pyzmq
-pillow
-pyyaml
-numpy
-moviepy
-imageio
-PySide6
-psutil
+# --- voice: Kokoro TTS + Whisper STT + audio I/O ---
+sounddevice>=0.4.6
+scipy>=1.11
+webrtcvad-wheels>=2.0.14
+openwakeword>=0.6
+pywhispercpp>=1.4
+kokoro>=0.9.4
+
+# macOS audio + accessibility frameworks (pyobjc) — macOS only. The avaudio
+# TTS/STT backend (core/runtime/preflight) prefers AVFoundation; the core
+# macos_computer skill drives the UI through Quartz + ApplicationServices.
+# A fresh install pulled these only transitively, so a clean macOS install
+# hit "No module named 'AVFoundation'". Marked darwin so non-macOS installs
+# skip them cleanly.
+pyobjc-framework-AVFoundation>=10.0; sys_platform == "darwin"
+pyobjc-framework-Quartz>=10.0; sys_platform == "darwin"
+pyobjc-framework-ApplicationServices>=10.0; sys_platform == "darwin"
+# Acoustic echo cancellation for duplex voice (core/audio/aec.py — guarded
+# import; declared so the full voice path ships).
+speexdsp>=0.1.1
+
+# --- vision: look_at + generate_image ---
+torch>=2.2
+transformers>=4.40
+diffusers>=0.27
+pillow>=10.0
+
+# --- browser automation: the `browser` tool ---
+# After install, fetch the browser binary once:
+#   .venv/bin/playwright install chromium
+playwright>=1.40
+
+# --- semantic episodic memory (search_memory) ---
+sentence-transformers>=3.0
+
+# --- external-model pipeline (LM Studio / OpenAI / Anthropic) ---
+openai>=1.0
+anthropic>=0.40
+
+# --- messaging bridges (Discord / Telegram) ---
+discord.py>=2.4
+python-telegram-bot>=21.0
+
+# --- MCP tool servers ---
+mcp>=0.9
+
+# --- macOS menu-bar tray (CLI/TUI-era) ---
+# rumps is a pure-Python wrapper over PyObjC. Environment marker keeps
+# Linux/Windows installs from pulling it in.
+rumps>=0.4; sys_platform == 'darwin'
+
+# --- windowed app (PySide6 shell: Qt tray + rich_tui chat window) ---
+# The bare ``./launch`` surface. Cross-platform Qt; the Qt tray replaces
+# the rumps one as the windowed app supersedes the CLI/TUI default.
+pyside6>=6.5
+
+# --- dev tooling (uncomment if doing JROS development) ---
+# pytest>=8.0
+# pytest-asyncio>=0.23
+# pytest-xdist>=3.5
+# mypy>=1.8
+# ruff>=0.4

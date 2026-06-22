@@ -1,0 +1,722 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.xctest/Contents/MacOS/JROSAvatarPackageTests",
+      "packagePath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar",
+      "productName" : "JROSAvatarPackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.JROSAvatar-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/sources",
+      "importPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/AvatarApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/FrameDecoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/RendererView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/WebSocketClient.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "JROSAvatar",
+      "moduleOutputPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules/JROSAvatar.swiftmodule",
+      "objects" : [
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/AvatarApp.swift.o",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/ContentView.swift.o",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/FrameDecoder.swift.o",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/RendererView.swift.o",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/WebSocketClient.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx13.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "JROSAvatar_main",
+        "-swift-version",
+        "5",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "avatar"
+      ],
+      "outputFileMapPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/AvatarApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/FrameDecoder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/RendererView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/WebSocketClient.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules/JROSAvatar.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/AvatarApp.swift",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/ContentView.swift",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/FrameDecoder.swift",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/RendererView.swift",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/WebSocketClient.swift"
+      ],
+      "tempsPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.JROSAvatarPackageTests-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/sources",
+      "importPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules/JROSAvatarTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "JROSAvatarPackageTests",
+      "moduleOutputPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules/JROSAvatarPackageTests.swiftmodule",
+      "objects" : [
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx13.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/include/JROSAvatarPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "avatar"
+      ],
+      "outputFileMapPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules/JROSAvatarPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.JROSAvatarTests-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarTests.build/sources",
+      "importPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Tests/JROSAvatarTests/FrameDecoderTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "JROSAvatarTests",
+      "moduleOutputPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules/JROSAvatarTests.swiftmodule",
+      "objects" : [
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarTests.build/FrameDecoderTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "5",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "avatar"
+      ],
+      "outputFileMapPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarTests.build/FrameDecoderTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules/JROSAvatarTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Tests/JROSAvatarTests/FrameDecoderTests.swift"
+      ],
+      "tempsPath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "JROSAvatar" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "JROSAvatar",
+      "-package-name",
+      "avatar",
+      "-c",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/AvatarApp.swift",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/ContentView.swift",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/FrameDecoder.swift",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/RendererView.swift",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/WebSocketClient.swift",
+      "-I",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx13.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "JROSAvatar_main",
+      "-swift-version",
+      "5",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "avatar",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "JROSAvatarPackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "JROSAvatarPackageTests",
+      "-package-name",
+      "avatar",
+      "-c",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx13.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/include/JROSAvatarPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "avatar",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "JROSAvatarTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "JROSAvatarTests",
+      "-package-name",
+      "avatar",
+      "-c",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Tests/JROSAvatarTests/FrameDecoderTests.swift",
+      "-I",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "5",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "avatar",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "JROSAvatar" : [
+
+    ],
+    "JROSAvatarPackageTests" : [
+      "JROSAvatarTests",
+      "JROSAvatar"
+    ],
+    "JROSAvatarTests" : [
+      "JROSAvatar"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar-entitlement.plist" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<entitlement-plist>"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<com.apple.security.get-task-allow>"
+        }
+      ],
+      "outputFilePath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar-entitlement.plist"
+    },
+    "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/AvatarApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/FrameDecoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/RendererView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Sources/JROSAvatar/WebSocketClient.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/sources"
+    },
+    "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/AvatarApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/FrameDecoder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/RendererView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/WebSocketClient.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.product/Objects.LinkFileList"
+    },
+    "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/sources"
+    },
+    "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/AvatarApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/FrameDecoder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/RendererView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatar.build/WebSocketClient.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarTests.build/FrameDecoderTests.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/Tests/JROSAvatarTests/FrameDecoderTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarTests.build/sources"
+    },
+    "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

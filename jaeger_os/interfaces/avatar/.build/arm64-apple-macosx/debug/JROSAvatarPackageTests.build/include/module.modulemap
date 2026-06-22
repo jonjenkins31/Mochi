@@ -1,0 +1,3 @@
+module JROSAvatarPackageTests {
+    header "/Users/jonathanjenkins/GITHUB/JROS/jaeger_os/interfaces/avatar/.build/arm64-apple-macosx/debug/JROSAvatarPackageTests.build/include/JROSAvatarPackageTests-Swift.h"
+}

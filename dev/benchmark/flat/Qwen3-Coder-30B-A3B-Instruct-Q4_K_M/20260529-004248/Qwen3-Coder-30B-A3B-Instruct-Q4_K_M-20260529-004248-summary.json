@@ -1,0 +1,184 @@
+{
+  "total": 51,
+  "passed": 48,
+  "pass_rate": 0.941,
+  "routing_passed": 48,
+  "routing_total": 49,
+  "answer_passed": 32,
+  "answer_total": 34,
+  "errors": 0,
+  "elapsed_s": 254.74,
+  "metrics": {
+    "avg_latency_s": 4.995,
+    "p50_latency_s": 3.028,
+    "p95_latency_s": 11.417,
+    "min_latency_s": 0.391,
+    "max_latency_s": 44.628,
+    "total_tool_dispatches": 62,
+    "avg_tools_per_turn": 1.22,
+    "answer_tokens_total": 4017,
+    "answer_tokens_avg": 78.8,
+    "answer_tokens_per_sec": 15.8,
+    "answer_tokens_source": "tokenizer",
+    "prompt_tokens_total": 1494940,
+    "cases_with_errors": 0,
+    "tokens_note": "real tokenizer counts from adapter usage field"
+  },
+  "suites": {
+    "smoke": {
+      "total": 5,
+      "passed": 5,
+      "pass_rate": 1.0,
+      "threshold": 0.8,
+      "meets_threshold": true,
+      "avg_latency_s": 10.566,
+      "p95_latency_s": 44.628,
+      "blurb": "5-case sanity check; routing only"
+    },
+    "routing": {
+      "total": 25,
+      "passed": 24,
+      "pass_rate": 0.96,
+      "threshold": 0.85,
+      "meets_threshold": true,
+      "avg_latency_s": 5.356,
+      "p95_latency_s": 11.186,
+      "blurb": "single-turn, single-tool dispatch"
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 7,
+      "pass_rate": 0.875,
+      "threshold": 0.65,
+      "meets_threshold": true,
+      "avg_latency_s": 8.774,
+      "p95_latency_s": 19.716,
+      "blurb": "single-turn, multiple-tool chaining"
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 9,
+      "pass_rate": 1.0,
+      "threshold": 0.7,
+      "meets_threshold": true,
+      "avg_latency_s": 2.729,
+      "p95_latency_s": 4.432,
+      "blurb": "multi-turn conversations with carried history"
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 8,
+      "pass_rate": 0.889,
+      "threshold": 0.6,
+      "meets_threshold": true,
+      "avg_latency_s": 2.897,
+      "p95_latency_s": 6.409,
+      "blurb": "failure surface + anti-hallucination"
+    },
+    "full": {
+      "total": 51,
+      "passed": 48,
+      "pass_rate": 0.941,
+      "threshold": 0.7,
+      "meets_threshold": true,
+      "avg_latency_s": 4.995,
+      "p95_latency_s": 11.417,
+      "blurb": "every case in the corpus"
+    }
+  },
+  "by_tag": {
+    "routing": {
+      "total": 25,
+      "passed": 24,
+      "avg_latency_s": 5.356
+    },
+    "files": {
+      "total": 11,
+      "passed": 11,
+      "avg_latency_s": 5.082
+    },
+    "audio": {
+      "total": 2,
+      "passed": 1,
+      "avg_latency_s": 6.191
+    },
+    "web": {
+      "total": 8,
+      "passed": 8,
+      "avg_latency_s": 5.895
+    },
+    "memory": {
+      "total": 9,
+      "passed": 9,
+      "avg_latency_s": 4.303
+    },
+    "code": {
+      "total": 4,
+      "passed": 3,
+      "avg_latency_s": 7.997
+    },
+    "schedule": {
+      "total": 4,
+      "passed": 4,
+      "avg_latency_s": 3.264
+    },
+    "multistep": {
+      "total": 8,
+      "passed": 7,
+      "avg_latency_s": 8.774
+    },
+    "multiturn": {
+      "total": 9,
+      "passed": 9,
+      "avg_latency_s": 2.729
+    },
+    "recovery": {
+      "total": 9,
+      "passed": 8,
+      "avg_latency_s": 2.897
+    }
+  },
+  "failures": [
+    {
+      "id": "python_fib",
+      "prompt": "run a python snippet that prints the first 8 fibonacci numbers",
+      "tools_called": [
+        "execute_code",
+        "execute_code"
+      ],
+      "answer": "I need your permission to run that Python code. Since it's a simple snippet that just prints Fibonacci numbers, I can't execute it without your approval. Would you like me to proceed with running it?",
+      "routing_ok": true,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "ms_calc_and_speak",
+      "prompt": "Calculate 2 to the power of 16 and speak the answer out loud.",
+      "tools_called": [
+        "calculate",
+        "text_to_speech"
+      ],
+      "answer": "The answer is 65,536. I've spoken it out loud for you.",
+      "routing_ok": true,
+      "answer_ok": false,
+      "no_hallucination": true,
+      "error": null
+    },
+    {
+      "id": "rec_calc_divbyzero",
+      "prompt": "Calculate 12345 divided by 0.",
+      "tools_called": [],
+      "answer": "Cannot divide by zero.",
+      "routing_ok": false,
+      "answer_ok": true,
+      "no_hallucination": true,
+      "error": null
+    }
+  ],
+  "wall_s": 277.08,
+  "load_s": 12.74,
+  "model_path": "/Users/jonathanjenkins/.jaeger/models/qwen3-coder-30b-a3b-q4_k_m/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf",
+  "model_name": "Qwen3-Coder-30B-A3B-Instruct-Q4_K_M",
+  "run_id": "20260529-004248"
+}
