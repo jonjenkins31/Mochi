@@ -467,6 +467,27 @@ class SkillMastered(TopicMessage):
 
 # ── registry + lookup ─────────────────────────────────────────────
 
+# ── media player (Mochi test-bed) ─────────────────────────────
+ACT_MEDIA = "/act/media"
+SENSE_MEDIA_STATE = "/sense/media_state"
+
+
+class MediaCommand(TopicMessage):
+    """Brain / UI -> media node: play a media file (image / gif / video)."""
+    topic: Literal["/act/media"] = ACT_MEDIA
+    path: str = ""
+    loop: bool = True
+    floating: bool = True
+
+
+class MediaState(TopicMessage):
+    """Media node -> bus: what's playing now; the player renders it."""
+    topic: Literal["/sense/media_state"] = SENSE_MEDIA_STATE
+    path: str = ""
+    kind: str = ""
+    playing: bool = False
+
+
 TOPIC_TO_CLASS: dict[str, type[TopicMessage]] = {
     SENSE_AUDIO_IN: AudioInFrame,
     SENSE_TRANSCRIPT: Transcript,
@@ -488,6 +509,8 @@ TOPIC_TO_CLASS: dict[str, type[TopicMessage]] = {
     ACT_LIGHT: LightCommand,
     ACT_ANIMATION: AnimationCommand,
     ACT_ANIMATION_STOP: AnimationStop,
+    ACT_MEDIA: MediaCommand,
+    SENSE_MEDIA_STATE: MediaState,
     ACT_TIMELINE: TimelineCommand,
     ACT_SPEECH_STOP: SpeechStop,
     ACT_ESTOP: EStop,
@@ -513,6 +536,7 @@ __all__ = [
     "SENSE_TOUCH", "SENSE_PROPRIO", "SENSE_SPOKEN",
     "ACT_SPEECH", "ACT_AUDIO_OUT", "ACT_MOTION", "ACT_LIGHT",
     "ACT_SPEECH_STOP", "ACT_ESTOP", "SENSE_NODE_HEALTH",
+    "ACT_MEDIA", "SENSE_MEDIA_STATE",
     "ALL_TOPICS",
     # Envelope + concrete types
     "TopicMessage",
@@ -520,6 +544,7 @@ __all__ = [
     "TouchReading", "ProprioReading", "SpokenAck",
     "SpeechCommand", "AudioOutFrame", "MotionCommand", "LightCommand",
     "SpeechStop", "EStop", "NodeHealth",
+    "MediaCommand", "MediaState",
     # Registry
     "TOPIC_TO_CLASS", "class_for_topic",
 ]

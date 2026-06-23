@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QColor, QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QSizePolicy, QSlider, QVBoxLayout, QWidget,
+    QSizePolicy, QSlider, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 # ── palette (dark purple, from the ref_1 mockup) ────────────────────
@@ -31,7 +31,7 @@ GOOD = "#4ADE80"
 
 _NAV = [
     ("◍", "Dashboard"), ("☺", "Characters"), ("✦", "Animations"),
-    ("◈", "Persona"), ("▤", "Library"), ("⚙", "Settings"),
+    ("▶", "Media"), ("◈", "Persona"), ("▤", "Library"), ("⚙", "Settings"),
 ]
 _TABS = ["Create", "Customize", "Animate"]
 _SWATCHES = ["#7C5CFF", "#4ADE80", "#F472B6", "#FBBF24", "#38BDF8",
@@ -89,6 +89,7 @@ class MochiStudioWindow(QWidget):
         for i, (icon, name) in enumerate(_NAV):
             b = QPushButton(f"  {icon}    {name}")
             b.setObjectName("NavItem")
+            b.setProperty("nav", name)
             b.setCheckable(True)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
             b.setChecked(i == 0)
@@ -124,7 +125,7 @@ class MochiStudioWindow(QWidget):
         body = QHBoxLayout()
         body.setContentsMargins(18, 14, 18, 12)
         body.setSpacing(16)
-        body.addWidget(self._stage(), stretch=1)
+        body.addWidget(self._center(), stretch=1)
         body.addWidget(self._right_panel())
         bw = QWidget()
         bw.setLayout(body)
@@ -180,6 +181,51 @@ class MochiStudioWindow(QWidget):
         self._char.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         v.addWidget(self._char)
         return stage
+
+    def _center(self) -> QWidget:
+        self._center_stack = QStackedWidget()
+        self._pages = {"Media": 1}
+        self._center_stack.addWidget(self._stage())       # 0
+        self._center_stack.addWidget(self._media_page())  # 1
+        return self._center_stack
+
+    def _media_page(self) -> QWidget:
+        from mochi.interfaces.media_player.window import MediaView
+        page = QFrame(); page.setObjectName("Stage")
+        v = QVBoxLayout(page); v.setContentsMargins(18, 18, 18, 18); v.setSpacing(12)
+        head = QHBoxLayout()
+        head.addWidget(_label("Media Player", size=15, bold=True))
+        head.addStretch(1)
+        pick = QPushButton("Open file…"); pick.setObjectName("Tab")
+        pick.setCursor(Qt.CursorShape.PointingHandCursor)
+        pick.clicked.connect(self._pick_media)
+        launch = QPushButton("⧉  Launch Media Player"); launch.setObjectName("Accent")
+        launch.setCursor(Qt.CursorShape.PointingHandCursor)
+        launch.clicked.connect(self._launch_media)
+        head.addWidget(pick); head.addWidget(launch)
+        v.addLayout(head)
+        self._media_view = MediaView()
+        v.addWidget(self._media_view, stretch=1)
+        self._media_path = ""
+        return page
+
+    def _pick_media(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Open media", "",
+            "Media (*.png *.jpg *.jpeg *.gif *.webp *.bmp *.mp4 *.mov *.mkv *.webm *.m4v)")
+        if path:
+            self._media_path = path
+            self._media_view.play(path)
+
+    def _launch_media(self) -> None:
+        from mochi.interfaces.media_player.window import FloatingMediaPlayer
+        if getattr(self, "_floating_media", None) is None:
+            self._floating_media = FloatingMediaPlayer()
+        if self._media_path:
+            self._floating_media.play(self._media_path)
+        else:
+            self._floating_media.show(); self._floating_media.raise_()
 
     def _right_panel(self) -> QWidget:
         panel = QFrame()
@@ -252,6 +298,7 @@ class MochiStudioWindow(QWidget):
     def _select_nav(self, btn: QPushButton) -> None:
         for b in self._nav_buttons:
             b.setChecked(b is btn)
+        self._center_stack.setCurrentIndex(self._pages.get(btn.property("nav"), 0))
 
     def _select_tab(self, btn: QPushButton) -> None:
         for b in self._tab_buttons:
