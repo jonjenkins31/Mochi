@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from jaeger_os.transport import topics
 from jaeger_os.nodes.base import Node
-from jaeger_os.nodes.hardware.light.adapters import LightAdapter
+from jaeger_os.nodes.light.adapters import LightAdapter
 from jaeger_os.transport import Bus
 
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from jaeger_os.transport import topics
 from jaeger_os.nodes.base import Node
-from jaeger_os.nodes.hardware.motor.adapters import MotorAdapter
+from jaeger_os.nodes.motor.adapters import MotorAdapter
 from jaeger_os.transport import Bus
 
 

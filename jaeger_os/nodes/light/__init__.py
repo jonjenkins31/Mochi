@@ -1,4 +1,4 @@
-"""jaeger_os.nodes.hardware.light — LED / lighting controller node package.
+"""jaeger_os.nodes.light — LED / lighting controller node package.
 
 Universal interface for LED strip / matrix / panel hardware.
 JROS library stays vague: a :class:`LightAdapter` Protocol +

@@ -1,4 +1,4 @@
-"""jaeger_os.nodes.hardware.vision — the vision node package.
+"""jaeger_os.nodes.vision — the vision node package.
 
 Per-subsystem layout matching ``jaeger_os/nodes/audio_session/`` +
 ``jaeger_os/nodes/tts/``.

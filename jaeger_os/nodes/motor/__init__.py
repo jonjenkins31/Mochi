@@ -1,4 +1,4 @@
-"""jaeger_os.nodes.hardware.motor — motion controller node package.
+"""jaeger_os.nodes.motor — motion controller node package.
 
 Universal interface for motor / motion-control hardware.  JROS
 library stays vague: a :class:`MotorAdapter` Protocol + a

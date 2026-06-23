@@ -1,4 +1,4 @@
-"""jaeger_os.nodes.software.audio_session — realtime voice-input node package."""
+"""jaeger_os.nodes.audio_session — realtime voice-input node package."""
 
 from typing import Any
 

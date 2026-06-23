@@ -21,7 +21,7 @@ Header schema:
 
 Usage::
 
-    from jaeger_os.nodes.software.animation import bridge
+    from jaeger_os.nodes.animation import bridge
 
     server = bridge.FrameBridge(host="127.0.0.1", port=8765)
     server.start()

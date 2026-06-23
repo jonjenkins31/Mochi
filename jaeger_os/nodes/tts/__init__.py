@@ -1,4 +1,4 @@
-"""jaeger_os.nodes.software.tts — the TTS node package.
+"""jaeger_os.nodes.tts — the TTS node package.
 
 Per-subsystem package shape (matches VoiceLLM's stt/ + tts/ + audio/
 layout and JROS's own skills/ pattern).  Components that belong with
