@@ -13,14 +13,14 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QProgressBar, QPushButton,
+    QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QProgressBar, QPushButton, QSlider,
     QScrollArea, QVBoxLayout, QWidget,
 )
 
 from mochi.interfaces.studio.window import (
     ACCENT, BG, GOOD, INK, INK_DIM, PANEL, PANEL_HI, STROKE, _label,
 )
-from mochi.personality.character import Character, layer_items, list_characters
+from mochi.personality.character import Character, layer_items, list_characters, load_character, save_character_traits
 
 
 def _bar(value: float, color: str = GOOD) -> QProgressBar:
@@ -48,6 +48,13 @@ class CharactersPage(QWidget):
         self._chars: list[Character] = list_characters()
         self._active_id = self._read_active()
         self._build()
+
+    def _edit_traits(self, c: Character) -> None:
+        dlg = TraitEditor(c, self)
+        if dlg.exec():
+            save_character_traits(c.root, dlg.values())
+            self._chars[self._list.currentRow()] = load_character(c.root)
+            self._show(self._list.currentRow())
 
     def _read_active(self) -> str:
         try:
@@ -129,6 +136,10 @@ class CharactersPage(QWidget):
         use.setCursor(Qt.CursorShape.PointingHandCursor)
         use.clicked.connect(lambda: self._use(c))
         act.addWidget(use)
+        edit = QPushButton("✎  Edit traits"); edit.setObjectName("Tab")
+        edit.setCursor(Qt.CursorShape.PointingHandCursor)
+        edit.clicked.connect(lambda: self._edit_traits(c))
+        act.addWidget(edit)
         if c.id == self._active_id:
             act.addWidget(_label("● ACTIVE — the agent is playing this character",
                                  color=GOOD, size=12, bold=True))
@@ -195,3 +206,51 @@ class CharactersPage(QWidget):
             lab.setStyleSheet(f"color:{INK_DIM}; font-size:64px;")
         v.addWidget(lab)
         return box
+
+
+class TraitEditor(QDialog):
+    """Slider editor for a character's trait layers (HEXACO/SPECIAL/Expression/
+    Domains). Writes back to the sheet on Save."""
+
+    _LAYERS = ("hexaco", "special", "expression", "domains")
+
+    def __init__(self, character: Character, parent: Any = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(f"Edit traits — {character.name}")
+        self.resize(620, 640)
+        self.setStyleSheet(f"QDialog{{background:{BG};}} QLabel{{color:{INK};}}")
+        self._sliders: dict[tuple[str, str], QSlider] = {}
+        outer = QVBoxLayout(self)
+        scroll = QScrollArea(); scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea{border:none;}")
+        body = QWidget(); grid = QGridLayout(body); grid.setSpacing(16)
+        p = character.personality
+        layers = [("HEXACO", "hexaco", p.hexaco), ("SPECIAL", "special", p.special),
+                  ("EXPRESSION", "expression", p.expression), ("DOMAINS", "domains", p.domains)]
+        for i, (title, key, struct) in enumerate(layers):
+            box = QVBoxLayout(); box.setSpacing(8)
+            box.addWidget(_label(title, color=ACCENT, size=12, bold=True))
+            for field, val in layer_items(struct):
+                row = QHBoxLayout()
+                row.addWidget(_label(field, color=INK_DIM, size=11)); row.addStretch(1)
+                sl = QSlider(Qt.Orientation.Horizontal); sl.setRange(0, 100)
+                sl.setValue(int(round(float(val) * 100))); sl.setFixedWidth(150)
+                vl = _label(f"{float(val):.2f}", color=GOOD, size=11)
+                sl.valueChanged.connect(lambda v, lab=vl: lab.setText(f"{v/100:.2f}"))
+                self._sliders[(key, field)] = sl
+                row.addWidget(sl); row.addWidget(vl)
+                box.addLayout(row)
+            w = QWidget(); w.setLayout(box)
+            grid.addWidget(w, i // 2, i % 2)
+        scroll.setWidget(body); outer.addWidget(scroll, stretch=1)
+        btns = QHBoxLayout(); btns.addStretch(1)
+        cancel = QPushButton("Cancel"); cancel.setObjectName("Tab"); cancel.clicked.connect(self.reject)
+        save = QPushButton("Save"); save.setObjectName("Accent"); save.clicked.connect(self.accept)
+        btns.addWidget(cancel); btns.addWidget(save)
+        outer.addLayout(btns)
+
+    def values(self) -> dict:
+        out: dict = {}
+        for (layer, field), sl in self._sliders.items():
+            out.setdefault(layer, {})[field] = sl.value() / 100.0
+        return out

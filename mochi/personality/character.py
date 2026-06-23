@@ -190,3 +190,15 @@ def active_character(instance_root: Path) -> "Character | None":
         except Exception:  # noqa: BLE001
             return None
     return None
+
+
+def save_character_traits(folder: Path, traits: dict) -> None:
+    """Write edited trait layers back to <folder>/character.yaml (the Studio
+    trait editor). Only the four trait layers are touched."""
+    yf = Path(folder) / "character.yaml"
+    doc = yaml.safe_load(yf.read_text(encoding="utf-8")) or {}
+    t = doc.setdefault("traits", {})
+    for layer in ("hexaco", "special", "expression", "domains"):
+        if layer in traits:
+            t[layer] = {k: round(float(v), 3) for k, v in traits[layer].items()}
+    yf.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
