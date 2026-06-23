@@ -173,6 +173,19 @@ def active_character_id(instance_root: Path) -> str:
     return f.read_text(encoding="utf-8").strip() if f.exists() else ""
 
 
+def active_character_signature(instance_root: Path) -> str:
+    """id + sheet mtime — changes when the character switches OR its traits are
+    edited, so instant-apply rebuilds the prompt for both."""
+    cid = active_character_id(instance_root)
+    if not cid:
+        return ""
+    try:
+        mt = (characters_root() / cid / "character.yaml").stat().st_mtime
+    except OSError:
+        mt = 0.0
+    return f"{cid}:{mt}"
+
+
 def set_active_character(instance_root: Path, cid: str) -> None:
     """Set the character this instance plays (writes <instance>/active_character)."""
     root = Path(instance_root); root.mkdir(parents=True, exist_ok=True)

@@ -2755,13 +2755,13 @@ def _refresh_character_prompt(jaeger_agent: Any) -> None:
     (no restart). Cheap — rebuilds only on an actual change."""
     try:
         from mochi.agent.prompts.prompts import build_system_prompt
-        from mochi.personality.character import active_character_id
+        from mochi.personality.character import active_character_signature
         layout = _pipeline.get("layout")
         if layout is None:
             return
-        cid = active_character_id(layout.root)
-        if cid != _pipeline.get("active_character_id"):
-            _pipeline["active_character_id"] = cid
+        sig = active_character_signature(layout.root)
+        if sig != _pipeline.get("active_character_sig"):
+            _pipeline["active_character_sig"] = sig
             _pipeline["system_prompt"] = build_system_prompt(layout)
             jaeger_agent.system_prompt = _pipeline["system_prompt"]
     except Exception:  # noqa: BLE001
