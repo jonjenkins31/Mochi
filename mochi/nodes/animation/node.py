@@ -260,6 +260,13 @@ class AnimationNode(Node):
         bridge to the Swift app; in tests it captures frames for
         assertion.  Out-of-process renderers turn this into a
         WebSocket binary message + small JSON header."""
+        # Stream on the bus as an avatar frame — the avatar player popup + the
+        # Character Chat tab consume this (same node+popup pattern as media).
+        try:
+            self.bus.publish(topics.AvatarFrame(
+                data=bytes(frame.data), width=frame.width, height=frame.height))
+        except Exception:  # noqa: BLE001
+            pass
         if self._frame_callback is None:
             return
         try:

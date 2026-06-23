@@ -471,6 +471,7 @@ class SkillMastered(TopicMessage):
 ACT_MEDIA = "/act/media"
 SENSE_MEDIA_STATE = "/sense/media_state"
 SENSE_MEDIA_FRAME = "/sense/media_frame"
+SENSE_AVATAR_FRAME = "/sense/avatar_frame"
 
 
 class MediaCommand(TopicMessage):
@@ -494,6 +495,18 @@ class MediaFrame(TopicMessage):
     Binary, so media streams to ANY target (LED matrix, remote node), not
     just a local Qt window."""
     topic: Literal["/sense/media_frame"] = SENSE_MEDIA_FRAME
+    data: bytes = b""
+    width: int = 0
+    height: int = 0
+
+
+
+class AvatarFrame(TopicMessage):
+    """Animation (avatar) node -> bus: one rendered RGBA avatar frame
+    (``data`` = w*h*4 bytes). The avatar player popup + Character Chat tab
+    consume this — the same node+popup pattern as media. 2D today; 3D is a
+    future animation level inside the animation node."""
+    topic: Literal["/sense/avatar_frame"] = SENSE_AVATAR_FRAME
     data: bytes = b""
     width: int = 0
     height: int = 0
@@ -523,6 +536,7 @@ TOPIC_TO_CLASS: dict[str, type[TopicMessage]] = {
     ACT_MEDIA: MediaCommand,
     SENSE_MEDIA_STATE: MediaState,
     SENSE_MEDIA_FRAME: MediaFrame,
+    SENSE_AVATAR_FRAME: AvatarFrame,
     ACT_TIMELINE: TimelineCommand,
     ACT_SPEECH_STOP: SpeechStop,
     ACT_ESTOP: EStop,
@@ -548,7 +562,7 @@ __all__ = [
     "SENSE_TOUCH", "SENSE_PROPRIO", "SENSE_SPOKEN",
     "ACT_SPEECH", "ACT_AUDIO_OUT", "ACT_MOTION", "ACT_LIGHT",
     "ACT_SPEECH_STOP", "ACT_ESTOP", "SENSE_NODE_HEALTH",
-    "ACT_MEDIA", "SENSE_MEDIA_STATE", "SENSE_MEDIA_FRAME",
+    "ACT_MEDIA", "SENSE_MEDIA_STATE", "SENSE_MEDIA_FRAME", "SENSE_AVATAR_FRAME",
     "ALL_TOPICS",
     # Envelope + concrete types
     "TopicMessage",
