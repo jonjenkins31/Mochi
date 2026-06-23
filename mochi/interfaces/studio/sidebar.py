@@ -1,24 +1,26 @@
-"""The Studio left column — brand, the persistent nav menu, a profile, and a
+"""The Studio left column — logo, the persistent nav menu, a profile, and a
 support/links card. A self-contained widget; it knows nothing about the pages,
 it just emits :data:`Sidebar.navSelected` so the window swaps the center.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtCore import Qt, QSize, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget,
 )
 
-from .theme import ACCENT, INK_DIM, _label
+from .icons import icon, logo_pixmap
+from .theme import ACCENT_HI, ICON_DIM, INK_DIM, PANEL, _label
 
-# The persistent menu — (icon, page name). Names match window._pages keys.
+# The persistent menu — (icon id, page name). Names match window._pages keys.
 NAV = [
-    ("◍", "Dashboard"), ("☺", "Characters"), ("✦", "Animation"),
-    ("✎", "Editors"), ("▶", "Media"), ("▤", "Assets"), ("▦", "Packs"),
-    ("▣", "Chat"), ("◆", "Diagnostics"), ("◉", "Learn"), ("⚙", "Settings"),
+    ("dashboard", "Dashboard"), ("characters", "Characters"), ("animation", "Animation"),
+    ("editors", "Editors"), ("media", "Media"), ("assets", "Assets"), ("packs", "Packs"),
+    ("chat", "Chat"), ("diagnostics", "Diagnostics"), ("learn", "Learn"), ("settings", "Settings"),
 ]
+_ICON_ON = "#FFFFFF"
 _YOUTUBE = "https://youtube.com/@Jenkins_Robotics"
 
 
@@ -76,24 +78,31 @@ class Sidebar(QFrame):
         self.setFixedWidth(232)
         col = QVBoxLayout(self)
         col.setContentsMargins(18, 22, 18, 18)
-        col.setSpacing(6)
+        col.setSpacing(4)
 
         brand = QHBoxLayout()
         brand.setSpacing(10)
-        brand.addWidget(_label("◆", color=ACCENT, size=20, bold=True))
+        logo = QLabel()
+        logo.setPixmap(logo_pixmap(PANEL, ACCENT_HI, 24))
+        brand.addWidget(logo)
         brand.addWidget(_label("Mochi Studio", size=15, bold=True))
         brand.addStretch(1)
         col.addLayout(brand)
-        col.addSpacing(22)
+        col.addSpacing(20)
 
         self._buttons: list[QPushButton] = []
-        for i, (icon, name) in enumerate(NAV):
-            b = QPushButton(f"  {icon}    {name}")
+        for i, (key, name) in enumerate(NAV):
+            b = QPushButton(name)
             b.setObjectName("NavItem")
             b.setProperty("nav", name)
             b.setCheckable(True)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.setChecked(i == 0)
+            b.setIconSize(QSize(18, 18))
+            b._icon_dim = icon(key, ICON_DIM, 18)   # type: ignore[attr-defined]
+            b._icon_on = icon(key, _ICON_ON, 18)     # type: ignore[attr-defined]
+            on = i == 0
+            b.setChecked(on)
+            b.setIcon(b._icon_on if on else b._icon_dim)
             b.clicked.connect(lambda _=False, btn=b: self._pick(btn))
             self._buttons.append(b)
             col.addWidget(b)
@@ -106,5 +115,7 @@ class Sidebar(QFrame):
 
     def _pick(self, btn: QPushButton) -> None:
         for b in self._buttons:
-            b.setChecked(b is btn)
+            on = b is btn
+            b.setChecked(on)
+            b.setIcon(b._icon_on if on else b._icon_dim)  # type: ignore[attr-defined]
         self.navSelected.emit(str(btn.property("nav")))

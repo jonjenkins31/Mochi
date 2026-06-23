@@ -11,13 +11,14 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtGui import QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QSizePolicy, QSlider, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from .background import GradientBackground
+from .icons import logo_pixmap
 from .sidebar import Sidebar
 from .theme import (
     ACCENT, ACCENT_HI, BG, DEEP, GOOD, INK, INK_DIM, PANEL, PANEL_HI, STROKE,
@@ -37,6 +38,7 @@ class MochiStudioWindow(QWidget):
         self._agent_name = agent_name
         self.setObjectName("MochiStudio")
         self.setWindowTitle("Mochi Studio")
+        self.setWindowIcon(QIcon(logo_pixmap(PANEL, ACCENT_HI, 64)))
         self.resize(1180, 760)
         self.setMinimumSize(980, 640)
         self._build_ui()

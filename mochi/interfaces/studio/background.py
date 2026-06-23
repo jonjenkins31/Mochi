@@ -1,9 +1,10 @@
 """GradientBackground — the Studio's backdrop layer.
 
 A standalone widget so the look is an *overlay* that can be restyled, animated,
-or swapped later without touching the content. Primarily black with soft purple
-highlights; reads its colours from theme.py. Sits behind everything and lets
-clicks pass through to the content on top.
+or recoloured later without touching the content. Near-pure black, with the
+accent colour bleeding in from the EDGES (bottom corners strongest, fading to
+black in the center). Reads its colours from theme.py; sits behind everything
+and lets clicks pass through.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ def _glow(base: QColor, alpha: int) -> QColor:
 
 
 class GradientBackground(QWidget):
-    """Near-black field with two soft purple radial highlights."""
+    """Near-black field with the accent glowing in from the bottom edges."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -37,17 +38,19 @@ class GradientBackground(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         r = self.rect()
         w, h = r.width(), r.height()
-        p.fillRect(r, BASE_RGB)
+        p.fillRect(r, BASE_RGB)  # near-pure black field
 
-        # Primary highlight — top-left.
-        g1 = QRadialGradient(w * 0.16, h * 0.04, w * 0.70)
-        g1.setColorAt(0.0, _glow(GLOW_PRIMARY, 90))
+        # Primary edge glow — anchored at the bottom-left CORNER, reaching in.
+        g1 = QRadialGradient(0.0, float(h), w * 1.05)
+        g1.setColorAt(0.0, _glow(GLOW_PRIMARY, 200))
+        g1.setColorAt(0.5, _glow(GLOW_PRIMARY, 70))
         g1.setColorAt(1.0, _glow(GLOW_PRIMARY, 0))
         p.fillRect(r, QBrush(g1))
 
-        # Secondary highlight — bottom-right, softer.
-        g2 = QRadialGradient(w * 0.94, h * 1.02, w * 0.62)
-        g2.setColorAt(0.0, _glow(GLOW_SECONDARY, 55))
+        # Secondary edge glow — bottom-right corner, softer.
+        g2 = QRadialGradient(float(w), float(h), w * 0.8)
+        g2.setColorAt(0.0, _glow(GLOW_SECONDARY, 120))
+        g2.setColorAt(0.6, _glow(GLOW_SECONDARY, 32))
         g2.setColorAt(1.0, _glow(GLOW_SECONDARY, 0))
         p.fillRect(r, QBrush(g2))
         p.end()

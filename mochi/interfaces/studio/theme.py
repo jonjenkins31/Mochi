@@ -11,8 +11,8 @@ from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import QLabel
 
 # ── palette ─────────────────────────────────────────────────────────
-DEEP = "#0B0910"        # near-black base
-BG = "#151221"
+DEEP = "#08070C"        # near-pure-black base
+BG = "#0E0C16"
 PANEL = "#1C1830"
 PANEL_HI = "#262038"
 STROKE = "#2C2545"
@@ -23,15 +23,16 @@ INK_DIM = "#8A85A6"
 GOOD = "#4ADE80"
 
 # ── gradient-backdrop tokens (background.GradientBackground paints these) ──
-BASE_RGB = QColor(11, 9, 16)            # the near-black field
-GLOW_PRIMARY = QColor(124, 92, 255)     # the main purple highlight (top-left)
-GLOW_SECONDARY = QColor(150, 110, 255)  # a softer second highlight (bottom-right)
+BASE_RGB = QColor(8, 7, 12)             # the near-pure-black field
+GLOW_PRIMARY = QColor(124, 92, 255)     # the main purple edge glow (bottom-left)
+GLOW_SECONDARY = QColor(150, 110, 255)  # a softer second edge glow (bottom-right)
+ICON_DIM = "#8E89AB"                    # nav icons, inactive
 
-# Translucent surface fills, so the backdrop's purple glow shows THROUGH the
-# panels (the "overlay" look the operator asked for — adjustable from here).
-SIDEBAR_FILL = "rgba(20, 17, 32, 0.62)"
-PANEL_FILL = "rgba(28, 24, 48, 0.66)"
-BAR_FILL = "rgba(19, 16, 30, 0.50)"
+# Near-black translucent surfaces, so the edge glow stays subtle THROUGH the
+# panels (the overlay look — adjustable from here; recolourable later).
+SIDEBAR_FILL = "rgba(13, 12, 20, 0.42)"
+PANEL_FILL = "rgba(15, 14, 23, 0.32)"
+BAR_FILL = "rgba(10, 9, 15, 0.24)"
 
 
 def _label(text: str, *, color: str = INK, size: int = 13, bold: bool = False) -> QLabel:
@@ -53,8 +54,8 @@ def stylesheet() -> str:
             border-radius: 10px; color: {INK_DIM};
             font-size: 13px; background: transparent;
         }}
-        QPushButton#NavItem:hover {{ background: {PANEL_HI}; color: {INK}; }}
-        QPushButton#NavItem:checked {{ background: {ACCENT}; color: white; }}
+        QPushButton#NavItem:hover {{ background: rgba(255,255,255,0.05); color: {INK}; }}
+        QPushButton#NavItem:checked {{ background: rgba(124,92,255,0.16); color: {INK}; }}
 
         QFrame#ProfileCard {{
             background: {PANEL_FILL}; border: 1px solid {STROKE}; border-radius: 14px;
@@ -96,8 +97,8 @@ def stylesheet() -> str:
             font-weight: 700; border: 1px solid {STROKE};
         }}
         QFrame#Stage {{
-            background: qlineargradient(x1:0,y1:0,x2:0.6,y2:1,
-                stop:0 {PANEL_HI}, stop:1 {DEEP});
+            background: qlineargradient(x1:0,y1:0,x2:0.5,y2:1,
+                stop:0 rgba(20,18,30,0.55), stop:1 rgba(8,7,12,0.35));
             border-radius: 18px; border: 1px solid {STROKE};
         }}
         QLabel#CharView {{ color: {INK_DIM}; font-size: 40px; }}
