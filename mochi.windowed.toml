@@ -42,9 +42,9 @@ config_key = "agent"
 #    Both speak the bus only (mochi.core.messages). ──────────────
 [[surface]]
 id = "chat_window"
-main = true                   # owns the Qt event loop
 factory = "mochi.interfaces.pyside6.rich_tui.window:make_surface"
 
 [[surface]]
 id = "tray"
+main = true                   # the always-on surface; owns the app lifecycle
 factory = "mochi.interfaces.pyside6.tray.qt:make_surface"

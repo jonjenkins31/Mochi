@@ -62,6 +62,7 @@ class QtTray:
         self._pill: Any = None
         self._menu: Any = None
         self._settings: Any = None
+        self._studio: Any = None
         self._state = "idle"
 
         # Brand the app — window + macOS Dock icon (the tray is the
@@ -122,6 +123,7 @@ class QtTray:
                 on_open_chat=self._open_chat,
                 on_quit=self._quit,
                 on_settings=self._open_settings,
+                on_open_studio=self._open_studio,
             )
         self._menu.set_state(self._state)
         self._menu.popup_under(self._icon.geometry())
@@ -130,6 +132,15 @@ class QtTray:
         from mochi.interfaces.pyside6.settings import open_settings
         # Hold the ref so the window isn't garbage-collected on return.
         self._settings = open_settings()
+
+    def _open_studio(self) -> Any:
+        """Open Mochi Studio (the main app surface) on demand; held so it
+        isn't GC'd, raised if already open."""
+        if self._studio is None:
+            from mochi.interfaces.studio.window import make_surface
+            self._studio = make_surface(self.ctx)
+        self._studio.show(); self._studio.raise_(); self._studio.activateWindow()
+        return self._studio
 
     def _on_state(self, msg: Any) -> None:
         state = getattr(msg, "state", None)

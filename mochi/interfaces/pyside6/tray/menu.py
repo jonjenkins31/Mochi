@@ -70,7 +70,8 @@ class TrayMenu(QWidget):
                  on_quick_input: Callable[[], None],
                  on_open_chat: Callable[[], None],
                  on_quit: Callable[[], None],
-                 on_settings: Callable[[], None] | None = None) -> None:
+                 on_settings: Callable[[], None] | None = None,
+                 on_open_studio: Callable[[], None] | None = None) -> None:
         super().__init__()
         self._on_open_chat = on_open_chat
         self._on_settings = on_settings
@@ -101,6 +102,8 @@ class TrayMenu(QWidget):
 
         body.addLayout(self._header(agent_name, instance_name))
         body.addWidget(self._status_card())
+        if on_open_studio is not None:
+            body.addWidget(self._action("◆  Open Mochi Studio", on_open_studio))
         body.addWidget(self._action("Quick input…", on_quick_input))
         body.addWidget(self._action("Open chat window", on_open_chat))
         body.addWidget(self._action("Quit JROS", on_quit, danger=True))
