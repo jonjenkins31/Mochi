@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QPointF, Qt
+from PySide6.QtGui import QBrush, QColor, QPen, QPixmap, QPolygonF
 from PySide6.QtWidgets import (
     QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget, QPlainTextEdit, QProgressBar, QPushButton, QSlider,
     QScrollArea, QVBoxLayout, QWidget,
@@ -225,6 +225,11 @@ class CharactersPage(QWidget):
             lab.setText("◍")
             lab.setStyleSheet(f"color:{INK_DIM}; font-size:64px;")
         v.addWidget(lab)
+        v.addSpacing(10)
+        v.addWidget(_label("EXPRESSION", color=INK_DIM, size=10, bold=True))
+        radar = TraitRadar([(k, val) for k, val in layer_items(c.personality.expression)])
+        radar.setFixedHeight(168)
+        v.addWidget(radar)
         return box
 
 
@@ -302,3 +307,44 @@ class NewCharacterDialog(QDialog):
 
     def values(self) -> tuple[str, str, str]:
         return self._name.text(), self._role.text(), self._ci.toPlainText()
+
+
+class TraitRadar(QWidget):
+    """A spider/radar chart of a trait layer, painted with QPainter."""
+
+    def __init__(self, items: list, color: str = ACCENT, parent: Any = None) -> None:
+        super().__init__(parent)
+        self._items = items
+        self._color = color
+        self.setMinimumSize(180, 160)
+
+    def paintEvent(self, e: Any) -> None:  # noqa: N802
+        import math
+        n = len(self._items)
+        if n < 3:
+            return
+        pa = QPainter(self)
+        pa.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = self.width(), self.height()
+        cx, cy = w / 2.0, h / 2.0
+        R = min(w, h) / 2.0 - 26
+
+        def pt(i: int, rad: float) -> QPointF:
+            ang = 2 * math.pi * i / n - math.pi / 2
+            return QPointF(cx + R * rad * math.cos(ang), cy + R * rad * math.sin(ang))
+
+        pa.setPen(QPen(QColor(STROKE), 1))
+        for ring in (0.34, 0.67, 1.0):
+            pa.drawPolygon(QPolygonF([pt(i, ring) for i in range(n)]))
+        pa.setPen(QPen(QColor(STROKE), 1))
+        for i in range(n):
+            pa.drawLine(QPointF(cx, cy), pt(i, 1.0))
+        pa.setPen(QColor(INK_DIM))
+        for i, (label, _v) in enumerate(self._items):
+            edge = pt(i, 1.12)
+            pa.drawText(QPointF(edge.x() - 12, edge.y() + 4), str(label)[:4])
+        vpts = [pt(i, max(0.0, min(1.0, float(v)))) for i, (_l, v) in enumerate(self._items)]
+        fill = QColor(self._color); fill.setAlpha(70)
+        pa.setBrush(QBrush(fill)); pa.setPen(QPen(QColor(self._color), 2))
+        pa.drawPolygon(QPolygonF(vpts))
+        pa.end()
