@@ -46,5 +46,5 @@ traits:
     nature: 0.5
     psychology: 0.5
 assets:
-  card: ''
+  card: card.png
   avatar: avatar

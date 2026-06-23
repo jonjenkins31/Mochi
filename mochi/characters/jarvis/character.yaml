@@ -12,5 +12,5 @@ prompt:
   speech_patterns: []
 traits: {}
 assets:
-  card: ''
+  card: card.png
   avatar: avatar

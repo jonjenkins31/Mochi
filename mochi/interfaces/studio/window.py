@@ -184,10 +184,15 @@ class MochiStudioWindow(QWidget):
 
     def _center(self) -> QWidget:
         self._center_stack = QStackedWidget()
-        self._pages = {"Media": 1}
-        self._center_stack.addWidget(self._stage())       # 0
-        self._center_stack.addWidget(self._media_page())  # 1
+        self._pages = {"Media": 1, "Characters": 2}
+        self._center_stack.addWidget(self._stage())            # 0
+        self._center_stack.addWidget(self._media_page())       # 1
+        self._center_stack.addWidget(self._characters_page())  # 2
         return self._center_stack
+
+    def _characters_page(self) -> QWidget:
+        from mochi.interfaces.studio.characters import CharactersPage
+        return CharactersPage()
 
     def _media_page(self) -> QWidget:
         from PySide6.QtWidgets import QListWidget
