@@ -36,6 +36,7 @@ class MochiStudioWindow(QWidget):
     def __init__(self, agent_name: str = "Mochi") -> None:
         super().__init__()
         self._agent_name = agent_name
+        self._char: QLabel | None = None   # set by a tab that hosts the avatar stage
         self.setObjectName("MochiStudio")
         self.setWindowTitle("Mochi Studio")
         self.setWindowIcon(QIcon(logo_pixmap(PANEL, ACCENT_HI, 64)))
@@ -64,20 +65,21 @@ class MochiStudioWindow(QWidget):
         self._bg.setGeometry(self.rect())
 
     def _main_column(self) -> QWidget:
+        # Shell = top bar + the center page stack ONLY. The right "Customize"
+        # panel and the bottom carousel/timeline are NOT baked in — they're
+        # opt-in pieces a specific tab adds to its own page (see
+        # _right_panel / _bottom_bar, reused where a tab needs them).
         wrap = QWidget()
         col = QVBoxLayout(wrap)
         col.setContentsMargins(0, 0, 0, 0)
         col.setSpacing(0)
         col.addWidget(self._topbar())
-        body = QHBoxLayout()
-        body.setContentsMargins(18, 14, 18, 12)
-        body.setSpacing(16)
-        body.addWidget(self._center(), stretch=1)
-        body.addWidget(self._right_panel())
-        bw = QWidget()
-        bw.setLayout(body)
-        col.addWidget(bw, stretch=1)
-        col.addWidget(self._bottom_bar())
+        body = QWidget()
+        bl = QVBoxLayout(body)
+        bl.setContentsMargins(18, 14, 18, 16)
+        bl.setSpacing(0)
+        bl.addWidget(self._center(), stretch=1)
+        col.addWidget(body, stretch=1)
         return wrap
 
     def _topbar(self) -> QWidget:
@@ -114,6 +116,12 @@ class MochiStudioWindow(QWidget):
         row.addWidget(avatar)
         return bar
 
+    def _empty_page(self) -> QWidget:
+        """The Dashboard — intentionally empty for now; the backdrop shows."""
+        page = QWidget()
+        page.setStyleSheet("background: transparent;")
+        return page
+
     def _stage(self) -> QWidget:
         stage = QFrame()
         stage.setObjectName("Stage")
@@ -131,7 +139,7 @@ class MochiStudioWindow(QWidget):
 
     def _center(self) -> QWidget:
         self._center_stack = QStackedWidget()
-        self._center_stack.addWidget(self._stage())            # 0  Dashboard (landing)
+        self._center_stack.addWidget(self._empty_page())       # 0  Dashboard (empty)
         self._center_stack.addWidget(self._media_page())       # 1  Media (built)
         self._center_stack.addWidget(self._characters_page())  # 2  Characters (built)
         self._pages = {"Dashboard": 0, "Media": 1, "Characters": 2}
@@ -320,14 +328,18 @@ class MochiStudioWindow(QWidget):
 
     # ── render seams (driven by make_surface from bus events) ──────
     def show_frame(self, rgba: bytes, w: int, h: int) -> None:
-        """Paint one animation frame (RGBA8, w*h*4 bytes) on the stage."""
+        """Paint one animation frame (RGBA8) — only when a tab hosts the avatar
+        stage (sets ``self._char``). No-op otherwise."""
+        if self._char is None:
+            return
         img = QImage(rgba, w, h, w * 4, QImage.Format.Format_RGBA8888)
         self._char.setPixmap(QPixmap.fromImage(img).scaled(
             self._char.size(), Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation))
 
     def set_emotion(self, emotion: str) -> None:
-        self._char.setToolTip(f"emotion: {emotion}")
+        if self._char is not None:
+            self._char.setToolTip(f"emotion: {emotion}")
 
     def set_status(self, text: str) -> None:
         self.setWindowTitle(f"Mochi Studio — {text}" if text else "Mochi Studio")
