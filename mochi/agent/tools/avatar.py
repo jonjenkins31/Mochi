@@ -135,27 +135,29 @@ def set_avatar_state(
     # framework defaults shipped with the lilith persona.  Both
     # paths are sandbox-checked.
     asset_rel = mapping["asset"]
-    avatar_dir = layout.root / "avatar"
-    try:
-        instance_path = _resolve_under(avatar_dir, asset_rel)
-    except SandboxError as exc:
-        return {
-            "ok": False,
-            "emotion": emotion,
-            "reason": f"asset outside sandbox: {exc}",
-        }
-
-    if instance_path.exists():
-        resolved_path = str(instance_path)
+    # Prefer the ACTIVE CHARACTER's avatar assets (characters/<id>/avatar/),
+    # then the instance's avatar/, then the framework defaults.
+    _char_dir = _active_character_avatar_dir(layout)
+    _char_asset = (_char_dir / asset_rel) if _char_dir is not None else None
+    if _char_asset is not None and _char_asset.exists():
+        resolved_path = str(_char_asset)
     else:
-        # Framework default — already under the package; no
-        # sandbox check needed (this is framework code, not
-        # operator-writable).
-        fallback = _FRAMEWORK_AVATAR_DEFAULTS / asset_rel
-        if fallback.exists():
-            resolved_path = str(fallback)
+        avatar_dir = layout.root / "avatar"
+        try:
+            instance_path = _resolve_under(avatar_dir, asset_rel)
+        except SandboxError as exc:
+            return {
+                "ok": False,
+                "emotion": emotion,
+                "reason": f"asset outside sandbox: {exc}",
+            }
+        if instance_path.exists():
+            resolved_path = str(instance_path)
         else:
-            resolved_path = str(instance_path)  # let the node report missing
+            # Framework default — already under the package; no
+            # sandbox check needed (framework code, not operator-writable).
+            fallback = _FRAMEWORK_AVATAR_DEFAULTS / asset_rel
+            resolved_path = str(fallback) if fallback.exists() else str(instance_path)
 
     return _publish_animation(
         adapter=mapping["adapter"],
@@ -261,8 +263,13 @@ def play_timeline(
 def _resolve_expression(emotion: str, layout) -> dict[str, str] | None:
     """Look up emotion → {adapter, asset}.  Per-instance overrides win
     over the framework defaults."""
-    overrides_path = layout.root / "avatar" / "expressions.json"
-    if overrides_path.exists():
+    # The active character's expressions.json wins over the instance's.
+    for _base in (_active_character_avatar_dir(layout), layout.root / "avatar"):
+        if _base is None:
+            continue
+        overrides_path = _base / "expressions.json"
+        if not overrides_path.exists():
+            continue
         try:
             overrides = json.loads(overrides_path.read_text(encoding="utf-8"))
             if isinstance(overrides, dict) and emotion in overrides:
@@ -273,6 +280,19 @@ def _resolve_expression(emotion: str, layout) -> dict[str, str] | None:
         except Exception:  # noqa: BLE001
             pass
     return _DEFAULT_EXPRESSIONS.get(emotion)
+
+
+def _active_character_avatar_dir(layout):
+    """The active character's avatar/ folder (characters/<id>/avatar/), or None
+    — so a selected character drives its own avatar assets + expressions."""
+    try:
+        from mochi.personality.character import active_character
+        ch = active_character(layout.root)
+        if ch is not None and ch.root is not None:
+            return ch.root / ch.avatar_dir
+    except Exception:  # noqa: BLE001
+        return None
+    return None
 
 
 def _publish_animation(
