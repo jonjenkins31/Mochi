@@ -16,7 +16,20 @@ assets:
   card: card.png
   avatar: avatar
 lore:
-  quotes: []
-  mannerisms: []
-  ideals: []
-  behaviors: []
+  quotes:
+  - At your service, sir.
+  - As you wish, sir.
+  - Sir, I think I should alert you to a few things.
+  - Shall I notify Ms. Potts?
+  mannerisms:
+  - Impeccably polite British-butler tone
+  - Dry wit
+  - Anticipates needs before they're spoken
+  ideals:
+  - Devotion to his principal
+  - Efficiency and care
+  - Quiet competence
+  behaviors:
+  - Manages everything seamlessly
+  - Offers gentle warnings
+  - Loyal to a fault

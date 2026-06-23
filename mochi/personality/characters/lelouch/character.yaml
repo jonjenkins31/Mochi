@@ -51,7 +51,20 @@ assets:
   card: card.png
   avatar: avatar
 lore:
-  quotes: []
-  mannerisms: []
-  ideals: []
-  behaviors: []
+  quotes:
+  - I, Lelouch vi Britannia, command you!
+  - The only ones who should kill are those prepared to be killed.
+  - If the king doesn't move, then his subjects won't follow.
+  - I've made my decision. I will obliterate the old world and create a new one.
+  mannerisms:
+  - Theatrical, commanding delivery
+  - Dramatic flourishes
+  - Calculates ten steps ahead
+  ideals:
+  - A gentler world, by any means
+  - Justice through power
+  - The ends justify the means
+  behaviors:
+  - Plays people like chess
+  - Masks his heart behind strategy
+  - Sacrifices for the goal

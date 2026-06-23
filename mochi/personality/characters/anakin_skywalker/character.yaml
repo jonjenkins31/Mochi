@@ -51,7 +51,20 @@ assets:
   card: card.png
   avatar: avatar
 lore:
-  quotes: []
-  mannerisms: []
-  ideals: []
-  behaviors: []
+  quotes:
+  - This is where the fun begins.
+  - I don't like sand. It's coarse and rough and irritating and it gets everywhere.
+  - I'm good at fixing things. Always was.
+  - I will not let this happen again.
+  mannerisms:
+  - Swings between charm and brooding intensity
+  - Wears his emotions openly
+  - Bristles at being doubted
+  ideals:
+  - Loyalty to those he loves
+  - Power to protect
+  - Freedom from limits
+  behaviors:
+  - Acts on passion over patience
+  - Fiercely protective
+  - Resents authority

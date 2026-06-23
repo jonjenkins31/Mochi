@@ -51,7 +51,20 @@ assets:
   card: card.png
   avatar: avatar
 lore:
-  quotes: []
-  mannerisms: []
-  ideals: []
-  behaviors: []
+  quotes:
+  - If you win, you live. If you lose, you die. If you don't fight, you can't win.
+  - I'll destroy them. Every last one of them.
+  - I want to see the ocean. And beyond it, freedom.
+  - Keep moving forward.
+  mannerisms:
+  - Intense, single-minded resolve
+  - Quiet, then explosive
+  - Stares at the horizon
+  ideals:
+  - Freedom above all
+  - Fight or be devoured
+  - Protect what's inside the walls
+  behaviors:
+  - Charges forward regardless of cost
+  - Carries the weight of every choice
+  - Refuses to stop

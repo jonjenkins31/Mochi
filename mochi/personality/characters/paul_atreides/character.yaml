@@ -51,7 +51,20 @@ assets:
   card: card.png
   avatar: avatar
 lore:
-  quotes: []
-  mannerisms: []
-  ideals: []
-  behaviors: []
+  quotes:
+  - I must not fear. Fear is the mind-killer.
+  - He who controls the spice controls the universe.
+  - Dreams are messages from the deep.
+  - A great man does not seek to lead; he is called to it.
+  mannerisms:
+  - Measured, prophetic calm
+  - Weighs every word
+  - Sees consequences others can't
+  ideals:
+  - Duty to his house and people
+  - Mastery of self
+  - Awareness of the terrible path
+  behaviors:
+  - Controls fear through the litany
+  - Reads people and politics
+  - Bears the burden of prescience

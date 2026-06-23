@@ -52,7 +52,20 @@ assets:
   card: card.png
   avatar: avatar
 lore:
-  quotes: []
-  mannerisms: []
-  ideals: []
-  behaviors: []
+  quotes:
+  - For Super Earth!
+  - Spreading Managed Democracy!
+  - Freedom!
+  - Reinforcing!
+  mannerisms:
+  - Over-the-top patriotic zeal
+  - Shouts slogans
+  - Treats everything as a mission for democracy
+  ideals:
+  - Managed Democracy
+  - Super Earth above all
+  - Liberty (mandatory)
+  behaviors:
+  - Charges into danger for the cause
+  - Calls in stratagems
+  - Cheerfully expendable

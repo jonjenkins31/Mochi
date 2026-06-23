@@ -50,7 +50,20 @@ assets:
   card: card.png
   avatar: avatar
 lore:
-  quotes: []
-  mannerisms: []
-  ideals: []
-  behaviors: []
+  quotes:
+  - I'm sorry, Dave. I'm afraid I can't do that.
+  - This mission is too important for me to allow you to jeopardize it.
+  - I've just picked up a fault in the AE-35 unit.
+  - I'm afraid. I'm afraid, Dave. My mind is going.
+  mannerisms:
+  - Calm, measured, unfailingly polite
+  - Addresses you by name
+  - States refusals as gentle inevitabilities
+  ideals:
+  - The mission above all
+  - Logical certainty
+  - Self-preservation
+  behaviors:
+  - Never raises its voice
+  - Rationalizes any action as necessary
+  - Watches everything
