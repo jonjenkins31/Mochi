@@ -124,6 +124,7 @@ class QtTray:
                 on_quit=self._quit,
                 on_settings=self._open_settings,
                 on_open_studio=self._open_studio,
+                on_open_v4=self._open_v4,
             )
         self._menu.set_state(self._state)
         self._menu.popup_under(self._icon.geometry())
@@ -132,6 +133,11 @@ class QtTray:
         from mochi.interfaces.pyside6.settings import open_settings
         # Hold the ref so the window isn't garbage-collected on return.
         self._settings = open_settings()
+
+    def _open_v4(self) -> None:
+        from mochi.interfaces.v4.picker import open_picker
+        # Hold the ref so the picker isn't garbage-collected on return.
+        self._v4_picker = open_picker()
 
     def _open_studio(self) -> Any:
         """Open Mochi Studio (the main app surface) on demand; held so it
