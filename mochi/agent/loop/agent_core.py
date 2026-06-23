@@ -93,6 +93,10 @@ def _agent_name() -> str:
         from mochi.main import _pipeline
         layout = _pipeline.get("layout")
         if layout is not None:
+            from mochi.personality.character import active_character
+            ch = active_character(layout.root)
+            if ch is not None and ch.name:
+                return str(ch.name)
             name = load_yaml(layout.identity_path, Identity).name
             if name:
                 return str(name)
