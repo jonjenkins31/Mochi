@@ -470,6 +470,7 @@ class SkillMastered(TopicMessage):
 # ── media player (Mochi test-bed) ─────────────────────────────
 ACT_MEDIA = "/act/media"
 SENSE_MEDIA_STATE = "/sense/media_state"
+SENSE_MEDIA_FRAME = "/sense/media_frame"
 
 
 class MediaCommand(TopicMessage):
@@ -486,6 +487,16 @@ class MediaState(TopicMessage):
     path: str = ""
     kind: str = ""
     playing: bool = False
+
+
+class MediaFrame(TopicMessage):
+    """Media node -> bus: one decoded RGBA frame (``data`` = w*h*4 bytes).
+    Binary, so media streams to ANY target (LED matrix, remote node), not
+    just a local Qt window."""
+    topic: Literal["/sense/media_frame"] = SENSE_MEDIA_FRAME
+    data: bytes = b""
+    width: int = 0
+    height: int = 0
 
 
 TOPIC_TO_CLASS: dict[str, type[TopicMessage]] = {
@@ -511,6 +522,7 @@ TOPIC_TO_CLASS: dict[str, type[TopicMessage]] = {
     ACT_ANIMATION_STOP: AnimationStop,
     ACT_MEDIA: MediaCommand,
     SENSE_MEDIA_STATE: MediaState,
+    SENSE_MEDIA_FRAME: MediaFrame,
     ACT_TIMELINE: TimelineCommand,
     ACT_SPEECH_STOP: SpeechStop,
     ACT_ESTOP: EStop,
@@ -536,7 +548,7 @@ __all__ = [
     "SENSE_TOUCH", "SENSE_PROPRIO", "SENSE_SPOKEN",
     "ACT_SPEECH", "ACT_AUDIO_OUT", "ACT_MOTION", "ACT_LIGHT",
     "ACT_SPEECH_STOP", "ACT_ESTOP", "SENSE_NODE_HEALTH",
-    "ACT_MEDIA", "SENSE_MEDIA_STATE",
+    "ACT_MEDIA", "SENSE_MEDIA_STATE", "SENSE_MEDIA_FRAME",
     "ALL_TOPICS",
     # Envelope + concrete types
     "TopicMessage",
@@ -544,7 +556,7 @@ __all__ = [
     "TouchReading", "ProprioReading", "SpokenAck",
     "SpeechCommand", "AudioOutFrame", "MotionCommand", "LightCommand",
     "SpeechStop", "EStop", "NodeHealth",
-    "MediaCommand", "MediaState",
+    "MediaCommand", "MediaState", "MediaFrame",
     # Registry
     "TOPIC_TO_CLASS", "class_for_topic",
 ]

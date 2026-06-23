@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QMovie, QPixmap
+from PySide6.QtGui import QImage, QMovie, QPixmap
 from PySide6.QtWidgets import QLabel, QStackedLayout, QVBoxLayout, QWidget
 
 _IMAGE = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
@@ -107,6 +107,14 @@ class MediaView(QWidget):
             self._player = None
             self._audio = None
 
+    def feed_frame(self, data: bytes, w: int, h: int) -> None:
+        """Render one RGBA frame streamed from the media node."""
+        img = QImage(bytes(data), w, h, w * 4, QImage.Format.Format_RGBA8888)
+        self._label.setPixmap(QPixmap.fromImage(img).scaled(
+            self._label.size(), Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation))
+        self._stack.setCurrentWidget(self._label)
+
     def current(self) -> str:
         return self._path
 
@@ -167,14 +175,14 @@ def make_surface(ctx: Any, spec: Any = None) -> FloatingMediaPlayer:  # noqa: AR
     if bus is not None:
         from mochi.app.surfaces import make_bus_bridge
         from mochi.transport import topics
-        win._bridge = make_bus_bridge(bus, [topics.SENSE_MEDIA_STATE])
+        win._bridge = make_bus_bridge(
+            bus, [topics.SENSE_MEDIA_FRAME, topics.SENSE_MEDIA_STATE])
 
-        def _on_state(msg: Any) -> None:
-            path = getattr(msg, "path", "") or ""
-            if getattr(msg, "playing", False) and path:
-                win.play(path)
-            elif not getattr(msg, "playing", True):
-                win.view.stop()
-                win.hide()
-        win._bridge.message.connect(_on_state)
+        def _on_msg(msg: Any) -> None:
+            t = getattr(msg, "topic", "")
+            if t == topics.SENSE_MEDIA_FRAME:
+                win.view.feed_frame(msg.data, msg.width, msg.height)
+                if not win.isVisible():
+                    win.show(); win.raise_()
+        win._bridge.message.connect(_on_msg)
     return win
