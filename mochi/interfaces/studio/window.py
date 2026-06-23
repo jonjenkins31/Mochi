@@ -190,33 +190,70 @@ class MochiStudioWindow(QWidget):
         return self._center_stack
 
     def _media_page(self) -> QWidget:
+        from PySide6.QtWidgets import QListWidget
         from mochi.interfaces.media_player.window import MediaView
         page = QFrame(); page.setObjectName("Stage")
-        v = QVBoxLayout(page); v.setContentsMargins(18, 18, 18, 18); v.setSpacing(12)
+        outer = QVBoxLayout(page); outer.setContentsMargins(18, 18, 18, 18); outer.setSpacing(12)
         head = QHBoxLayout()
-        head.addWidget(_label("Media Player", size=15, bold=True))
+        head.addWidget(_label("Media Library", size=15, bold=True))
+        self._lib_count = _label("", color=INK_DIM, size=12)
+        head.addWidget(self._lib_count)
         head.addStretch(1)
-        pick = QPushButton("Open file…"); pick.setObjectName("Tab")
-        pick.setCursor(Qt.CursorShape.PointingHandCursor)
-        pick.clicked.connect(self._pick_media)
+        folder = QPushButton("Open folder…"); folder.setObjectName("Tab")
+        folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        folder.clicked.connect(self._open_media_folder)
         launch = QPushButton("⧉  Launch Media Player"); launch.setObjectName("Accent")
         launch.setCursor(Qt.CursorShape.PointingHandCursor)
         launch.clicked.connect(self._launch_media)
-        head.addWidget(pick); head.addWidget(launch)
-        v.addLayout(head)
+        head.addWidget(folder); head.addWidget(launch)
+        outer.addLayout(head)
+        body = QHBoxLayout(); body.setSpacing(14)
+        self._library = QListWidget(); self._library.setObjectName("Library")
+        self._library.setFixedWidth(250)
+        self._library.itemClicked.connect(self._on_library_pick)
+        body.addWidget(self._library)
         self._media_view = MediaView()
-        v.addWidget(self._media_view, stretch=1)
+        body.addWidget(self._media_view, stretch=1)
+        outer.addLayout(body, stretch=1)
         self._media_path = ""
+        self._media_dir = self._default_media_dir()
+        self._scan_library()
         return page
 
-    def _pick_media(self) -> None:
-        from PySide6.QtWidgets import QFileDialog
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Open media", "",
-            "Media (*.png *.jpg *.jpeg *.gif *.webp *.bmp *.mp4 *.mov *.mkv *.webm *.m4v)")
+    def _default_media_dir(self) -> str:
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parents[3]
+        cand = root / "archive" / "mochi-v4" / "assets"
+        return str(cand if cand.exists() else pathlib.Path.home())
+
+    def _scan_library(self) -> None:
+        import pathlib
+        from PySide6.QtWidgets import QListWidgetItem
+        from mochi.interfaces.media_player.window import _GIF, _IMAGE, _VIDEO, media_kind
+        self._library.clear()
+        exts = _IMAGE | _GIF | _VIDEO
+        d = pathlib.Path(self._media_dir)
+        files = sorted((q for q in d.rglob("*") if q.is_file() and q.suffix.lower() in exts),
+                       key=lambda q: q.name.lower())[:500]
+        glyph = {"image": "🖼", "gif": "▶", "video": "🎬"}
+        for q in files:
+            it = QListWidgetItem(f"{glyph.get(media_kind(str(q)), '•')}  {q.name}")
+            it.setData(Qt.ItemDataRole.UserRole, str(q))
+            self._library.addItem(it)
+        self._lib_count.setText(f"· {len(files)} files")
+
+    def _on_library_pick(self, item: Any) -> None:
+        path = item.data(Qt.ItemDataRole.UserRole)
         if path:
             self._media_path = path
             self._media_view.play(path)
+
+    def _open_media_folder(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+        d = QFileDialog.getExistingDirectory(self, "Choose media folder", self._media_dir)
+        if d:
+            self._media_dir = d
+            self._scan_library()
 
     def _launch_media(self) -> None:
         from mochi.interfaces.media_player.window import FloatingMediaPlayer
@@ -369,6 +406,13 @@ class MochiStudioWindow(QWidget):
             QFrame#RightPanel {{ background: {PANEL}; border-radius: 16px; border: 1px solid {STROKE}; }}
             QFrame#BottomBar {{ background: {PANEL}; border-top: 1px solid {STROKE}; }}
             QFrame#Thumb {{ background: {PANEL_HI}; border-radius: 10px; border: 1px solid {STROKE}; }}
+            QListWidget#Library {{
+                background: {PANEL}; border: 1px solid {STROKE}; border-radius: 12px;
+                color: {INK}; font-size: 12px; padding: 6px; outline: none;
+            }}
+            QListWidget#Library::item {{ padding: 7px 8px; border-radius: 7px; }}
+            QListWidget#Library::item:selected {{ background: {ACCENT}; color: white; }}
+            QListWidget#Library::item:hover {{ background: {PANEL_HI}; }}
             QSlider::groove:horizontal {{ height: 4px; background: {STROKE}; border-radius: 2px; }}
             QSlider::sub-page:horizontal {{ background: {ACCENT}; border-radius: 2px; }}
             QSlider::handle:horizontal {{
