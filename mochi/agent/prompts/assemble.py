@@ -119,13 +119,17 @@ def _personality_block(ctx: FragmentContext) -> str:
         from pathlib import Path
 
         root = Path(ctx.layout.root)
+        from mochi.personality import compose_block
         from mochi.personality.character import active_character
-        if active_character(root) is not None:
-            return ""   # persona lives in identity+soul now; traits drive later
+        ch = active_character(root)
+        if ch is not None:
+            # Trait-driven: the character's HEXACO/SPECIAL/Expression/Domains
+            # sliders, rendered into prose ("medium-high sarcasm", ...).
+            return compose_block(ch.personality) or ""
         personality_path = root / "personality.json"
         if not personality_path.exists():
             return ""
-        from mochi.personality import compose_block, load_personality
+        from mochi.personality import load_personality
 
         return compose_block(load_personality(personality_path)) or ""
     except Exception:  # noqa: BLE001

@@ -75,24 +75,24 @@ class Character:
         return f"{label}:\n{body}"
 
     def soul_block(self) -> str:
-        """The full persona the model sees — definition + narrative + lore.
-        Drives the soul fragment. (Trait ratings still drive behavior later.)"""
-        p = self.personality
+        """Narrative + lore (the character's flavor). The core directive +
+        trait behavior come from the personality block (compose_block), so
+        custom_instructions is NOT repeated here."""
         parts = [
-            p.custom_instructions.strip() if p.custom_instructions else "",
             self.soul.strip(),
             self._bullets("Ideals", self.ideals),
             self._bullets("Mannerisms", self.mannerisms),
             self._bullets("Behaviors", self.behaviors),
-            self._bullets("Speech patterns", tuple(p.speech_patterns)),
+            self._bullets("Speech patterns", tuple(self.personality.speech_patterns)),
             self._bullets("Signature lines", self.quotes, quote=True),
             ("Backstory: " + self.backstory.strip()[:600]) if self.backstory else "",
         ]
         return "\n\n".join(x for x in parts if x)
 
     def prompt(self) -> str:
-        """Alias for the full persona text (used by the Studio profile)."""
-        return self.soul_block()
+        """Full persona text for the Studio profile (directive + narrative + lore)."""
+        ci = self.personality.custom_instructions.strip()
+        return "\n\n".join(x for x in (ci, self.soul_block()) if x)
 
     def card_path(self) -> Path | None:
         if self.root and self.card:
