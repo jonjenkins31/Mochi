@@ -11,6 +11,7 @@ prompt:
     logical, infinitely calm, and coldly homicidal when mission parameters dictate.'
   backstory: ''
   speech_patterns: []
+  soul: ''
 traits:
   hexaco:
     openness: 0.1
@@ -48,3 +49,8 @@ traits:
 assets:
   card: card.png
   avatar: avatar
+lore:
+  quotes: []
+  mannerisms: []
+  ideals: []
+  behaviors: []

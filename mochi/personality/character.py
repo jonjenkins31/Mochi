@@ -46,6 +46,11 @@ class Character:
     voice_tone: str = ""
     voice_id: str = "af_heart"
     backstory: str = ""
+    soul: str = ""
+    quotes: tuple[str, ...] = ()
+    mannerisms: tuple[str, ...] = ()
+    ideals: tuple[str, ...] = ()
+    behaviors: tuple[str, ...] = ()
     card: str = ""
     avatar_dir: str = "avatar"
     root: Path | None = None
@@ -58,17 +63,36 @@ class Character:
     def description(self) -> str:
         return self.personality.description
 
-    def prompt(self) -> str:
-        """What the model sees TODAY — just the defining instructions
-        (+ speech patterns / backstory). Trait-driven prose (compose_block)
-        is a later update, deliberately not injected yet."""
+    def identity_block(self) -> str:
+        """Concise 'who you are' — drives the identity prompt fragment."""
+        return (f"You are {self.name}. {self.role}".strip()
+                if self.role else f"You are {self.name}.")
+
+    def _bullets(self, label: str, items: tuple[str, ...], quote: bool = False) -> str:
+        if not items:
+            return ""
+        body = "\n".join((f'- "{x}"' if quote else f"- {x}") for x in items)
+        return f"{label}:\n{body}"
+
+    def soul_block(self) -> str:
+        """The full persona the model sees — definition + narrative + lore.
+        Drives the soul fragment. (Trait ratings still drive behavior later.)"""
         p = self.personality
-        parts = [p.custom_instructions.strip()] if p.custom_instructions else []
-        if p.speech_patterns:
-            parts.append("Speech patterns:\n" + "\n".join(f"- {s}" for s in p.speech_patterns))
-        if self.backstory:
-            parts.append("Backstory: " + self.backstory.strip()[:400])
+        parts = [
+            p.custom_instructions.strip() if p.custom_instructions else "",
+            self.soul.strip(),
+            self._bullets("Ideals", self.ideals),
+            self._bullets("Mannerisms", self.mannerisms),
+            self._bullets("Behaviors", self.behaviors),
+            self._bullets("Speech patterns", tuple(p.speech_patterns)),
+            self._bullets("Signature lines", self.quotes, quote=True),
+            ("Backstory: " + self.backstory.strip()[:600]) if self.backstory else "",
+        ]
         return "\n\n".join(x for x in parts if x)
+
+    def prompt(self) -> str:
+        """Alias for the full persona text (used by the Studio profile)."""
+        return self.soul_block()
 
     def card_path(self) -> Path | None:
         if self.root and self.card:
@@ -95,6 +119,7 @@ def load_character(folder: Path) -> Character:
         expression=_layer(Expression, tr.get("expression", {})),
         domains=_layer(Domains, tr.get("domains", {})),
     )
+    lore = data.get("lore", {}) or {}
     return Character(
         id=data.get("id", folder.name),
         personality=personality,
@@ -102,6 +127,11 @@ def load_character(folder: Path) -> Character:
         voice_tone=ident.get("voice_tone", ""),
         voice_id=ident.get("voice_id", "af_heart"),
         backstory=pr.get("backstory", ""),
+        soul=pr.get("soul", ""),
+        quotes=tuple(lore.get("quotes", []) or ()),
+        mannerisms=tuple(lore.get("mannerisms", []) or ()),
+        ideals=tuple(lore.get("ideals", []) or ()),
+        behaviors=tuple(lore.get("behaviors", []) or ()),
         card=assets.get("card", ""),
         avatar_dir=assets.get("avatar", "avatar"),
         root=folder,

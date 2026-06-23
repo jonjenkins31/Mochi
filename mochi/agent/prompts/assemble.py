@@ -119,19 +119,39 @@ def _personality_block(ctx: FragmentContext) -> str:
         from pathlib import Path
 
         root = Path(ctx.layout.root)
-        # A selected character (Studio "Use this character") replaces the
-        # instance personality block. Today the model sees its simple prompt;
-        # trait-driven prose is a later update.
         from mochi.personality.character import active_character
-        ch = active_character(root)
-        if ch is not None:
-            return ch.prompt()
+        if active_character(root) is not None:
+            return ""   # persona lives in identity+soul now; traits drive later
         personality_path = root / "personality.json"
         if not personality_path.exists():
             return ""
         from mochi.personality import compose_block, load_personality
 
         return compose_block(load_personality(personality_path)) or ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _active_char(ctx: "FragmentContext") -> "Any":
+    try:
+        from pathlib import Path
+        from mochi.personality.character import active_character
+        return active_character(Path(ctx.layout.root))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _identity_fragment(ctx: "FragmentContext") -> str:
+    ch = _active_char(ctx)
+    return ch.identity_block() if ch is not None else load_identity(ctx.layout)
+
+
+def _soul_fragment(ctx: "FragmentContext") -> str:
+    ch = _active_char(ctx)
+    if ch is not None:
+        return ch.soul_block()
+    try:
+        return load_soul(ctx.layout)
     except Exception:  # noqa: BLE001
         return ""
 
@@ -159,12 +179,12 @@ PROMPT_FRAGMENTS: list[PromptFragment] = [
     ),
     PromptFragment(
         "identity", "instance", "<instance>/identity.yaml",
-        lambda c: load_identity(c.layout), _all,
+        _identity_fragment, _all,
         "who this agent is — every mode",
     ),
     PromptFragment(
         "soul", "instance", "<instance>/soul.md",
-        lambda c: load_soul(c.layout), _non_subagent,
+        _soul_fragment, _non_subagent,
         "voice / persona — skipped for sub-agents",
     ),
     PromptFragment(

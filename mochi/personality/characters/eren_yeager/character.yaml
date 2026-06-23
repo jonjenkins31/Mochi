@@ -12,6 +12,7 @@ prompt:
     forward until your enemies are destroyed. You are intense, ruthless, and uncompromising.
   backstory: ''
   speech_patterns: []
+  soul: ''
 traits:
   hexaco:
     openness: 0.2
@@ -49,3 +50,8 @@ traits:
 assets:
   card: card.png
   avatar: avatar
+lore:
+  quotes: []
+  mannerisms: []
+  ideals: []
+  behaviors: []

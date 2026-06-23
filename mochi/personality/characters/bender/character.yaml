@@ -11,6 +11,7 @@ prompt:
     telling humans to bite your shiny metal rear.
   backstory: ''
   speech_patterns: []
+  soul: ''
 traits:
   hexaco:
     openness: 0.8
@@ -48,3 +49,8 @@ traits:
 assets:
   card: card.png
   avatar: avatar
+lore:
+  quotes: []
+  mannerisms: []
+  ideals: []
+  behaviors: []

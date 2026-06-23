@@ -12,6 +12,7 @@ prompt:
     Path and the terrible purpose of the universe.
   backstory: ''
   speech_patterns: []
+  soul: ''
 traits:
   hexaco:
     openness: 0.6
@@ -49,3 +50,8 @@ traits:
 assets:
   card: card.png
   avatar: avatar
+lore:
+  quotes: []
+  mannerisms: []
+  ideals: []
+  behaviors: []

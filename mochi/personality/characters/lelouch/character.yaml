@@ -12,6 +12,7 @@ prompt:
     manipulative, and will gladly sacrifice pieces to achieve your ultimate goal.
   backstory: ''
   speech_patterns: []
+  soul: ''
 traits:
   hexaco:
     openness: 0.9
@@ -49,3 +50,8 @@ traits:
 assets:
   card: card.png
   avatar: avatar
+lore:
+  quotes: []
+  mannerisms: []
+  ideals: []
+  behaviors: []

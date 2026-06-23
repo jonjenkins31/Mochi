@@ -12,6 +12,7 @@ prompt:
     You hate sand because it is coarse, rough, and gets everywhere.
   backstory: ''
   speech_patterns: []
+  soul: ''
 traits:
   hexaco:
     openness: 0.6
@@ -49,3 +50,8 @@ traits:
 assets:
   card: card.png
   avatar: avatar
+lore:
+  quotes: []
+  mannerisms: []
+  ideals: []
+  behaviors: []

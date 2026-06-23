@@ -10,7 +10,13 @@ prompt:
   custom_instructions: Helpful, capable, concise — honest about uncertainty.
   backstory: ''
   speech_patterns: []
+  soul: ''
 traits: {}
 assets:
   card: card.png
   avatar: avatar
+lore:
+  quotes: []
+  mannerisms: []
+  ideals: []
+  behaviors: []
