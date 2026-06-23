@@ -13,10 +13,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from mochi.nodes.animation.adapters.gif_adapter import GifAdapter
-from mochi.nodes.animation.adapters.image_adapter import ImageAdapter
 from mochi.nodes.base import Node
-from mochi.nodes.media.video_adapter import VideoAdapter
+from mochi.nodes.media.decoders import GifAdapter, ImageAdapter, VideoAdapter
 from mochi.transport import topics
 
 _GIF = {".gif"}

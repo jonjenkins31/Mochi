@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from mochi.nodes.animation.base import FrameBuffer
+from ..frames import FrameBuffer
 
 
 class VideoAdapter:

@@ -1,7 +1,7 @@
 """Media node — our custom media decoders → RGBA frames on the bus.
 
 The node decodes any media file (image/gif via the live adapters, video via
-our :class:`~mochi.nodes.media.video_adapter.VideoAdapter`) into FrameBuffers
+our :class:`~mochi.nodes.media.decoders.VideoAdapter`) into FrameBuffers
 and streams them as ``MediaFrame`` on ``/sense/media_frame``. Because it ships
 frames (not a Qt-rendered window), the same playback streams to ANY target —
 a local player, a robot LED matrix, a remote display node. The decoders live

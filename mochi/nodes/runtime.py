@@ -315,9 +315,9 @@ def ensure_animation_node(
         # Register the L1-L4 adapter set so the brain can route
         # to any of them by name.
         try:
-            from mochi.nodes.animation.adapters import (
-                BitmapAdapter, GifAdapter, ImageAdapter,
-                MathAdapter, SpriteAdapter,
+            from mochi.nodes.animation.adapters import MathAdapter
+            from mochi.nodes.media.decoders import (
+                BitmapAdapter, GifAdapter, ImageAdapter, SpriteAdapter,
             )
             node.register_adapter("image", ImageAdapter())
             node.register_adapter("bitmap", BitmapAdapter())

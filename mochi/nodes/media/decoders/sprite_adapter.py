@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image
 
-from ..base import FrameBuffer
+from ..frames import FrameBuffer
 
 
 class SpriteAdapter:

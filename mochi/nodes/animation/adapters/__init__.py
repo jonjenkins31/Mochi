@@ -1,30 +1,14 @@
-"""Animation adapters — one per animation level + sub-type.
+"""Animation adapters — the procedural avatar adapter.
 
-Each adapter is a SkillNode in the operator's skill tree.  See
-``dev/docs/SKILL_TREE.md`` + ``dev/docs/library_review/mochi_demo.md``
-for the levels + vendoring map.
+The file-decoder adapters (image / gif / video / bitmap / sprite) moved to the
+media node (``mochi.nodes.media.decoders``) — media owns asset->frame decoding,
+and the animation node imports them (registered at L1-L4 in mochi.nodes.runtime).
+What stays here is the procedural layer: ``MathScript`` faces rendered in code.
 
-Levels in this package:
-
-  L1 — STATIC      ImageAdapter, BitmapAdapter
-  L2 — SPRITE      SpriteAdapter
-  L3 — GIF         GifAdapter
-  L4 — VIDEO+PROC  VideoAdapter, MathAdapter
-  L5 — RIGGED      (deferred — adapter slot reserved)
-  L6 — GENERATIVE  (deferred — adapter slot reserved)
+  L4  PROCEDURAL   MathAdapter (+ MathScript base)
+  L1-L3 / video    -> mochi.nodes.media.decoders
 """
 
-from .bitmap_adapter import BitmapAdapter
-from .gif_adapter import GifAdapter
-from .image_adapter import ImageAdapter
 from .math_adapter import MathAdapter, MathScript
-from .sprite_adapter import SpriteAdapter
 
-__all__ = [
-    "BitmapAdapter",
-    "GifAdapter",
-    "ImageAdapter",
-    "MathAdapter",
-    "MathScript",
-    "SpriteAdapter",
-]
+__all__ = ["MathAdapter", "MathScript"]

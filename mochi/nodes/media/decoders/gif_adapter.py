@@ -27,7 +27,7 @@ from typing import Any
 
 from PIL import Image, ImageSequence
 
-from ..base import FrameBuffer
+from ..frames import FrameBuffer
 from .image_adapter import _fit_contain, _fit_cover  # vendored helpers
 
 

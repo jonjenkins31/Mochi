@@ -28,7 +28,7 @@ from typing import Any
 
 from PIL import Image
 
-from ..base import FrameBuffer
+from ..frames import FrameBuffer
 
 
 class ImageAdapter:

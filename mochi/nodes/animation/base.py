@@ -1,36 +1,18 @@
-"""AnimationAdapter Protocol — the contract every adapter implements.
+"""AnimationAdapter Protocol — the contract every animation adapter implements.
 
-Vendored shape from Mochi's ``Animation(ABC)`` (Apache 2.0; see
-``dev/docs/library_review/mochi_demo.md``).  Adapted to JROS conventions:
-
-  * Protocol instead of ABC for duck-typed adapter swaps
-  * msgspec-friendly state model
-  * Skill-tree integration — each adapter declares its ``skill_id``
-    so the AnimationNode can route XP events on play / completion.
+The frame format (:class:`FrameBuffer`) is owned by the MEDIA node
+(``mochi.nodes.media.frames``) — the asset->frame foundation this node builds
+on. We re-export it here for animation's own adapters and add the
+animation-specific Protocol (skill_id / level for the skill tree).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Protocol
 
+from mochi.nodes.media.frames import FrameBuffer
 
-@dataclass
-class FrameBuffer:
-    """One rendered animation frame.
-
-    The AnimationNode ships these to the Swift renderer over the
-    WebSocket bridge.  ``data`` is raw RGBA bytes (4 bytes/pixel,
-    row-major) — width × height × 4 = len(data).  Adapters that
-    render in other formats convert here so the renderer sees one
-    consistent shape.
-    """
-
-    width: int
-    height: int
-    data: bytes  # RGBA8, w*h*4 bytes
-    duration_ms: int = 0  # how long this frame stays visible
-    is_final: bool = False  # last frame of the clip (one-shot end)
+__all__ = ["AnimationAdapter", "FrameBuffer"]
 
 
 class AnimationAdapter(Protocol):
