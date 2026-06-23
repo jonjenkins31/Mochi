@@ -177,8 +177,8 @@ class CharactersPage(QWidget):
         bw.setLayout(body)
         self._profile_lay.addWidget(bw, stretch=1)
 
-        # prompt the model sees today
-        self._profile_lay.addWidget(_label("CHARACTER PROMPT (what the model sees today)",
+        # the in-depth sheet (the live model gets a short brief, not all of this)
+        self._profile_lay.addWidget(_label("CHARACTER SHEET (in-depth — model gets a short brief)",
                                             color=INK_DIM, size=10, bold=True))
         prompt = QLabel(c.prompt() or "—")
         prompt.setWordWrap(True)

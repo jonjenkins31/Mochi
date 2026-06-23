@@ -75,24 +75,30 @@ class Character:
         return f"{label}:\n{body}"
 
     def soul_block(self) -> str:
-        """Narrative + lore (the character's flavor). The core directive +
-        trait behavior come from the personality block (compose_block), so
-        custom_instructions is NOT repeated here."""
+        """The SHORT brief's narrative slice — just the soul narrative. The
+        core directive + traits come from the personality block (compose_block).
+        The rich lore (ideals/mannerisms/quotes/...) stays on the sheet for
+        future use and is NOT dumped into the live prompt — keeps turns lean.
+        ponytail: brief today; sheet is the in-depth store for later."""
+        return self.soul.strip()
+
+    def _lore_block(self) -> str:
+        """In-depth lore — Studio display + future use, never the live prompt."""
         parts = [
-            self.soul.strip(),
             self._bullets("Ideals", self.ideals),
             self._bullets("Mannerisms", self.mannerisms),
             self._bullets("Behaviors", self.behaviors),
             self._bullets("Speech patterns", tuple(self.personality.speech_patterns)),
             self._bullets("Signature lines", self.quotes, quote=True),
-            ("Backstory: " + self.backstory.strip()[:600]) if self.backstory else "",
+            ("Backstory: " + self.backstory.strip()) if self.backstory else "",
         ]
         return "\n\n".join(x for x in parts if x)
 
     def prompt(self) -> str:
-        """Full persona text for the Studio profile (directive + narrative + lore)."""
+        """Full IN-DEPTH persona for the Studio profile (directive + narrative +
+        all lore). NOT what the live model sees — that's a short brief."""
         ci = self.personality.custom_instructions.strip()
-        return "\n\n".join(x for x in (ci, self.soul_block()) if x)
+        return "\n\n".join(x for x in (ci, self.soul.strip(), self._lore_block()) if x)
 
     def card_path(self) -> Path | None:
         if self.root and self.card:
