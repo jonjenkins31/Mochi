@@ -227,8 +227,7 @@ class MochiStudioWindow(QWidget):
 
     def _default_media_dir(self) -> str:
         import pathlib
-        root = pathlib.Path(__file__).resolve().parents[3]
-        cand = root / "archive" / "mochi-v4" / "assets"
+        cand = pathlib.Path(__file__).resolve().parents[2] / "assets"
         return str(cand if cand.exists() else pathlib.Path.home())
 
     def _scan_library(self) -> None:
