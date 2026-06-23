@@ -20,7 +20,7 @@
 #   ./run.sh --help            Forward to run.py's full argparse help.
 #
 # Any args not starting with a management subcommand fall through to
-# jaeger_os/run.py, so every existing CLI flag still works unchanged.
+# mochi/run.py, so every existing CLI flag still works unchanged.
 
 set -euo pipefail
 
@@ -36,15 +36,15 @@ fi
 # shellcheck disable=SC1091
 source "$VENV/bin/activate"
 
-# 0.2.6: package lives at <install_root>/jaeger_os/ (was src/jaeger_os/).
-# PYTHONPATH points at the install root so ``import jaeger_os`` finds it
+# 0.2.6: package lives at <install_root>/mochi/ (was src/mochi/).
+# PYTHONPATH points at the install root so ``import mochi`` finds it
 # without an editable install.
 case ":${PYTHONPATH:-}:" in
   *":$REPO_ROOT:"*) ;;
   *) export PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" ;;
 esac
 
-# 0.2.6: the runtime resolves operator state at <install_root>/.jaeger_os/
+# 0.2.6: the runtime resolves operator state at <install_root>/.mochi/
 # (instances, models, jaeger.env). install_root() defaults to the parent
 # of the framework package, but we set JAEGER_HOME explicitly so the
 # resolver gets a stable value regardless of how python computes
@@ -81,7 +81,7 @@ fi
 # ── Subcommand dispatcher ────────────────────────────────────────────
 #
 # All management subcommands are thin shells around helpers that already
-# exist in jaeger_os.core.instance and jaeger_os.main. We do the dispatch
+# exist in mochi.core.instance and mochi.main. We do the dispatch
 # in bash rather than as argparse subparsers in main.py because (a)
 # main.py's CLI is large and turbulent, (b) the launcher script is the
 # natural place for user-facing UX, and (c) the bash form is easy to
@@ -106,14 +106,14 @@ cmd_setup() {
   # changes to "Done — launch with ./run.sh" instead of "Booting now…".
   if [[ $# -ge 1 ]]; then
     export JAEGER_SETUP_NAME="$1"
-    exec python -c "import os; from jaeger_os.core.instance.setup_wizard import run_wizard; run_wizard(force=False, instance_name=os.environ['JAEGER_SETUP_NAME'], boot_after=False)"
+    exec python -c "import os; from mochi.core.instance.setup_wizard import run_wizard; run_wizard(force=False, instance_name=os.environ['JAEGER_SETUP_NAME'], boot_after=False)"
   else
-    exec python -c "from jaeger_os.core.instance.setup_wizard import run_wizard; run_wizard(force=False, boot_after=False)"
+    exec python -c "from mochi.core.instance.setup_wizard import run_wizard; run_wizard(force=False, boot_after=False)"
   fi
 }
 
 cmd_list() {
-  exec python -c "import sys; from jaeger_os.main import _cli_list_instances; sys.exit(_cli_list_instances())"
+  exec python -c "import sys; from mochi.main import _cli_list_instances; sys.exit(_cli_list_instances())"
 }
 
 cmd_delete() {
@@ -130,9 +130,9 @@ cmd_delete() {
   # input, keeping the call style consistent makes the dispatcher
   # easier to reason about.
   local instance_dir
-  instance_dir=$(JAEGER_DEL_NAME="$name" python -c "import os; from jaeger_os.core.instance.instance import resolve_instance_dir; print(resolve_instance_dir(os.environ['JAEGER_DEL_NAME']))")
+  instance_dir=$(JAEGER_DEL_NAME="$name" python -c "import os; from mochi.core.instance.instance import resolve_instance_dir; print(resolve_instance_dir(os.environ['JAEGER_DEL_NAME']))")
   # 0.2.6: per-agent state moved INTO the instance dir. The old
-  # user-layer location at jaeger_os/agents/<name>/ is no longer used —
+  # user-layer location at mochi/agents/<name>/ is no longer used —
   # delete-cmd only needs to clear the runtime instance dir.
   local user_dir=""
 
@@ -219,6 +219,6 @@ case "${1:-}" in
   *)
     # Default: forward everything to run.py (handles --instance, --help,
     # bare launch, start/status/daemon, prompts, etc.).
-    exec python "$REPO_ROOT/jaeger_os/run.py" "$@"
+    exec python "$REPO_ROOT/mochi/run.py" "$@"
     ;;
 esac

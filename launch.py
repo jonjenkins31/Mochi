@@ -33,7 +33,7 @@ The terminal becomes the TUI.  Ctrl-C / ``/quit`` ends the session;
 Gemma + Kokoro + Whisper unload cleanly with the process.
 
 Every run uses the dev instance at
-``.jaeger_os/instances/jros-dev/`` — gitignored, so it never ships to
+``.mochi/instances/jros-dev/`` — gitignored, so it never ships to
 end users.  `jaeger --dev` boots the same instance through this launcher.
 """
 
@@ -66,10 +66,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent
 # The single dev instance, shared with `jaeger --dev`. Lives under the
-# repo's gitignored operator-state root (`.jaeger_os/`), so it never
+# repo's gitignored operator-state root (`.mochi/`), so it never
 # ships to end users. (Pre-2026-06-19 this was an isolated `sandbox/`
 # copy — removed; the two drifted, which only caused confusion.)
-DEV_INSTANCE = REPO / ".jaeger_os" / "instances" / "jros-dev"
+DEV_INSTANCE = REPO / ".mochi" / "instances" / "jros-dev"
 VENV_PY = REPO / ".venv" / "bin" / "python"
 INSTANCE_NAME = "jros-dev"
 # Legacy daemon pid-file (0.3.0 pre-pivot architecture).  Stays in tree
@@ -107,13 +107,13 @@ def fail(msg: str) -> None:
 # import, legacy-daemon stop, instance lock, model file on disk.
 
 def _load_tui_banner() -> str:
-    """Canonical block-letter banner from jaeger_os.interfaces.tui.banner,
+    """Canonical block-letter banner from mochi.interfaces.tui.banner,
     wrapped in a cyan box with a SYSTEM BOOT subtitle."""
     try:
         if str(REPO) not in sys.path:
             sys.path.insert(0, str(REPO))
-        from jaeger_os.interfaces.tui.banner import JAEGER_ASCII, TAGLINE
-        from jaeger_os import __version__ as JAEGER_VERSION
+        from mochi.interfaces.tui.banner import JAEGER_ASCII, TAGLINE
+        from mochi import __version__ as JAEGER_VERSION
     except Exception:  # noqa: BLE001
         return "\n\033[36m\033[1mJAEGER-OS\033[0m\n\n"
 
@@ -226,7 +226,7 @@ def _check_avaudio_bridge() -> tuple[bool, str]:
     try:
         if str(REPO) not in sys.path:
             sys.path.insert(0, str(REPO))
-        from jaeger_os.plugins.avaudio_io import OutputStream, InputStream  # noqa: F401
+        from mochi.plugins.avaudio_io import OutputStream, InputStream  # noqa: F401
     except Exception as exc:  # noqa: BLE001
         return False, f"import failed: {exc}"
     return True, "OutputStream + InputStream importable (PyObjC)"
@@ -235,7 +235,7 @@ def _check_avaudio_bridge() -> tuple[bool, str]:
 def _check_whisper_assets() -> tuple[bool, str]:
     """Real check: both Whisper GGML model files exist on disk and
     pywhispercpp's Model class imports.  These are what
-    ``jaeger_os.plugins.whisper_stt.two_pass`` loads at TUI boot."""
+    ``mochi.plugins.whisper_stt.two_pass`` loads at TUI boot."""
     try:
         from pywhispercpp.constants import MODELS_DIR
         from pywhispercpp.model import Model  # noqa: F401
@@ -269,7 +269,7 @@ def _check_kokoro_package() -> tuple[bool, str]:
     try:
         if str(REPO) not in sys.path:
             sys.path.insert(0, str(REPO))
-        from jaeger_os.plugins.kokoro_tts.persistent_player import (
+        from mochi.plugins.kokoro_tts.persistent_player import (
             PersistentKokoroPlayer,
         )
         _ = PersistentKokoroPlayer  # avoid F401
@@ -294,12 +294,12 @@ def _check_skill_matrix(env: dict[str, str]) -> tuple[bool, str]:
             if env.get(k):
                 os.environ[k] = env[k]
         try:
-            from jaeger_os.core.instance.instance import (
+            from mochi.core.instance.instance import (
                 resolve_instance_dir,
             )
-            from jaeger_os.core.instance.instance import InstanceLayout
-            from jaeger_os.agent.skill_registry.skill_loader import discover_skills
-            from jaeger_os.agent.skill_registry.playbook_skills import discover_playbooks
+            from mochi.core.instance.instance import InstanceLayout
+            from mochi.agent.skill_registry.skill_loader import discover_skills
+            from mochi.agent.skill_registry.playbook_skills import discover_playbooks
             root = Path(resolve_instance_dir(INSTANCE_NAME))
             layout = InstanceLayout(root=root)
             skills = discover_skills(layout)
@@ -321,8 +321,8 @@ def _check_instance_manifest() -> tuple[bool, str]:
     try:
         if str(REPO) not in sys.path:
             sys.path.insert(0, str(REPO))
-        from jaeger_os.core.instance.instance import InstanceLayout
-        from jaeger_os.core.instance.schemas import Manifest, load_yaml
+        from mochi.core.instance.instance import InstanceLayout
+        from mochi.core.instance.schemas import Manifest, load_yaml
         layout = InstanceLayout(root=DEV_INSTANCE)
         if not layout.manifest_path.exists():
             return False, f"manifest missing at {layout.manifest_path}"
@@ -339,10 +339,10 @@ def _check_tui_importable() -> tuple[bool, str]:
     try:
         if str(REPO) not in sys.path:
             sys.path.insert(0, str(REPO))
-        from jaeger_os.interfaces.tui.app import run as _tui_run  # noqa: F401
+        from mochi.interfaces.tui.app import run as _tui_run  # noqa: F401
     except Exception as exc:  # noqa: BLE001
         return False, f"TUI import failed: {exc}"
-    return True, "jaeger_os.interfaces.tui.app.run loaded"
+    return True, "mochi.interfaces.tui.app.run loaded"
 
 
 def _model_file_on_disk(env: dict[str, str]) -> tuple[bool, str]:
@@ -369,7 +369,7 @@ def _model_file_on_disk(env: dict[str, str]) -> tuple[bool, str]:
     try:
         if str(REPO) not in sys.path:
             sys.path.insert(0, str(REPO))
-        from jaeger_os.core.models.model_resolver import resolve_model_path
+        from mochi.core.models.model_resolver import resolve_model_path
         resolved = resolve_model_path(raw)
     except Exception as exc:  # noqa: BLE001
         return False, f"resolver error: {exc}"
@@ -385,8 +385,8 @@ def dev_env() -> dict[str, str]:
     """Build the env the TUI subprocess inherits.
 
     Points JAEGER_HOME / JAEGER_INSTANCE_* at the dev instance so the
-    TUI's instance resolver picks up ``.jaeger_os/instances/jros-dev/``.
-    PYTHONPATH puts the top-level ``jaeger_os/`` first so the TUI imports
+    TUI's instance resolver picks up ``.mochi/instances/jros-dev/``.
+    PYTHONPATH puts the top-level ``mochi/`` first so the TUI imports
     the code you're editing, not a stale install."""
     env = dict(os.environ)
     env["JAEGER_HOME"] = str(DEV_INSTANCE.parent.parent)
@@ -398,19 +398,19 @@ def dev_env() -> dict[str, str]:
 
 
 def verify_library_path(env: dict[str, str], *, quiet: bool = False) -> bool:
-    """Confirm ``import jaeger_os`` resolves to the top-level package,
+    """Confirm ``import mochi`` resolves to the top-level package,
     not a stale install or the deleted sandbox copy."""
     proc = subprocess.run(
-        [str(VENV_PY), "-c", "import jaeger_os; print(jaeger_os.__file__)"],
+        [str(VENV_PY), "-c", "import mochi; print(mochi.__file__)"],
         env=env, capture_output=True, text=True,
     )
     if proc.returncode != 0:
-        fail(f"import jaeger_os failed: {proc.stderr.strip()}")
+        fail(f"import mochi failed: {proc.stderr.strip()}")
         return False
     resolved = Path(proc.stdout.strip()).parent.resolve()
-    expected = (REPO / "jaeger_os").resolve()
+    expected = (REPO / "mochi").resolve()
     if resolved != expected:
-        fail(f"jaeger_os resolves to {resolved}, expected {expected}")
+        fail(f"mochi resolves to {resolved}, expected {expected}")
         return False
     if not quiet:
         ok(f"library    {resolved}")
@@ -427,7 +427,7 @@ def verify_library_path(env: dict[str, str], *, quiet: bool = False) -> bool:
 def tui_running() -> int | None:
     """Returns the pid of a running in-process TUI, or None."""
     proc = subprocess.run(
-        ["pgrep", "-f", "jaeger_os.interfaces.tui"],
+        ["pgrep", "-f", "mochi.interfaces.tui"],
         capture_output=True, text=True,
     )
     if proc.returncode != 0:
@@ -438,7 +438,7 @@ def tui_running() -> int | None:
         except ValueError:
             continue
         # pgrep matches this launch.py if the user's invocation
-        # included "jaeger_os.interfaces.tui" in argv — filter ourselves
+        # included "mochi.interfaces.tui" in argv — filter ourselves
         # out by checking the pid isn't our own or our parent.
         if pid in (os.getpid(), os.getppid()):
             continue
@@ -498,7 +498,7 @@ def health(env: dict[str, str]) -> int:
     is the single source for both the user-facing CLI and this launcher.
     Runs against the dev instance via the dev env."""
     return subprocess.run(
-        [str(VENV_PY), "-m", "jaeger_os.cli.run", "--doctor", "--doctor-check"],
+        [str(VENV_PY), "-m", "mochi.cli.run", "--doctor", "--doctor-check"],
         env=env,
     ).returncode
 
@@ -526,7 +526,7 @@ def cmd_stop(env: dict[str, str]) -> int:
 
 def cmd_boot(env: dict[str, str], *, no_voice: bool) -> int:
     """Gundam-style boot scroll, then ``os.execvpe`` into
-    ``python -m jaeger_os.interfaces.tui``.  Each row of the scroll is
+    ``python -m mochi.interfaces.tui``.  Each row of the scroll is
     something launch.py can actually verify from outside the TUI; the
     heavy warmup (Gemma load, Kokoro prime, Whisper warm) runs INSIDE
     the TUI process once we hand off.  The "▶ NEURAL CORE / AUDITORY
@@ -553,11 +553,11 @@ def cmd_boot(env: dict[str, str], *, no_voice: bool) -> int:
 
     # ── CORE FRAMEWORK LINK ─────────────────────────────────────────
     scroll("CORE FRAMEWORK LINK", "INIT",
-           suffix="verifying jaeger_os imports resolve to repo")
+           suffix="verifying mochi imports resolve to repo")
     if not verify_library_path(env, quiet=True):
         scroll("CORE FRAMEWORK LINK", "FAIL")
         return 1
-    scroll("CORE FRAMEWORK LINK", "READY", suffix=str(REPO / "jaeger_os"))
+    scroll("CORE FRAMEWORK LINK", "READY", suffix=str(REPO / "mochi"))
 
     # ── LEGACY DAEMON (archived 0.3.0 path) ─────────────────────────
     # If a previous ``--daemon`` run left a daemon holding the
@@ -645,7 +645,7 @@ def cmd_boot(env: dict[str, str], *, no_voice: bool) -> int:
 
     # ── TUI MODULE (real import — confirms the post-exec target loads) ──
     scroll("OPERATOR INTERFACE", "INIT",
-           suffix="importing jaeger_os.interfaces.tui")
+           suffix="importing mochi.interfaces.tui")
     ok_t, label = _check_tui_importable()
     if not ok_t:
         scroll("OPERATOR INTERFACE", "FAIL", suffix=label)
@@ -667,7 +667,7 @@ def cmd_boot(env: dict[str, str], *, no_voice: bool) -> int:
 
     os.execvpe(
         str(VENV_PY),
-        [str(VENV_PY), "-m", "jaeger_os.interfaces.tui",
+        [str(VENV_PY), "-m", "mochi.interfaces.tui",
          "--instance", INSTANCE_NAME],
         env,
     )
@@ -692,7 +692,7 @@ def cmd_boot_windowed(env: dict[str, str]) -> int:
     sys.stdout.flush()
     os.execvpe(
         str(VENV_PY),
-        [str(VENV_PY), "-m", "jaeger_os.core.windowed"],
+        [str(VENV_PY), "-m", "mochi.core.windowed"],
         env,
     )
     fail("could not exec the windowed app")
@@ -805,7 +805,7 @@ def main() -> int:
     # ``--restart`` and ``--no-voice`` are TUI modifiers so they imply it
     # too. A bare ``./launch`` boots the windowed app (Pattern 1: PySide6
     # menu-bar tray + chat window), which runs through the chassis
-    # JaegerApp with a Tier-1 [core] (jaeger.windowed.toml).
+    # JaegerApp with a Tier-1 [core] (mochi.windowed.toml).
     if args.tui or args.restart or args.no_voice:
         if args.restart:
             cmd_stop(env)

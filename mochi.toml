@@ -1,0 +1,153 @@
+# JROS — Jaeger app format manifest (format 0.1)
+#
+# ─────────────────────────────────────────────────────────────────
+#  WINDOWED APP + TRAY target (Jenkins Robotics standard, 2026-06-14)
+# ─────────────────────────────────────────────────────────────────
+#  Long-term: JROS is a windowed-app + tray Qt app — tray as the
+#  always-on persistent surface (Lilith's "I'm here"), chat /
+#  avatar / settings as on-demand windows, menu bar persists when
+#  windows close, Cmd+Q quits. Same shape as ChatGPT desktop,
+#  Claude desktop, Slack.
+#
+#  This manifest is the DESCRIPTIVE / parked full-topology manifest:
+#  event_loop = "none", the Rich/prompt_toolkit TUI in foreground
+#  (Pattern 0, `./launch --tui`), all nodes/surfaces parked while
+#  JROS's own runtime owns them. The windowed app (Pattern 1, a bare
+#  `./launch`) is BUILT (2026-06-15) and lives in its own manifest,
+#  `jaeger.windowed.toml` — event_loop = "qt", a Tier-1 [core]
+#  (mochi.agent.loop.agent_core:AgentCore), chat window + tray.
+#  "A different shape is a different manifest" — the two coexist.
+#
+# J5B (2026-06-14) finalized the manifest after the operator
+# decision to drop the daemon-arch plan and converge on Mochi/CC01's
+# fused-mode pattern. The daemon-arch brief is archived at
+# docs/archive/JROS_DAEMON_ARCH_BRIEF.md.
+#
+# Conformance vs. integration:
+#   * J1-J4 + J5A landed format-0.1 CONFORMANCE — chassis copy at
+#     mochi/app/, manifest validates, factory refs resolve, all
+#     25 conformance tests pass.
+#   * Actual chassis INTEGRATION (launch.py calling JaegerApp.boot()
+#     directly) is blocked by bus duality — JaegerApp builds its own
+#     InProcBus while JROS's existing runtime uses
+#     mochi.transport.inproc_bus. Unifying the two is a separate
+#     refactor beyond J5's scope; the chassis copy sits next to
+#     JROS's existing infrastructure, available for future use
+#     (real-time hardware node supervision, diagnostics-tab telemetry,
+#     external-surface attach) without forcing a boot-model rewrite
+#     today.
+#
+# JROS keeps the existing `mochi/` package; the format chassis
+# lives at `mochi/app/` (J2). Both surfaces coexist intentionally.
+
+[app]
+name = "jros"
+version = "0.5.0"
+requires_framework = ">=0.1"
+mode = "fused"                # daemon-arch dropped (2026-06-14);
+                              # JROS converges on Mochi/CC01's
+                              # fused-mode pattern. One process, TUI
+                              # in the foreground.
+event_loop = "none"           # JROS owns the TUI loop directly via
+                              # launch.py. The chassis implements
+                              # only "qt" and "none" event loops in
+                              # format 0.1; "none" means caller
+                              # drives — exactly JROS's existing model.
+ui = "tui"
+single_instance = true        # JROS's process_slot.py (active) and
+                              # the chassis slot mechanism are the
+                              # same PID-file pattern; the chassis
+                              # copy is currently parked so JROS's
+                              # process_slot.py stays the active path.
+autostart = false             # launches like a normal Mac app via
+                              # Login Items if the operator wants it
+shell_quits_core = false      # WINDOWED APP: when JROS flips to
+                              # event_loop = "qt" in the future, this
+                              # makes Lilith persist across window
+                              # closes (macOS-canonical, same as
+                              # ChatGPT desktop / Claude desktop).
+                              # Today (event_loop = "none"), the flag
+                              # is informational — the chassis only
+                              # consults it inside _run_qt().
+config = ""                   # JROS uses per-instance configs in
+                              # sandbox/.mochi/instances/<name>/;
+                              # no root config.yaml. Empty string =
+                              # chassis skips its config loader.
+
+# Bus — InProcBus for fused mode. JROS today uses
+# mochi/transport/inproc_bus.py; the chassis copy at
+# mochi/app/bus/inproc.py is functionally the same pattern,
+# unused until J5.
+[bus]
+backend = "inproc"
+
+# ── Nodes ─────────────────────────────────────────────────────────
+# JROS's four nodes (hardware_jp01, animation, tts, audio_session)
+# are managed today by mochi/nodes/runtime.py's lazy singletons
+# (ensure_*_node) and warmed by mochi/main.py's _warm() routine.
+# The make_*_node factories (added in J5A) bridge the chassis
+# (bus, config) → Node contract to those existing singletons.
+#
+# enabled = false on every [[node]] because the chassis supervisor
+# is not the current owner: starting these via JaegerApp.boot() would
+# spawn a second thread per node (the chassis's threading.Thread +
+# the ensure_*_node singleton's own thread). Re-enabling waits on
+# the bus unification refactor noted in the header. The declarations
+# remain so the manifest describes JROS's topology truthfully.
+
+[[node]]
+id = "hardware_jp01"
+tier = 3
+backend = "thread"
+factory = "mochi.hardware.boot:make_jp01_hardware"
+args = { package = "jp01" }
+restart = "on_failure"
+config_key = "hardware"
+enabled = false   # chassis supervision blocked by bus duality
+
+[[node]]
+id = "animation"
+tier = 3
+backend = "thread"
+factory = "mochi.nodes.animation:make_animation_node"
+restart = "on_failure"
+config_key = "animation"
+enabled = false   # chassis supervision blocked by bus duality
+
+[[node]]
+id = "tts"
+tier = 3
+backend = "thread"
+factory = "mochi.nodes.tts:make_tts_node"
+restart = "on_failure"
+config_key = "tts"
+enabled = false   # chassis supervision blocked by bus duality
+
+[[node]]
+id = "audio_session"
+tier = 3
+backend = "thread"
+factory = "mochi.nodes.audio_session:make_audio_session_node"
+restart = "on_failure"
+config_key = "audio_session"
+enabled = false   # chassis supervision blocked by bus duality
+
+# ── Surfaces ──────────────────────────────────────────────────────
+# JROS's existing surfaces — the TUI is the main; tray is additional.
+# Format 0.1's chassis dispatches event_loop = "qt" only for surface
+# rendering; the TUI is JROS's own Rich loop launched directly by
+# launch.py, and the tray runs as its own
+# `python -m mochi.interfaces.pyside6.tray.macos` subprocess. The factory
+# stubs (J5A) raise NotImplementedError if the chassis ever tries to
+# invoke them; enabled = false keeps that from happening.
+
+[[surface]]
+id = "tui"
+main = true
+factory = "mochi.interfaces.tui:run_surface"
+enabled = false   # JROS owns the TUI loop; chassis can't host it
+
+[[surface]]
+id = "tray"
+factory = "mochi.interfaces.pyside6.tray.macos:run_surface"
+enabled = false   # tray runs as its own subprocess

@@ -1,0 +1,5 @@
+"""Compatibility shim for the renamed audio session node package."""
+
+from mochi.nodes.audio_session import AudioSessionNode, STTAdapter, STTNode
+
+__all__ = ["AudioSessionNode", "STTNode", "STTAdapter"]

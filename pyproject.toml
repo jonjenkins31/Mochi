@@ -1,4 +1,4 @@
-# JROS — Jaeger-OS.
+# JROS — Mochi.
 #
 # 0.2.3+: JROS is no longer distributed as a pip package. Operators
 # clone the repo and run ./install.sh (or use the one-line curl
@@ -13,7 +13,7 @@
 # repo root makes the framework/dev distinction obvious:
 #
 #   <repo>/
-#   ├── jaeger_os/        ← framework code (the product)
+#   ├── mochi/        ← framework code (the product)
 #   ├── install.sh, run.sh, requirements.txt, scripts/install.sh
 #   ├── README.md, CHANGELOG.md, LICENSE
 #   ├── dev/docs/         ← architecture, design notes (dev)
