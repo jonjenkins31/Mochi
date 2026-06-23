@@ -1,14 +1,13 @@
 """Characters page — the library list + a JANE-style profile.
 
 Embedded as the Studio "Characters" tab. Reads the character library
-(``mochi/characters/``) and renders the selected character's sheet: name,
+(``personality/characters/``) and renders the selected character's sheet: name,
 the SPECIAL attributes as bars, the Domains as PROGRESS levels, and the
 prompt the model sees today. Pure view over :mod:`mochi.personality.character`.
 """
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Any
 
 from PySide6.QtCore import Qt
@@ -21,7 +20,7 @@ from PySide6.QtWidgets import (
 from mochi.interfaces.studio.window import (
     ACCENT, BG, GOOD, INK, INK_DIM, PANEL, PANEL_HI, STROKE, _label,
 )
-from mochi.personality.character import Character, list_characters
+from mochi.personality.character import Character, layer_items, list_characters
 
 
 def _bar(value: float, color: str = GOOD) -> QProgressBar:
@@ -126,7 +125,7 @@ class CharactersPage(QWidget):
         col = QVBoxLayout()
         col.setSpacing(10)
         col.addWidget(_label("ATTRIBUTES", color=INK_DIM, size=11, bold=True))
-        for key, val in asdict(c.traits.special).items():
+        for key, val in layer_items(c.personality.special):
             col.addWidget(_label(key.upper(), color=INK, size=12))
             col.addWidget(_bar(val))
         col.addStretch(1)
@@ -136,7 +135,7 @@ class CharactersPage(QWidget):
         col = QVBoxLayout()
         col.setSpacing(8)
         col.addWidget(_label("PROGRESS", color=INK_DIM, size=11, bold=True))
-        for key, val in asdict(c.traits.domains).items():
+        for key, val in layer_items(c.personality.domains):
             row = QHBoxLayout()
             row.addWidget(_label(key.upper(), color=INK, size=12))
             row.addStretch(1)
