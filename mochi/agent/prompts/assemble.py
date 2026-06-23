@@ -118,7 +118,15 @@ def _personality_block(ctx: FragmentContext) -> str:
     try:
         from pathlib import Path
 
-        personality_path = Path(ctx.layout.root) / "personality.json"
+        root = Path(ctx.layout.root)
+        # A selected character (Studio "Use this character") replaces the
+        # instance personality block. Today the model sees its simple prompt;
+        # trait-driven prose is a later update.
+        from mochi.personality.character import active_character
+        ch = active_character(root)
+        if ch is not None:
+            return ch.prompt()
+        personality_path = root / "personality.json"
         if not personality_path.exists():
             return ""
         from mochi.personality import compose_block, load_personality

@@ -132,3 +132,31 @@ def list_characters(root: Path | None = None) -> list[Character]:
 # msgspec struct -> dict, for the profile UI to iterate trait sliders.
 def layer_items(struct: Any) -> list[tuple[str, float]]:
     return list(msgspec.structs.asdict(struct).items())
+
+
+# ── active character (which character an instance plays) ────────────
+_ACTIVE_FILE = "active_character"
+
+
+def active_character_id(instance_root: Path) -> str:
+    f = Path(instance_root) / _ACTIVE_FILE
+    return f.read_text(encoding="utf-8").strip() if f.exists() else ""
+
+
+def set_active_character(instance_root: Path, cid: str) -> None:
+    """Set the character this instance plays (writes <instance>/active_character)."""
+    root = Path(instance_root); root.mkdir(parents=True, exist_ok=True)
+    (root / _ACTIVE_FILE).write_text(cid.strip(), encoding="utf-8")
+
+
+def active_character(instance_root: Path) -> "Character | None":
+    """The character this instance plays, or None. Its prompt replaces the
+    instance personality block (see agent/prompts/assemble.py)."""
+    cid = active_character_id(instance_root)
+    folder = characters_root() / cid
+    if cid and (folder / "character.yaml").exists():
+        try:
+            return load_character(folder)
+        except Exception:  # noqa: BLE001
+            return None
+    return None

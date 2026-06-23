@@ -13,7 +13,7 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QProgressBar,
+    QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QProgressBar, QPushButton,
     QScrollArea, QVBoxLayout, QWidget,
 )
 
@@ -46,7 +46,26 @@ class CharactersPage(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self._chars: list[Character] = list_characters()
+        self._active_id = self._read_active()
         self._build()
+
+    def _read_active(self) -> str:
+        try:
+            from mochi.core.instance.instance import resolve_instance_dir
+            from mochi.personality.character import active_character_id
+            return active_character_id(resolve_instance_dir())
+        except Exception:  # noqa: BLE001
+            return ""
+
+    def _use(self, c: Character) -> None:
+        try:
+            from mochi.core.instance.instance import resolve_instance_dir
+            from mochi.personality.character import set_active_character
+            set_active_character(resolve_instance_dir(), c.id)
+            self._active_id = c.id
+        except Exception:  # noqa: BLE001
+            pass
+        self._show(self._list.currentRow())
 
     def _build(self) -> None:
         root = QHBoxLayout(self)
@@ -102,6 +121,20 @@ class CharactersPage(QWidget):
         self._profile_lay.addWidget(name)
         if c.role or c.description:
             self._profile_lay.addWidget(_label(c.role or c.description, color=INK_DIM, size=13))
+
+        # select this character for the agent
+        act = QHBoxLayout()
+        use = QPushButton("✦  Use this character")
+        use.setObjectName("Tab" if c.id == self._active_id else "Accent")
+        use.setCursor(Qt.CursorShape.PointingHandCursor)
+        use.clicked.connect(lambda: self._use(c))
+        act.addWidget(use)
+        if c.id == self._active_id:
+            act.addWidget(_label("● ACTIVE — the agent is playing this character",
+                                 color=GOOD, size=12, bold=True))
+        act.addStretch(1)
+        aw = QWidget(); aw.setLayout(act)
+        self._profile_lay.addWidget(aw)
 
         # body: ATTRIBUTES | portrait | PROGRESS
         body = QHBoxLayout()
