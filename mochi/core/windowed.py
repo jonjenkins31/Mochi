@@ -1,4 +1,4 @@
-"""Windowed-app entry — what a bare ``./launch`` runs (Pattern 1).
+"""Windowed-app entry — what ``python main.py`` runs (Pattern 1).
 
 Boots JROS's PySide6 chat window + menu-bar tray through the chassis
 ``JaegerApp`` with a Tier-1 ``[core]``. All the substance — the model
@@ -8,7 +8,7 @@ module only points the chassis at ``mochi.windowed.toml`` and runs it,
 so there is ONE app/host (the chassis), no second ``JaegerApp`` class.
 
 The instance is resolved by ``boot_for_tui`` from ``JAEGER_INSTANCE_NAME``
-(launch.py sets it in the sandbox env), so no ``--instance`` plumbing.
+(resolved from .mochi/active_instance), so no ``--instance`` plumbing.
 """
 
 from __future__ import annotations
