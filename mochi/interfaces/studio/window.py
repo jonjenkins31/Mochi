@@ -30,8 +30,9 @@ INK_DIM = "#8A85A6"
 GOOD = "#4ADE80"
 
 _NAV = [
-    ("◍", "Dashboard"), ("☺", "Characters"), ("✦", "Animations"),
-    ("▶", "Media"), ("◈", "Persona"), ("▤", "Library"), ("⚙", "Settings"),
+    ("◍", "Dashboard"), ("☺", "Characters"), ("✦", "Animation"),
+    ("✎", "Editors"), ("▶", "Media"), ("▤", "Assets"), ("▦", "Packs"),
+    ("▣", "Chat"), ("◆", "Diagnostics"), ("◉", "Learn"), ("⚙", "Settings"),
 ]
 _TABS = ["Create", "Customize", "Animate"]
 _SWATCHES = ["#7C5CFF", "#4ADE80", "#F472B6", "#FBBF24", "#38BDF8",
@@ -184,11 +185,38 @@ class MochiStudioWindow(QWidget):
 
     def _center(self) -> QWidget:
         self._center_stack = QStackedWidget()
-        self._pages = {"Media": 1, "Characters": 2}
-        self._center_stack.addWidget(self._stage())            # 0
-        self._center_stack.addWidget(self._media_page())       # 1
-        self._center_stack.addWidget(self._characters_page())  # 2
+        self._center_stack.addWidget(self._stage())            # 0  Dashboard (landing)
+        self._center_stack.addWidget(self._media_page())       # 1  Media (built)
+        self._center_stack.addWidget(self._characters_page())  # 2  Characters (built)
+        self._pages = {"Dashboard": 0, "Media": 1, "Characters": 2}
+        # Planned tabs — clickable wireframe stubs until each is built out.
+        _STUBS = [
+            ("Animation", "Trigger expressions (happy / sad / blink…), a live avatar preview, "
+                          "and the mscript editor — drives the animation node."),
+            ("Editors", "Author animations: mscript / bitmap / sprite editors."),
+            ("Assets", "Browse + preview the asset library — gifs, bitmaps, sprites, mscripts, "
+                       "math, video, skins."),
+            ("Packs", "Bundle + manage asset packs (export / import / share)."),
+            ("Chat", "Talk to the agent (the active character) right inside Studio."),
+            ("Diagnostics", "Node + agent health, perf counters, and logs."),
+            ("Learn", "Tutorials — the migrated docs/learn guides (animations, sprites, mscripts…)."),
+            ("Settings", "Config — voice, model, instance paths, theme."),
+        ]
+        for name, blurb in _STUBS:
+            self._pages[name] = self._center_stack.count()
+            self._center_stack.addWidget(self._stub_page(name, blurb))
         return self._center_stack
+
+    def _stub_page(self, name: str, blurb: str) -> QWidget:
+        """A clickable wireframe placeholder — names the tab + its planned content."""
+        page = QFrame(); page.setObjectName("Stage")
+        v = QVBoxLayout(page); v.setContentsMargins(30, 28, 30, 28); v.setSpacing(10)
+        v.addWidget(_label(name, size=18, bold=True))
+        v.addWidget(_label("◌  planned — wireframe stub", color=ACCENT, size=11, bold=True))
+        note = _label(blurb, color=INK_DIM, size=13); note.setWordWrap(True)
+        v.addWidget(note)
+        v.addStretch(1)
+        return page
 
     def _characters_page(self) -> QWidget:
         from mochi.interfaces.studio.characters import CharactersPage
