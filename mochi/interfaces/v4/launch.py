@@ -19,8 +19,13 @@ if str(_V4) not in sys.path:                 # so core.*, transport, siblings re
     sys.path.insert(0, str(_V4))
 
 WINDOWS = {
-    "companion": "mochi_companion",
-    "player": "mochi_vdisplay_player_qt",
+    "companion": "mochi_companion",            # the 9-page v4 Studio
+    "player": "mochi_vdisplay_player_qt",       # virtual-display player (native Qt)
+    "chat": "llm_chat_gui",                     # LLM chat client
+    "perf": "mochi_perf",                       # perf monitor
+    "animation": "mochi_gui",                   # animation-node control panel
+    "vdisplay": "mochi_vdisplay",               # virtual display
+    "viewer": "mochi_vdisplay_player_tk2qt",    # image viewer (tk->qt)
 }
 
 
