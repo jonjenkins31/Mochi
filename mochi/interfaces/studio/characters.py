@@ -13,14 +13,14 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QProgressBar, QPushButton, QSlider,
+    QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget, QPlainTextEdit, QProgressBar, QPushButton, QSlider,
     QScrollArea, QVBoxLayout, QWidget,
 )
 
 from mochi.interfaces.studio.window import (
     ACCENT, BG, GOOD, INK, INK_DIM, PANEL, PANEL_HI, STROKE, _label,
 )
-from mochi.personality.character import Character, layer_items, list_characters, load_character, save_character_traits
+from mochi.personality.character import Character, create_character, layer_items, list_characters, load_character, save_character_traits
 
 
 def _bar(value: float, color: str = GOOD) -> QProgressBar:
@@ -48,6 +48,22 @@ class CharactersPage(QWidget):
         self._chars: list[Character] = list_characters()
         self._active_id = self._read_active()
         self._build()
+
+    def _new_character(self) -> None:
+        dlg = NewCharacterDialog(self)
+        if not dlg.exec():
+            return
+        name, role, ci = dlg.values()
+        if not name.strip():
+            return
+        c = create_character(name.strip(), role=role.strip(), custom_instructions=ci.strip())
+        self._chars = list_characters()
+        self._list.clear()
+        for ch in self._chars:
+            self._list.addItem(f"  {ch.name}")
+        self._count_lbl.setText(str(len(self._chars)))
+        idx = next((i for i, ch in enumerate(self._chars) if ch.id == c.id), 0)
+        self._list.setCurrentRow(idx)
 
     def _edit_traits(self, c: Character) -> None:
         dlg = TraitEditor(c, self)
@@ -85,7 +101,11 @@ class CharactersPage(QWidget):
         head = QHBoxLayout()
         head.addWidget(_label("Character Library", size=14, bold=True))
         head.addStretch(1)
-        head.addWidget(_label(f"{len(self._chars)}", color=INK_DIM, size=12))
+        new = QPushButton("+ New"); new.setObjectName("Tab")
+        new.setCursor(Qt.CursorShape.PointingHandCursor); new.clicked.connect(self._new_character)
+        head.addWidget(new)
+        self._count_lbl = _label(f"{len(self._chars)}", color=INK_DIM, size=12)
+        head.addWidget(self._count_lbl)
         left.addLayout(head)
         self._list = QListWidget()
         self._list.setObjectName("Library")
@@ -254,3 +274,31 @@ class TraitEditor(QDialog):
         for (layer, field), sl in self._sliders.items():
             out.setdefault(layer, {})[field] = sl.value() / 100.0
         return out
+
+
+class NewCharacterDialog(QDialog):
+    """Create a character: name + role + the prompt the model sees. Traits
+    default to neutral and are tuned in the trait editor afterward."""
+
+    def __init__(self, parent: Any = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("New character")
+        self.resize(460, 360)
+        self.setStyleSheet(
+            f"QDialog{{background:{BG};}} QLabel{{color:{INK};}}"
+            f"QLineEdit,QPlainTextEdit{{background:{PANEL};color:{INK};"
+            f"border:1px solid {STROKE};border-radius:8px;padding:7px;}}")
+        v = QVBoxLayout(self); v.setSpacing(8)
+        v.addWidget(_label("Name", color=INK_DIM, size=11))
+        self._name = QLineEdit(); v.addWidget(self._name)
+        v.addWidget(_label("Role (one line)", color=INK_DIM, size=11))
+        self._role = QLineEdit(); v.addWidget(self._role)
+        v.addWidget(_label("Character prompt (what the model sees)", color=INK_DIM, size=11))
+        self._ci = QPlainTextEdit(); v.addWidget(self._ci, stretch=1)
+        btns = QHBoxLayout(); btns.addStretch(1)
+        cancel = QPushButton("Cancel"); cancel.setObjectName("Tab"); cancel.clicked.connect(self.reject)
+        create = QPushButton("Create"); create.setObjectName("Accent"); create.clicked.connect(self.accept)
+        btns.addWidget(cancel); btns.addWidget(create); v.addLayout(btns)
+
+    def values(self) -> tuple[str, str, str]:
+        return self._name.text(), self._role.text(), self._ci.toPlainText()

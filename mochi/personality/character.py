@@ -215,3 +215,62 @@ def save_character_traits(folder: Path, traits: dict) -> None:
         if layer in traits:
             t[layer] = {k: round(float(v), 3) for k, v in traits[layer].items()}
     yf.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+
+def generate_card(folder: Path, name: str) -> str:
+    """Write a placeholder profile card (distinct color + initial + name).
+    Returns the relative path written into the sheet's assets.card."""
+    import colorsys, hashlib
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFont
+    def _font(sz: int):
+        for fp in ("/System/Library/Fonts/Helvetica.ttc",
+                   "/System/Library/Fonts/Supplemental/Arial.ttf"):
+            try:
+                return ImageFont.truetype(fp, sz)
+            except Exception:
+                pass
+        return ImageFont.load_default()
+    W, H = 320, 420
+    hue = (int(hashlib.md5(name.encode()).hexdigest(), 16) % 360) / 360.0
+    top = [int(x * 255) for x in colorsys.hsv_to_rgb(hue, 0.45, 0.55)]
+    bot = [int(x * 255) for x in colorsys.hsv_to_rgb(hue, 0.6, 0.10)]
+    arr = np.zeros((H, W, 3), np.uint8)
+    for i in range(3):
+        arr[:, :, i] = np.linspace(top[i], bot[i], H).astype(np.uint8).reshape(H, 1)
+    img = Image.fromarray(arr); dr = ImageDraw.Draw(img)
+    cx, cy, r = W // 2, 150, 72
+    dr.ellipse([cx - r, cy - r, cx + r, cy + r],
+               fill=tuple(int(x * 255) for x in colorsys.hsv_to_rgb(hue, 0.30, 0.92)))
+    fi = _font(86); ini = (name[:1] or "?").upper()
+    bb = dr.textbbox((0, 0), ini, font=fi)
+    dr.text((cx - (bb[2] - bb[0]) / 2 - bb[0], cy - (bb[3] - bb[1]) / 2 - bb[1]), ini, fill=(22, 18, 32), font=fi)
+    fn = _font(26); bb = dr.textbbox((0, 0), name, font=fn)
+    if bb[2] - bb[0] > W - 28:
+        fn = _font(19); bb = dr.textbbox((0, 0), name, font=fn)
+    dr.text(((W - (bb[2] - bb[0])) / 2 - bb[0], 280), name, fill=(255, 255, 255), font=fn)
+    img.save(Path(folder) / "card.png")
+    return "card.png"
+
+
+def create_character(name: str, *, role: str = "", custom_instructions: str = "",
+                     root: Path | None = None) -> "Character":
+    """Create a new character folder + sheet (default traits) + a card."""
+    import re
+    cid = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "character"
+    base = Path(root) if root else characters_root()
+    folder = base / cid
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "avatar").mkdir(exist_ok=True)
+    card = generate_card(folder, name)
+    doc = {
+        "schema": "character/v1", "id": cid, "name": name, "description": "",
+        "identity": {"role": role, "voice_tone": "", "voice_id": "af_heart"},
+        "prompt": {"custom_instructions": custom_instructions, "soul": "",
+                   "backstory": "", "speech_patterns": []},
+        "traits": {}, "lore": {"quotes": [], "mannerisms": [], "ideals": [], "behaviors": []},
+        "assets": {"card": card, "avatar": "avatar"},
+    }
+    (folder / "character.yaml").write_text(
+        yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    return load_character(folder)
