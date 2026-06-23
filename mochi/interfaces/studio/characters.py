@@ -11,13 +11,13 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QBrush, QColor, QPen, QPixmap, QPolygonF
+from PySide6.QtGui import QBrush, QColor, QPainter, QPen, QPixmap, QPolygonF
 from PySide6.QtWidgets import (
     QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget, QPlainTextEdit, QProgressBar, QPushButton, QSlider,
     QScrollArea, QVBoxLayout, QWidget,
 )
 
-from mochi.interfaces.studio.window import (
+from mochi.interfaces.studio.theme import (
     ACCENT, BG, GOOD, INK, INK_DIM, PANEL, PANEL_HI, STROKE, _label,
 )
 from mochi.personality.character import Character, create_character, layer_items, list_characters, load_character, save_character_traits

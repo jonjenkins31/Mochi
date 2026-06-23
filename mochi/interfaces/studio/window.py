@@ -11,41 +11,22 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QColor, QFont, QImage, QPixmap
+from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QSizePolicy, QSlider, QStackedWidget, QVBoxLayout, QWidget,
 )
 
-# ── palette (dark purple, from the ref_1 mockup) ────────────────────
-DEEP = "#0E0C16"
-BG = "#151221"
-PANEL = "#1C1830"
-PANEL_HI = "#262038"
-STROKE = "#2C2545"
-ACCENT = "#7C5CFF"
-ACCENT_HI = "#9B7DFF"
-INK = "#ECEAF6"
-INK_DIM = "#8A85A6"
-GOOD = "#4ADE80"
+from .background import GradientBackground
+from .sidebar import Sidebar
+from .theme import (
+    ACCENT, ACCENT_HI, BG, DEEP, GOOD, INK, INK_DIM, PANEL, PANEL_HI, STROKE,
+    _label, stylesheet,
+)
 
-_NAV = [
-    ("◍", "Dashboard"), ("☺", "Characters"), ("✦", "Animation"),
-    ("✎", "Editors"), ("▶", "Media"), ("▤", "Assets"), ("▦", "Packs"),
-    ("▣", "Chat"), ("◆", "Diagnostics"), ("◉", "Learn"), ("⚙", "Settings"),
-]
 _TABS = ["Create", "Customize", "Animate"]
 _SWATCHES = ["#7C5CFF", "#4ADE80", "#F472B6", "#FBBF24", "#38BDF8",
              "#FB7185", "#A78BFA", "#34D399", "#F59E0B", "#60A5FA"]
-
-
-def _label(text: str, *, color: str = INK, size: int = 13, bold: bool = False) -> QLabel:
-    lab = QLabel(text)
-    f = QFont("SF Pro Text", size)
-    f.setBold(bold)
-    lab.setFont(f)
-    lab.setStyleSheet(f"color: {color}; background: transparent;")
-    return lab
 
 
 class MochiStudioWindow(QWidget):
@@ -63,59 +44,22 @@ class MochiStudioWindow(QWidget):
 
     # ── layout ────────────────────────────────────────────────────
     def _build_ui(self) -> None:
+        # The gradient backdrop is a free child behind everything (sized in
+        # resizeEvent) — a swappable overlay, not baked into the window.
+        self._bg = GradientBackground(self)
+
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
-        root.addWidget(self._sidebar())
+        self._sidebar = Sidebar(self._agent_name)
+        self._sidebar.navSelected.connect(self._on_nav)
+        root.addWidget(self._sidebar)
         root.addWidget(self._main_column(), stretch=1)
+        self._bg.lower()                       # keep it behind the content
 
-    def _sidebar(self) -> QWidget:
-        bar = QFrame()
-        bar.setObjectName("Sidebar")
-        bar.setFixedWidth(232)
-        col = QVBoxLayout(bar)
-        col.setContentsMargins(18, 22, 18, 18)
-        col.setSpacing(6)
-
-        brand = QHBoxLayout()
-        brand.setSpacing(10)
-        logo = _label("◆", color=ACCENT, size=20, bold=True)
-        brand.addWidget(logo)
-        brand.addWidget(_label("Mochi Studio", size=15, bold=True))
-        brand.addStretch(1)
-        col.addLayout(brand)
-        col.addSpacing(22)
-
-        self._nav_buttons: list[QPushButton] = []
-        for i, (icon, name) in enumerate(_NAV):
-            b = QPushButton(f"  {icon}    {name}")
-            b.setObjectName("NavItem")
-            b.setProperty("nav", name)
-            b.setCheckable(True)
-            b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.setChecked(i == 0)
-            b.clicked.connect(lambda _=False, btn=b: self._select_nav(btn))
-            self._nav_buttons.append(b)
-            col.addWidget(b)
-
-        col.addStretch(1)
-        col.addWidget(self._plan_card())
-        return bar
-
-    def _plan_card(self) -> QWidget:
-        card = QFrame()
-        card.setObjectName("PlanCard")
-        c = QVBoxLayout(card)
-        c.setContentsMargins(16, 16, 16, 16)
-        c.setSpacing(4)
-        c.addWidget(_label("Premium Plan", size=13, bold=True))
-        c.addWidget(_label("Unlock every character\nslot + HD export.", color="#E5DEFF", size=11))
-        c.addSpacing(8)
-        btn = QPushButton("Upgrade")
-        btn.setObjectName("PlanBtn")
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        c.addWidget(btn)
-        return card
+    def resizeEvent(self, e: Any) -> None:  # noqa: N802 — Qt override
+        super().resizeEvent(e)
+        self._bg.setGeometry(self.rect())
 
     def _main_column(self) -> QWidget:
         wrap = QWidget()
@@ -364,10 +308,9 @@ class MochiStudioWindow(QWidget):
         return bar
 
     # ── selection state ───────────────────────────────────────────
-    def _select_nav(self, btn: QPushButton) -> None:
-        for b in self._nav_buttons:
-            b.setChecked(b is btn)
-        self._center_stack.setCurrentIndex(self._pages.get(btn.property("nav"), 0))
+    def _on_nav(self, name: str) -> None:
+        """The sidebar emitted a nav pick — swap the center page."""
+        self._center_stack.setCurrentIndex(self._pages.get(name, 0))
 
     def _select_tab(self, btn: QPushButton) -> None:
         for b in self._tab_buttons:
@@ -389,69 +332,7 @@ class MochiStudioWindow(QWidget):
 
     # ── theme ─────────────────────────────────────────────────────
     def _apply_theme(self) -> None:
-        self.setStyleSheet(f"""
-            QWidget#MochiStudio {{ background: {BG}; }}
-            QFrame#Sidebar {{ background: {PANEL}; border-right: 1px solid {STROKE}; }}
-            QPushButton#NavItem {{
-                text-align: left; padding: 11px 12px; border: none;
-                border-radius: 10px; color: {INK_DIM};
-                font-size: 13px; background: transparent;
-            }}
-            QPushButton#NavItem:hover {{ background: {PANEL_HI}; color: {INK}; }}
-            QPushButton#NavItem:checked {{ background: {ACCENT}; color: white; }}
-            QFrame#PlanCard {{
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
-                    stop:0 {ACCENT}, stop:1 #5B3FD6);
-                border-radius: 14px;
-            }}
-            QPushButton#PlanBtn {{
-                background: rgba(255,255,255,0.18); color: white; border: none;
-                border-radius: 9px; padding: 8px; font-weight: 600;
-            }}
-            QPushButton#PlanBtn:hover {{ background: rgba(255,255,255,0.30); }}
-            QFrame#TopBar {{ background: {BG}; border-bottom: 1px solid {STROKE}; }}
-            QPushButton#Tab {{
-                border: none; padding: 8px 16px; border-radius: 9px;
-                color: {INK_DIM}; font-size: 13px; background: transparent;
-            }}
-            QPushButton#Tab:checked {{ background: {PANEL_HI}; color: {INK}; }}
-            QLineEdit#Search {{
-                background: {PANEL}; border: 1px solid {STROKE}; border-radius: 9px;
-                padding: 7px 12px; color: {INK}; font-size: 12px;
-            }}
-            QLineEdit#Search:focus {{ border: 1px solid {ACCENT}; }}
-            QPushButton#Accent {{
-                background: {ACCENT}; color: white; border: none;
-                border-radius: 9px; padding: 8px 18px; font-weight: 600;
-            }}
-            QPushButton#Accent:hover {{ background: {ACCENT_HI}; }}
-            QLabel#Avatar {{
-                background: {PANEL_HI}; color: {INK}; border-radius: 17px;
-                font-weight: 700; border: 1px solid {STROKE};
-            }}
-            QFrame#Stage {{
-                background: qlineargradient(x1:0,y1:0,x2:0.6,y2:1,
-                    stop:0 {PANEL_HI}, stop:1 {DEEP});
-                border-radius: 18px; border: 1px solid {STROKE};
-            }}
-            QLabel#CharView {{ color: {INK_DIM}; font-size: 40px; }}
-            QFrame#RightPanel {{ background: {PANEL}; border-radius: 16px; border: 1px solid {STROKE}; }}
-            QFrame#BottomBar {{ background: {PANEL}; border-top: 1px solid {STROKE}; }}
-            QFrame#Thumb {{ background: {PANEL_HI}; border-radius: 10px; border: 1px solid {STROKE}; }}
-            QListWidget#Library {{
-                background: {PANEL}; border: 1px solid {STROKE}; border-radius: 12px;
-                color: {INK}; font-size: 12px; padding: 6px; outline: none;
-            }}
-            QListWidget#Library::item {{ padding: 7px 8px; border-radius: 7px; }}
-            QListWidget#Library::item:selected {{ background: {ACCENT}; color: white; }}
-            QListWidget#Library::item:hover {{ background: {PANEL_HI}; }}
-            QSlider::groove:horizontal {{ height: 4px; background: {STROKE}; border-radius: 2px; }}
-            QSlider::sub-page:horizontal {{ background: {ACCENT}; border-radius: 2px; }}
-            QSlider::handle:horizontal {{
-                background: white; width: 13px; height: 13px;
-                margin: -5px 0; border-radius: 7px;
-            }}
-        """)
+        self.setStyleSheet(stylesheet())
 
 
 def make_surface(ctx: Any, spec: Any = None) -> MochiStudioWindow:  # noqa: ARG001
