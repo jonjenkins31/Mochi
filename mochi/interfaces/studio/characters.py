@@ -324,8 +324,8 @@ class TraitEditor(QDialog):
                 row.addWidget(_label(field, color=INK_DIM, size=11)); row.addStretch(1)
                 sl = QSlider(Qt.Orientation.Horizontal); sl.setRange(0, 100)
                 sl.setValue(int(round(float(val) * 100))); sl.setFixedWidth(150)
-                vl = _label(f"{float(val):.2f}", color=GOOD, size=11)
-                sl.valueChanged.connect(lambda v, lab=vl: lab.setText(f"{v/100:.2f}"))
+                vl = _label(str(int(round(float(val) * 100))), color=GOOD, size=11)
+                sl.valueChanged.connect(lambda v, lab=vl: lab.setText(str(v)))
                 self._sliders[(key, field)] = sl
                 row.addWidget(sl); row.addWidget(vl)
                 box.addLayout(row)
