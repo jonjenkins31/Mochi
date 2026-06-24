@@ -12,7 +12,7 @@ stored + shown on the profile and drive behavior in a later update.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +53,7 @@ class Character:
     behaviors: tuple[str, ...] = ()
     card: str = ""
     avatar_dir: str = "avatar"
+    assets: dict = field(default_factory=dict)   # manifest: role -> relative path
     root: Path | None = None
 
     @property
@@ -106,6 +107,26 @@ class Character:
             return p if p.exists() else None
         return None
 
+    def asset(self, role: str) -> Path | None:
+        """Resolve a manifest asset by ROLE (e.g. 'model', 'idle', 'sprites') —
+        the character's own ``assets/`` first, then the shared mochi/assets/
+        library. Returns a Path or None. Nodes call this so they never hardcode
+        a filename: ``character.asset('idle')``."""
+        rel = self.assets.get(role)
+        return self._resolve_asset(rel) if rel else None
+
+    def asset_dir(self, role: str) -> Path | None:
+        """Like :meth:`asset`, for a manifest entry that names a directory."""
+        return self.asset(role)
+
+    def _resolve_asset(self, rel: str) -> Path | None:
+        if self.root is not None:
+            p = self.root / rel
+            if p.exists():
+                return p
+        shared = shared_assets_dir() / rel
+        return shared if shared.exists() else None
+
 
 def load_character(folder: Path) -> Character:
     """Load ``<folder>/character.yaml`` → a :class:`Character`."""
@@ -140,8 +161,16 @@ def load_character(folder: Path) -> Character:
         behaviors=tuple(lore.get("behaviors", []) or ()),
         card=assets.get("card", ""),
         avatar_dir=assets.get("avatar", "avatar"),
+        assets=assets,
         root=folder,
     )
+
+
+def shared_assets_dir() -> Path:
+    """The shared asset library — ``mochi/assets/``. A character's own assets
+    win; this is the fallback so common/generic assets aren't copied per
+    character (mirrors the avatar tool's character-first resolution)."""
+    return Path(__file__).resolve().parent.parent / "assets"
 
 
 def characters_root() -> Path:
