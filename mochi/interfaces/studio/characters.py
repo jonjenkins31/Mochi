@@ -45,28 +45,21 @@ def _f(v: Any) -> float:
         return 0.0
 
 
-_CARD_QSS = f"""
-QLabel#LvlBadge {{
-    background: rgba(124,92,255,0.92); color: white; font-size: 11px;
-    font-weight: 800; border-radius: 9px; padding: 3px 9px;
-}}
-QPushButton#CardSelect {{
-    background: {ACCENT}; color: white; border: none; border-radius: 9px;
-    padding: 10px; font-weight: 800; font-size: 12px;
-}}
-QPushButton#CardSelect:hover {{ background: {ACCENT_HI}; }}
-QPushButton#CardActive {{
-    background: {GOOD}; color: #07140C; border: none; border-radius: 9px;
-    padding: 10px; font-weight: 800; font-size: 12px;
-}}
-QPushButton#CardActive:hover {{ background: #5BE88E; }}
-QPushButton#CardEdit {{
-    background: rgba(16,14,24,0.92); color: #E7E4F2;
-    border: 1px solid rgba(255,255,255,0.22); border-radius: 9px;
-    padding: 10px; font-weight: 800; font-size: 12px;
-}}
-QPushButton#CardEdit:hover {{ background: rgba(40,36,60,0.96); border: 1px solid {ACCENT}; }}
-"""
+# Set DIRECTLY on each widget — a page-level stylesheet doesn't reliably reach
+# children of a custom-painted (paintEvent) card, so the buttons fell back to
+# default styling. Per-widget styles always apply.
+_BADGE_QSS = ("background: rgba(124,92,255,0.95); color: white; font-size: 11px;"
+              " font-weight: 800; border-radius: 9px; padding: 3px 9px;")
+_BTN_SELECT = (f"QPushButton{{background:{ACCENT}; color:white; border:none;"
+               f" border-radius:9px; padding:10px; font-weight:800; font-size:12px;}}"
+               f" QPushButton:hover{{background:{ACCENT_HI};}}")
+_BTN_ACTIVE = (f"QPushButton{{background:{GOOD}; color:#06130B; border:none;"
+               f" border-radius:9px; padding:10px; font-weight:800; font-size:12px;}}"
+               f" QPushButton:hover{{background:#5BE88E;}}")
+_BTN_EDIT = (f"QPushButton{{background:#2E2A46; color:#ECEAF6;"
+             f" border:1px solid rgba(255,255,255,0.30); border-radius:9px;"
+             f" padding:10px; font-weight:800; font-size:12px;}}"
+             f" QPushButton:hover{{background:#3C3760; border:1px solid {ACCENT_HI};}}")
 
 
 class CharacterCard(QFrame):
@@ -90,7 +83,7 @@ class CharacterCard(QFrame):
         top = QHBoxLayout()
         top.addStretch(1)
         badge = QLabel(self._level_text())
-        badge.setObjectName("LvlBadge")
+        badge.setStyleSheet(_BADGE_QSS)
         top.addWidget(badge)
         v.addLayout(top)
         v.addStretch(1)
@@ -103,11 +96,11 @@ class CharacterCard(QFrame):
         btns = QHBoxLayout()
         btns.setSpacing(8)
         sel = QPushButton("✓ SELECTED" if active else "SELECT")
-        sel.setObjectName("CardActive" if active else "CardSelect")
+        sel.setStyleSheet(_BTN_ACTIVE if active else _BTN_SELECT)
         sel.setCursor(Qt.CursorShape.PointingHandCursor)
         sel.clicked.connect(lambda: on_select(character))
         edit = QPushButton("EDIT")
-        edit.setObjectName("CardEdit")
+        edit.setStyleSheet(_BTN_EDIT)
         edit.setCursor(Qt.CursorShape.PointingHandCursor)
         edit.clicked.connect(lambda: on_edit(character))
         btns.addWidget(sel, stretch=3)
@@ -165,7 +158,6 @@ class CharactersPage(QWidget):
         super().__init__()
         self._chars: list[Character] = list_characters()
         self._active_id = self._read_active()
-        self.setStyleSheet(_CARD_QSS)
         self._build()
 
     def _build(self) -> None:
