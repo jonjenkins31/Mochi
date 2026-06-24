@@ -1,24 +1,27 @@
-"""Characters page — the library list + a JANE-style profile.
+"""Characters page — a character-library card grid.
 
 Embedded as the Studio "Characters" tab. Reads the character library
-(``personality/characters/``) and renders the selected character's sheet: name,
-the SPECIAL attributes as bars, the Domains as PROGRESS levels, and the
-prompt the model sees today. Pure view over :mod:`mochi.personality.character`.
+(``personality/characters/``) and renders each character as a card: the card
+art fills it, with the name / role / level / key stats overlaid on a bottom
+gradient, plus SELECT (play this character) + EDIT (trait editor). Pure view
+over :mod:`mochi.personality.character`.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QBrush, QColor, QPainter, QPen, QPixmap, QPolygonF
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import (
+    QBrush, QColor, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QPolygonF,
+)
 from PySide6.QtWidgets import (
-    QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget, QPlainTextEdit, QProgressBar, QPushButton, QSlider,
-    QScrollArea, QVBoxLayout, QWidget,
+    QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
+    QProgressBar, QPushButton, QScrollArea, QSlider, QVBoxLayout, QWidget,
 )
 
 from mochi.interfaces.studio.theme import (
-    ACCENT, BG, GOOD, INK, INK_DIM, PANEL, PANEL_HI, STROKE, _label,
+    ACCENT, ACCENT_HI, BG, GOOD, INK, INK_DIM, PANEL, PANEL_HI, STROKE, _label,
 )
 from mochi.personality.character import Character, create_character, layer_items, list_characters, load_character, save_character_traits
 
@@ -42,36 +45,172 @@ def _f(v: Any) -> float:
         return 0.0
 
 
+_CARD_QSS = f"""
+QLabel#LvlBadge {{
+    background: rgba(124,92,255,0.85); color: white; font-size: 11px;
+    font-weight: 700; border-radius: 9px; padding: 3px 9px;
+}}
+QPushButton#CardSelect {{
+    background: {ACCENT}; color: white; border: none; border-radius: 9px;
+    padding: 8px; font-weight: 700; font-size: 12px;
+}}
+QPushButton#CardSelect:hover {{ background: {ACCENT_HI}; }}
+QPushButton#CardActive {{
+    background: {GOOD}; color: #0A0910; border: none; border-radius: 9px;
+    padding: 8px; font-weight: 700; font-size: 12px;
+}}
+QPushButton#CardEdit {{
+    background: rgba(255,255,255,0.12); color: {INK}; border: none;
+    border-radius: 9px; padding: 8px; font-weight: 700; font-size: 12px;
+}}
+QPushButton#CardEdit:hover {{ background: rgba(255,255,255,0.20); }}
+"""
+
+
+class CharacterCard(QFrame):
+    """A library card â art fill + name/role/level/key-stats over a bottom
+    gradient, with SELECT (play this character) + EDIT (trait editor)."""
+
+    CARD_W, CARD_H = 276, 356
+
+    def __init__(self, character: Character, *, active: bool,
+                 on_select: Any, on_edit: Any, parent: Any = None) -> None:
+        super().__init__(parent)
+        self._char = character
+        self._active = active
+        self.setFixedSize(self.CARD_W, self.CARD_H)
+        card = character.card_path()
+        self._pix = QPixmap(str(card)) if card is not None else None
+
+        v = QVBoxLayout(self)
+        v.setContentsMargins(16, 14, 16, 16)
+        v.setSpacing(3)
+        top = QHBoxLayout()
+        top.addStretch(1)
+        badge = QLabel(self._level_text())
+        badge.setObjectName("LvlBadge")
+        top.addWidget(badge)
+        v.addLayout(top)
+        v.addStretch(1)
+
+        v.addWidget(_label(character.name.upper(), size=19, bold=True))
+        v.addWidget(_label(character.role or "—", color="#C9C4E0", size=11))
+        v.addSpacing(4)
+        v.addLayout(self._stats_row())
+        v.addSpacing(9)
+        btns = QHBoxLayout()
+        btns.setSpacing(8)
+        sel = QPushButton("PLAYING" if active else "SELECT")
+        sel.setObjectName("CardActive" if active else "CardSelect")
+        sel.setCursor(Qt.CursorShape.PointingHandCursor)
+        sel.clicked.connect(lambda: on_select(character))
+        edit = QPushButton("EDIT")
+        edit.setObjectName("CardEdit")
+        edit.setCursor(Qt.CursorShape.PointingHandCursor)
+        edit.clicked.connect(lambda: on_edit(character))
+        btns.addWidget(sel, stretch=2)
+        btns.addWidget(edit, stretch=1)
+        v.addLayout(btns)
+
+    def _level_text(self) -> str:
+        sp = layer_items(self._char.personality.special)
+        avg = sum(_f(val) for _, val in sp) / max(1, len(sp))
+        return f"Lv {max(1, int(round(avg * 60)))}"
+
+    def _stats_row(self) -> QHBoxLayout:
+        sp = dict(layer_items(self._char.personality.special))
+        row = QHBoxLayout()
+        row.setSpacing(16)
+        for key, short in (("intelligence", "INT"), ("charisma", "CHA"), ("strength", "STR")):
+            col = QVBoxLayout()
+            col.setSpacing(0)
+            col.addWidget(_label(short, color="#A29DC0", size=9, bold=True))
+            col.addWidget(_label(str(int(round(_f(sp.get(key, 0.5)) * 100))), size=14, bold=True))
+            row.addLayout(col)
+        row.addStretch(1)
+        return row
+
+    def paintEvent(self, e: Any) -> None:  # noqa: N802 â Qt override
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rf = QRectF(self.rect().adjusted(0, 0, -1, -1))
+        path = QPainterPath()
+        path.addRoundedRect(rf, 16, 16)
+        p.setClipPath(path)
+        if self._pix is not None and not self._pix.isNull():
+            sc = self._pix.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                                  Qt.TransformationMode.SmoothTransformation)
+            sx = max(0, (sc.width() - self.width()) // 2)
+            sy = max(0, (sc.height() - self.height()) // 2)
+            p.drawPixmap(0, 0, sc, sx, sy, self.width(), self.height())
+        else:
+            p.fillRect(rf, QColor(PANEL))
+        grad = QLinearGradient(0, self.height() * 0.32, 0, self.height())
+        grad.setColorAt(0.0, QColor(8, 7, 12, 0))
+        grad.setColorAt(0.55, QColor(8, 7, 12, 205))
+        grad.setColorAt(1.0, QColor(8, 7, 12, 246))
+        p.fillRect(rf, QBrush(grad))
+        p.setClipping(False)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(QColor(ACCENT) if self._active else QColor(STROKE),
+                      2 if self._active else 1))
+        p.drawRoundedRect(rf, 16, 16)
+        p.end()
+
+
 class CharactersPage(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self._chars: list[Character] = list_characters()
         self._active_id = self._read_active()
+        self.setStyleSheet(_CARD_QSS)
         self._build()
 
-    def _new_character(self) -> None:
-        dlg = NewCharacterDialog(self)
-        if not dlg.exec():
-            return
-        name, role, ci = dlg.values()
-        if not name.strip():
-            return
-        c = create_character(name.strip(), role=role.strip(), custom_instructions=ci.strip())
-        self._chars = list_characters()
-        self._list.clear()
-        for ch in self._chars:
-            self._list.addItem(f"  {ch.name}")
-        self._count_lbl.setText(str(len(self._chars)))
-        idx = next((i for i, ch in enumerate(self._chars) if ch.id == c.id), 0)
-        self._list.setCurrentRow(idx)
+    def _build(self) -> None:
+        root = QVBoxLayout(self)
+        root.setContentsMargins(22, 20, 22, 18)
+        root.setSpacing(14)
+        head = QHBoxLayout()
+        head.addWidget(_label("Character Library", size=20, bold=True))
+        self._count_lbl = _label(f"·  {len(self._chars)} characters", color=INK_DIM, size=12)
+        head.addWidget(self._count_lbl)
+        head.addStretch(1)
+        new = QPushButton("+  New Character")
+        new.setObjectName("Accent")
+        new.setCursor(Qt.CursorShape.PointingHandCursor)
+        new.clicked.connect(self._new_character)
+        head.addWidget(new)
+        root.addLayout(head)
 
-    def _edit_traits(self, c: Character) -> None:
-        dlg = TraitEditor(c, self)
-        if dlg.exec():
-            save_character_traits(c.root, dlg.values())
-            self._chars[self._list.currentRow()] = load_character(c.root)
-            self._show(self._list.currentRow())
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea{border:none;background:transparent;}")
+        host = QWidget()
+        host.setStyleSheet("background:transparent;")
+        self._grid = QGridLayout(host)
+        self._grid.setSpacing(18)
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        scroll.setWidget(host)
+        root.addWidget(scroll, stretch=1)
+        self._populate()
 
+    def _populate(self) -> None:
+        while self._grid.count():
+            it = self._grid.takeAt(0)
+            w = it.widget()
+            if w is not None:
+                w.deleteLater()
+        if not self._chars:
+            self._grid.addWidget(_label("No characters found.", color=INK_DIM), 0, 0)
+            return
+        cols = 3
+        for i, c in enumerate(self._chars):
+            card = CharacterCard(c, active=(c.id == self._active_id),
+                                 on_select=self._use, on_edit=self._edit_traits)
+            self._grid.addWidget(card, i // cols, i % cols)
+
+    # ── actions ──
     def _read_active(self) -> str:
         try:
             from mochi.core.instance.instance import resolve_instance_dir
@@ -88,149 +227,26 @@ class CharactersPage(QWidget):
             self._active_id = c.id
         except Exception:  # noqa: BLE001
             pass
-        self._show(self._list.currentRow())
+        self._populate()
 
-    def _build(self) -> None:
-        root = QHBoxLayout(self)
-        root.setContentsMargins(18, 18, 18, 18)
-        root.setSpacing(16)
+    def _edit_traits(self, c: Character) -> None:
+        dlg = TraitEditor(c, self)
+        if dlg.exec():
+            save_character_traits(c.root, dlg.values())
+            self._chars = list_characters()
+            self._populate()
 
-        # ── library list ──────────────────────────────────────────
-        left = QVBoxLayout()
-        left.setSpacing(8)
-        head = QHBoxLayout()
-        head.addWidget(_label("Character Library", size=14, bold=True))
-        head.addStretch(1)
-        new = QPushButton("+ New"); new.setObjectName("Tab")
-        new.setCursor(Qt.CursorShape.PointingHandCursor); new.clicked.connect(self._new_character)
-        head.addWidget(new)
-        self._count_lbl = _label(f"{len(self._chars)}", color=INK_DIM, size=12)
-        head.addWidget(self._count_lbl)
-        left.addLayout(head)
-        self._list = QListWidget()
-        self._list.setObjectName("Library")
-        self._list.setFixedWidth(230)
-        for c in self._chars:
-            self._list.addItem(f"  {c.name}")
-        self._list.currentRowChanged.connect(self._show)
-        left.addWidget(self._list, stretch=1)
-        lw = QWidget()
-        lw.setLayout(left)
-        lw.setFixedWidth(230)
-        root.addWidget(lw)
-
-        # ── profile (rebuilt per selection) ───────────────────────
-        self._profile = QFrame()
-        self._profile.setObjectName("Stage")
-        self._profile_lay = QVBoxLayout(self._profile)
-        self._profile_lay.setContentsMargins(24, 22, 24, 22)
-        self._profile_lay.setSpacing(16)
-        root.addWidget(self._profile, stretch=1)
-
-        if self._chars:
-            self._list.setCurrentRow(0)
-        else:
-            self._profile_lay.addWidget(_label("No characters found.", color=INK_DIM))
-
-    # ── profile render ────────────────────────────────────────────
-    def _show(self, idx: int) -> None:
-        while self._profile_lay.count():
-            item = self._profile_lay.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.deleteLater()
-        if not (0 <= idx < len(self._chars)):
+    def _new_character(self) -> None:
+        dlg = NewCharacterDialog(self)
+        if not dlg.exec():
             return
-        c = self._chars[idx]
-
-        # header — big name + role
-        name = _label(c.name, size=30, bold=True)
-        self._profile_lay.addWidget(name)
-        if c.role or c.description:
-            self._profile_lay.addWidget(_label(c.role or c.description, color=INK_DIM, size=13))
-
-        # select this character for the agent
-        act = QHBoxLayout()
-        use = QPushButton("✦  Use this character")
-        use.setObjectName("Tab" if c.id == self._active_id else "Accent")
-        use.setCursor(Qt.CursorShape.PointingHandCursor)
-        use.clicked.connect(lambda: self._use(c))
-        act.addWidget(use)
-        edit = QPushButton("✎  Edit traits"); edit.setObjectName("Tab")
-        edit.setCursor(Qt.CursorShape.PointingHandCursor)
-        edit.clicked.connect(lambda: self._edit_traits(c))
-        act.addWidget(edit)
-        if c.id == self._active_id:
-            act.addWidget(_label("● ACTIVE — the agent is playing this character",
-                                 color=GOOD, size=12, bold=True))
-        act.addStretch(1)
-        aw = QWidget(); aw.setLayout(act)
-        self._profile_lay.addWidget(aw)
-
-        # body: ATTRIBUTES | portrait | PROGRESS
-        body = QHBoxLayout()
-        body.setSpacing(22)
-        body.addLayout(self._attrs(c), stretch=1)
-        body.addWidget(self._portrait(c))
-        body.addLayout(self._progress(c), stretch=1)
-        bw = QWidget()
-        bw.setLayout(body)
-        self._profile_lay.addWidget(bw, stretch=1)
-
-        # the in-depth sheet (the live model gets a short brief, not all of this)
-        self._profile_lay.addWidget(_label("CHARACTER SHEET (in-depth — model gets a short brief)",
-                                            color=INK_DIM, size=10, bold=True))
-        prompt = QLabel(c.prompt() or "—")
-        prompt.setWordWrap(True)
-        prompt.setStyleSheet(f"color:{INK}; background:{PANEL_HI}; border-radius:10px; padding:12px;")
-        self._profile_lay.addWidget(prompt)
-
-    def _attrs(self, c: Character) -> QVBoxLayout:
-        col = QVBoxLayout()
-        col.setSpacing(10)
-        col.addWidget(_label("ATTRIBUTES", color=INK_DIM, size=11, bold=True))
-        for key, val in layer_items(c.personality.special):
-            col.addWidget(_label(key.upper(), color=INK, size=12))
-            col.addWidget(_bar(val))
-        col.addStretch(1)
-        return col
-
-    def _progress(self, c: Character) -> QVBoxLayout:
-        col = QVBoxLayout()
-        col.setSpacing(8)
-        col.addWidget(_label("PROGRESS", color=INK_DIM, size=11, bold=True))
-        for key, val in layer_items(c.personality.domains):
-            row = QHBoxLayout()
-            row.addWidget(_label(key.upper(), color=INK, size=12))
-            row.addStretch(1)
-            row.addWidget(_label(f"LVL {int(round(_f(val) * 15))}", color=GOOD, size=12, bold=True))
-            col.addLayout(row)
-            col.addWidget(_bar(val))
-        col.addStretch(1)
-        return col
-
-    def _portrait(self, c: Character) -> QWidget:
-        box = QFrame()
-        box.setObjectName("Stage")
-        box.setFixedWidth(220)
-        v = QVBoxLayout(box)
-        v.setContentsMargins(0, 0, 0, 0)
-        lab = QLabel()
-        lab.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        card = c.card_path()
-        if card is not None:
-            lab.setPixmap(QPixmap(str(card)).scaledToWidth(
-                200, Qt.TransformationMode.SmoothTransformation))
-        else:
-            lab.setText("◍")
-            lab.setStyleSheet(f"color:{INK_DIM}; font-size:64px;")
-        v.addWidget(lab)
-        v.addSpacing(10)
-        v.addWidget(_label("EXPRESSION", color=INK_DIM, size=10, bold=True))
-        radar = TraitRadar([(k, val) for k, val in layer_items(c.personality.expression)])
-        radar.setFixedHeight(168)
-        v.addWidget(radar)
-        return box
+        name, role, ci = dlg.values()
+        if not name.strip():
+            return
+        create_character(name.strip(), role=role.strip(), custom_instructions=ci.strip())
+        self._chars = list_characters()
+        self._count_lbl.setText(f"·  {len(self._chars)} characters")
+        self._populate()
 
 
 class TraitEditor(QDialog):
