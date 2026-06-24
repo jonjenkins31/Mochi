@@ -66,18 +66,17 @@ class MochiStudioWindow(QWidget):
         self._bg.setGeometry(self.rect())
 
     def _main_column(self) -> QWidget:
-        # Shell = top bar + the center page stack ONLY. The right "Customize"
-        # panel and the bottom carousel/timeline are NOT baked in — they're
-        # opt-in pieces a specific tab adds to its own page (see
-        # _right_panel / _bottom_bar, reused where a tab needs them).
+        # Shell = the center page stack ONLY. The top bar (Create/Customize/
+        # Animate + search + export), the right "Customize" panel, and the bottom
+        # carousel/timeline are NOT baked in — they're window/page-specific pieces
+        # a tab opts into (builders kept: _topbar / _right_panel / _bottom_bar).
         wrap = QWidget()
         col = QVBoxLayout(wrap)
         col.setContentsMargins(0, 0, 0, 0)
         col.setSpacing(0)
-        col.addWidget(self._topbar())
         body = QWidget()
         bl = QVBoxLayout(body)
-        bl.setContentsMargins(18, 14, 18, 16)
+        bl.setContentsMargins(18, 16, 18, 16)
         bl.setSpacing(0)
         bl.addWidget(self._center(), stretch=1)
         col.addWidget(body, stretch=1)
