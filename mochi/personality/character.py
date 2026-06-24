@@ -55,6 +55,7 @@ class Character:
     avatar_dir: str = "avatar"
     assets: dict = field(default_factory=dict)   # manifest: role -> relative path
     level: int = 1                               # progression stat; everyone starts at 1
+    revision: float = 1.0                        # definition version; bumps on edit (vs level)
     root: Path | None = None
 
     @property
@@ -164,6 +165,7 @@ def load_character(folder: Path) -> Character:
         avatar_dir=assets.get("avatar", "avatar"),
         assets=assets,
         level=int(data.get("level", 1) or 1),
+        revision=float(data.get("revision", 1.0) or 1.0),
         root=folder,
     )
 
@@ -251,6 +253,8 @@ def save_character_traits(folder: Path, traits: dict) -> None:
     for layer in ("hexaco", "special", "expression", "domains"):
         if layer in traits:
             t[layer] = {k: round(float(v), 3) for k, v in traits[layer].items()}
+    # An edit is a new revision — bump the definition version (level is separate).
+    doc["revision"] = round(float(doc.get("revision", 1.0) or 1.0) + 0.1, 1)
     yf.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
 

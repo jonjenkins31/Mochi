@@ -122,8 +122,22 @@ _BTN_EDIT = (f"QPushButton{{background:#2E2A46; color:#ECEAF6;"
              f" QPushButton:hover{{background:#3C3760; border:1px solid {ACCENT_HI};}}")
 
 
+_TRAIT_SHORT = {
+    "openness": "OPEN", "conscientiousness": "DISC", "extraversion": "EXTR",
+    "agreeableness": "AGRE", "neuroticism": "NEUR", "honesty_humility": "HON",
+    "strength": "STR", "perception": "PER", "endurance": "END", "charisma": "CHA",
+    "intelligence": "INT", "agility": "AGI", "luck": "LCK",
+    "sarcasm": "SARC", "warmth": "WARM", "verbosity": "VERB", "formality": "FORM",
+    "directness": "DIR", "humor": "HUM", "empathy": "EMP", "aggression": "AGGR",
+    "science": "SCI", "philosophy": "PHIL", "combat": "CMBT", "art": "ART",
+    "politics": "POL", "technology": "TECH", "nature": "NAT", "psychology": "PSY",
+}
+_REV_QSS = ("background: rgba(0,0,0,0.45); color:#B8B3D0; font-size:10px;"
+            " font-weight:700; border-radius:8px; padding:2px 7px;")
+
+
 class CharacterCard(QFrame):
-    """A library card â art fill + name/role/level/key-stats over a bottom
+    """A library card — art fill + name/role/level/key-stats over a bottom
     gradient, with SELECT (play this character) + EDIT (trait editor)."""
 
     CARD_W, CARD_H = 276, 356
@@ -141,6 +155,9 @@ class CharacterCard(QFrame):
         v.setContentsMargins(16, 14, 16, 16)
         v.setSpacing(3)
         top = QHBoxLayout()
+        rev = QLabel(f"rev {self._char.revision:.1f}")
+        rev.setStyleSheet(_REV_QSS)
+        top.addWidget(rev)
         top.addStretch(1)
         badge = QLabel(self._level_text())
         badge.setStyleSheet(_BADGE_QSS)
@@ -171,19 +188,28 @@ class CharacterCard(QFrame):
         return f"Lv {self._char.level}"
 
     def _stats_row(self) -> QHBoxLayout:
-        sp = dict(layer_items(self._char.personality.special))
         row = QHBoxLayout()
         row.setSpacing(16)
-        for key, short in (("intelligence", "INT"), ("charisma", "CHA"), ("strength", "STR")):
+        for short, val in self._defining_traits():
             col = QVBoxLayout()
             col.setSpacing(0)
             col.addWidget(_label(short, color="#A29DC0", size=9, bold=True))
-            col.addWidget(_label(str(int(round(_f(sp.get(key, 0.5)) * 100))), size=14, bold=True))
+            col.addWidget(_label(str(val), size=14, bold=True))
             row.addLayout(col)
         row.addStretch(1)
         return row
 
-    def paintEvent(self, e: Any) -> None:  # noqa: N802 â Qt override
+    def _defining_traits(self) -> list:
+        """The 3 most-defining traits (furthest from neutral 0.5, any layer),
+        as (short label, 0-100)."""
+        pp = self._char.personality
+        allt: list = []
+        for layer in (pp.hexaco, pp.special, pp.expression, pp.domains):
+            allt += layer_items(layer)
+        top = sorted(allt, key=lambda kv: abs(_f(kv[1]) - 0.5), reverse=True)[:3]
+        return [(_TRAIT_SHORT.get(k, k[:4].upper()), int(round(_f(v) * 100))) for k, v in top]
+
+    def paintEvent(self, e: Any) -> None:  # noqa: N802 — Qt override
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rf = QRectF(self.rect().adjusted(0, 0, -1, -1))
