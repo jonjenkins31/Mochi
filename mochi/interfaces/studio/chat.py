@@ -31,10 +31,11 @@ class ChatPage(QWidget):
         self._ctx = ctx
         self._bus = getattr(ctx, "bus", None) if ctx is not None else None
         self._bridge: Any = None
+        self._chat: Any = None
 
-        h = QHBoxLayout(self)
-        h.setContentsMargins(18, 16, 18, 16)
-        h.setSpacing(14)
+        self._h = QHBoxLayout(self)
+        self._h.setContentsMargins(18, 16, 18, 16)
+        self._h.setSpacing(14)
 
         # ── avatar (left / center) ──
         stage = QFrame()
@@ -45,18 +46,11 @@ class ChatPage(QWidget):
         sv.addWidget(_label("AVATAR", color=INK_DIM, size=10, bold=True))
         self._avatar = AvatarView()
         sv.addWidget(self._avatar, stretch=1)
-        h.addWidget(stage, stretch=3)
+        self._h.addWidget(stage, stretch=3)
 
         # ── chat (right): the rich TUI ──
-        if ctx is not None:
-            try:
-                from mochi.interfaces.pyside6.rich_tui.window import ChatWindow
-                self._chat: Any = ChatWindow(ctx)
-                h.addWidget(self._chat, stretch=2)
-            except Exception:  # noqa: BLE001 — never let chat wiring break the tab
-                h.addWidget(self._chat_placeholder(), stretch=2)
-        else:
-            h.addWidget(self._chat_placeholder(), stretch=2)
+        self._chat = self._build_chat()
+        self._h.addWidget(self._chat, stretch=2)
 
         # ── avatar frame stream (node → view) ──
         if self._bus is not None:
@@ -66,6 +60,29 @@ class ChatPage(QWidget):
                 self._bridge.message.connect(self._on_frame)
             except Exception:  # noqa: BLE001
                 self._bridge = None
+
+        # Which character the chat is for — a switch resets the conversation.
+        self._last_char_id = self._active_id()
+
+    def _build_chat(self) -> QWidget:
+        """The right pane: the rich-TUI chat, or a placeholder without a ctx."""
+        if self._ctx is not None:
+            try:
+                from mochi.interfaces.pyside6.rich_tui.window import ChatWindow
+                return ChatWindow(self._ctx)
+            except Exception:  # noqa: BLE001 — never let chat wiring break the tab
+                pass
+        return self._chat_placeholder()
+
+    def _reset_chat(self) -> None:
+        """Swap in a FRESH chat — a new conversation for the new character."""
+        if self._ctx is None:
+            return
+        if self._chat is not None:
+            self._h.removeWidget(self._chat)
+            self._chat.deleteLater()
+        self._chat = self._build_chat()
+        self._h.addWidget(self._chat, stretch=2)
 
     # ── chat-less placeholder (standalone / no bus) ──
     def _chat_placeholder(self) -> QWidget:
@@ -82,10 +99,25 @@ class ChatPage(QWidget):
         v.addStretch(1)
         return box
 
-    # ── show the active character's card through the animation node ──
+    # ── keep the tab in sync with the active character ──
     def showEvent(self, e: Any) -> None:  # noqa: N802 — Qt override
         super().showEvent(e)
+        self._sync_to_active()
+
+    def _sync_to_active(self) -> None:
+        cur = self._active_id()
+        if cur != self._last_char_id:
+            self._last_char_id = cur
+            self._reset_chat()      # character changed -> fresh conversation
         self._show_avatar_card()
+
+    def _active_id(self) -> str:
+        try:
+            from mochi.core.instance.instance import resolve_instance_dir
+            from mochi.personality.character import active_character_id
+            return active_character_id(resolve_instance_dir())
+        except Exception:  # noqa: BLE001
+            return ""
 
     def _show_avatar_card(self) -> None:
         card = self._active_card()
