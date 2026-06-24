@@ -47,23 +47,25 @@ def _f(v: Any) -> float:
 
 _CARD_QSS = f"""
 QLabel#LvlBadge {{
-    background: rgba(124,92,255,0.85); color: white; font-size: 11px;
-    font-weight: 700; border-radius: 9px; padding: 3px 9px;
+    background: rgba(124,92,255,0.92); color: white; font-size: 11px;
+    font-weight: 800; border-radius: 9px; padding: 3px 9px;
 }}
 QPushButton#CardSelect {{
     background: {ACCENT}; color: white; border: none; border-radius: 9px;
-    padding: 8px; font-weight: 700; font-size: 12px;
+    padding: 10px; font-weight: 800; font-size: 12px;
 }}
 QPushButton#CardSelect:hover {{ background: {ACCENT_HI}; }}
 QPushButton#CardActive {{
-    background: {GOOD}; color: #0A0910; border: none; border-radius: 9px;
-    padding: 8px; font-weight: 700; font-size: 12px;
+    background: {GOOD}; color: #07140C; border: none; border-radius: 9px;
+    padding: 10px; font-weight: 800; font-size: 12px;
 }}
+QPushButton#CardActive:hover {{ background: #5BE88E; }}
 QPushButton#CardEdit {{
-    background: rgba(255,255,255,0.12); color: {INK}; border: none;
-    border-radius: 9px; padding: 8px; font-weight: 700; font-size: 12px;
+    background: rgba(16,14,24,0.92); color: #E7E4F2;
+    border: 1px solid rgba(255,255,255,0.22); border-radius: 9px;
+    padding: 10px; font-weight: 800; font-size: 12px;
 }}
-QPushButton#CardEdit:hover {{ background: rgba(255,255,255,0.20); }}
+QPushButton#CardEdit:hover {{ background: rgba(40,36,60,0.96); border: 1px solid {ACCENT}; }}
 """
 
 
@@ -100,7 +102,7 @@ class CharacterCard(QFrame):
         v.addSpacing(9)
         btns = QHBoxLayout()
         btns.setSpacing(8)
-        sel = QPushButton("PLAYING" if active else "SELECT")
+        sel = QPushButton("✓ SELECTED" if active else "SELECT")
         sel.setObjectName("CardActive" if active else "CardSelect")
         sel.setCursor(Qt.CursorShape.PointingHandCursor)
         sel.clicked.connect(lambda: on_select(character))
@@ -108,8 +110,8 @@ class CharacterCard(QFrame):
         edit.setObjectName("CardEdit")
         edit.setCursor(Qt.CursorShape.PointingHandCursor)
         edit.clicked.connect(lambda: on_edit(character))
-        btns.addWidget(sel, stretch=2)
-        btns.addWidget(edit, stretch=1)
+        btns.addWidget(sel, stretch=3)
+        btns.addWidget(edit, stretch=2)
         v.addLayout(btns)
 
     def _level_text(self) -> str:
@@ -152,7 +154,7 @@ class CharacterCard(QFrame):
         p.fillRect(rf, QBrush(grad))
         p.setClipping(False)
         p.setBrush(Qt.BrushStyle.NoBrush)
-        p.setPen(QPen(QColor(ACCENT) if self._active else QColor(STROKE),
+        p.setPen(QPen(QColor(GOOD) if self._active else QColor(STROKE),
                       2 if self._active else 1))
         p.drawRoundedRect(rf, 16, 16)
         p.end()
