@@ -11,13 +11,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, Qt
 from PySide6.QtGui import (
     QBrush, QColor, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QPolygonF,
 )
 from PySide6.QtWidgets import (
-    QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
-    QProgressBar, QPushButton, QScrollArea, QSlider, QVBoxLayout, QWidget,
+    QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QLineEdit,
+    QPlainTextEdit, QProgressBar, QPushButton, QScrollArea, QSlider, QVBoxLayout, QWidget,
 )
 
 from mochi.interfaces.studio.theme import (
@@ -43,6 +43,66 @@ def _f(v: Any) -> float:
         return max(0.0, min(1.0, float(v)))
     except (TypeError, ValueError):
         return 0.0
+
+
+class FlowLayout(QLayout):
+    """Left-to-right layout that wraps to the next row when the width fills —
+    so fixed-size cards pack as many per row as fit, then flow down."""
+
+    def __init__(self, parent: Any = None, spacing: int = 18) -> None:
+        super().__init__(parent)
+        self._items: list = []
+        self._spacing = spacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def addItem(self, item: Any) -> None:  # noqa: N802
+        self._items.append(item)
+
+    def count(self) -> int:
+        return len(self._items)
+
+    def itemAt(self, i: int) -> Any:  # noqa: N802
+        return self._items[i] if 0 <= i < len(self._items) else None
+
+    def takeAt(self, i: int) -> Any:  # noqa: N802
+        return self._items.pop(i) if 0 <= i < len(self._items) else None
+
+    def expandingDirections(self) -> Any:  # noqa: N802
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802
+        return self._do(QRect(0, 0, width, 0), test=True)
+
+    def setGeometry(self, rect: Any) -> None:  # noqa: N802
+        super().setGeometry(rect)
+        self._do(rect, test=False)
+
+    def sizeHint(self) -> Any:  # noqa: N802
+        return self.minimumSize()
+
+    def minimumSize(self) -> Any:  # noqa: N802
+        s = QSize()
+        for it in self._items:
+            s = s.expandedTo(it.minimumSize())
+        return s
+
+    def _do(self, rect: Any, *, test: bool) -> int:
+        x, y, line_h = rect.x(), rect.y(), 0
+        for it in self._items:
+            hint = it.sizeHint()
+            nx = x + hint.width() + self._spacing
+            if nx - self._spacing > rect.right() and line_h > 0:
+                x, y = rect.x(), y + line_h + self._spacing
+                nx = x + hint.width() + self._spacing
+                line_h = 0
+            if not test:
+                it.setGeometry(QRect(QPoint(x, y), hint))
+            x = nx
+            line_h = max(line_h, hint.height())
+        return y + line_h - rect.y()
 
 
 # Set DIRECTLY on each widget — a page-level stylesheet doesn't reliably reach
@@ -181,10 +241,7 @@ class CharactersPage(QWidget):
         scroll.setStyleSheet("QScrollArea{border:none;background:transparent;}")
         host = QWidget()
         host.setStyleSheet("background:transparent;")
-        self._grid = QGridLayout(host)
-        self._grid.setSpacing(18)
-        self._grid.setContentsMargins(0, 0, 0, 0)
-        self._grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self._grid = FlowLayout(host, spacing=18)
         scroll.setWidget(host)
         root.addWidget(scroll, stretch=1)
         self._populate()
@@ -196,13 +253,12 @@ class CharactersPage(QWidget):
             if w is not None:
                 w.deleteLater()
         if not self._chars:
-            self._grid.addWidget(_label("No characters found.", color=INK_DIM), 0, 0)
+            self._grid.addWidget(_label("No characters found.", color=INK_DIM))
             return
-        cols = 3
-        for i, c in enumerate(self._chars):
+        for c in self._chars:
             card = CharacterCard(c, active=(c.id == self._active_id),
                                  on_select=self._use, on_edit=self._edit_traits)
-            self._grid.addWidget(card, i // cols, i % cols)
+            self._grid.addWidget(card)
 
     # ── actions ──
     def _read_active(self) -> str:
