@@ -91,12 +91,15 @@ class ChatPage(QWidget):
         card = self._active_card()
         if card is None:
             return
+        # Show the card directly — reliable + immediate, and it re-reads the
+        # ACTIVE character every time this tab is shown, so switching characters
+        # then opening Chat updates the avatar.
+        self._avatar.show_pixmap(QPixmap(str(card)))
+        # Also drive it through the animation node — the real pipeline; its
+        # frames replace the static card once the node renders + delivers.
         if self._bus is not None:
-            # First animation = the card as one held frame, via the node.
             self._bus.publish(topics.AnimationCommand(
                 adapter="image", asset_path=str(card), duration_ms=0))
-        else:
-            self._avatar.show_pixmap(QPixmap(str(card)))   # standalone preview
 
     def _active_card(self) -> Any:
         try:
