@@ -168,9 +168,7 @@ class CharacterCard(QFrame):
         v.addLayout(btns)
 
     def _level_text(self) -> str:
-        sp = layer_items(self._char.personality.special)
-        avg = sum(_f(val) for _, val in sp) / max(1, len(sp))
-        return f"Lv {max(1, int(round(avg * 60)))}"
+        return f"Lv {self._char.level}"
 
     def _stats_row(self) -> QHBoxLayout:
         sp = dict(layer_items(self._char.personality.special))

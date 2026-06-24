@@ -54,6 +54,7 @@ class Character:
     card: str = ""
     avatar_dir: str = "avatar"
     assets: dict = field(default_factory=dict)   # manifest: role -> relative path
+    level: int = 1                               # progression stat; everyone starts at 1
     root: Path | None = None
 
     @property
@@ -162,6 +163,7 @@ def load_character(folder: Path) -> Character:
         card=assets.get("card", ""),
         avatar_dir=assets.get("avatar", "avatar"),
         assets=assets,
+        level=int(data.get("level", 1) or 1),
         root=folder,
     )
 
