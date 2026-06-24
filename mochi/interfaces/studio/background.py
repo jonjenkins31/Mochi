@@ -41,16 +41,16 @@ class GradientBackground(QWidget):
         p.fillRect(r, BASE_RGB)  # near-pure black field
 
         # Primary edge glow — anchored at the bottom-left CORNER, reaching in.
-        g1 = QRadialGradient(0.0, float(h), w * 1.05)
-        g1.setColorAt(0.0, _glow(GLOW_PRIMARY, 200))
-        g1.setColorAt(0.5, _glow(GLOW_PRIMARY, 70))
+        g1 = QRadialGradient(0.0, float(h), w * 0.7)
+        g1.setColorAt(0.0, _glow(GLOW_PRIMARY, 115))
+        g1.setColorAt(0.45, _glow(GLOW_PRIMARY, 28))
         g1.setColorAt(1.0, _glow(GLOW_PRIMARY, 0))
         p.fillRect(r, QBrush(g1))
 
         # Secondary edge glow — bottom-right corner, softer.
-        g2 = QRadialGradient(float(w), float(h), w * 0.8)
-        g2.setColorAt(0.0, _glow(GLOW_SECONDARY, 120))
-        g2.setColorAt(0.6, _glow(GLOW_SECONDARY, 32))
+        g2 = QRadialGradient(float(w), float(h), w * 0.55)
+        g2.setColorAt(0.0, _glow(GLOW_SECONDARY, 50))
+        g2.setColorAt(0.6, _glow(GLOW_SECONDARY, 11))
         g2.setColorAt(1.0, _glow(GLOW_SECONDARY, 0))
         p.fillRect(r, QBrush(g2))
         p.end()

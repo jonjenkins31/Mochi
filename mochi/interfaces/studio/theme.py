@@ -30,9 +30,9 @@ ICON_DIM = "#8E89AB"                    # nav icons, inactive
 
 # Near-black translucent surfaces, so the edge glow stays subtle THROUGH the
 # panels (the overlay look — adjustable from here; recolourable later).
-SIDEBAR_FILL = "rgba(13, 12, 20, 0.42)"
-PANEL_FILL = "rgba(15, 14, 23, 0.32)"
-BAR_FILL = "rgba(10, 9, 15, 0.24)"
+SIDEBAR_FILL = "rgba(12, 11, 18, 0.92)"
+PANEL_FILL = "rgba(14, 13, 20, 0.90)"
+BAR_FILL = "rgba(11, 10, 16, 0.85)"
 
 
 def _label(text: str, *, color: str = INK, size: int = 13, bold: bool = False) -> QLabel:
@@ -98,7 +98,7 @@ def stylesheet() -> str:
         }}
         QFrame#Stage {{
             background: qlineargradient(x1:0,y1:0,x2:0.5,y2:1,
-                stop:0 rgba(20,18,30,0.55), stop:1 rgba(8,7,12,0.35));
+                stop:0 #131120, stop:1 #0A0910);
             border-radius: 18px; border: 1px solid {STROKE};
         }}
         QLabel#CharView {{ color: {INK_DIM}; font-size: 40px; }}
