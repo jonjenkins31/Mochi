@@ -39,6 +39,12 @@ class AvatarView(QWidget):
         self._last = QPixmap.fromImage(img)
         self._rescale()
 
+    def show_pixmap(self, pm: QPixmap) -> None:
+        """Show a pixmap directly (e.g. a static card preview without the bus)."""
+        if pm is not None and not pm.isNull():
+            self._last = pm
+            self._rescale()
+
     def _rescale(self) -> None:
         if self._last is not None and not self._last.isNull():
             self._label.setPixmap(self._last.scaled(

@@ -33,9 +33,10 @@ _SWATCHES = ["#7C5CFF", "#4ADE80", "#F472B6", "#FBBF24", "#38BDF8",
 class MochiStudioWindow(QWidget):
     """The Mochi Studio main window. Pure UI + a few render seams."""
 
-    def __init__(self, agent_name: str = "Mochi") -> None:
+    def __init__(self, agent_name: str = "Mochi", ctx: Any = None) -> None:
         super().__init__()
         self._agent_name = agent_name
+        self._ctx = ctx
         self._char: QLabel | None = None   # set by a tab that hosts the avatar stage
         self.setObjectName("MochiStudio")
         self.setWindowTitle("Mochi Studio")
@@ -142,7 +143,8 @@ class MochiStudioWindow(QWidget):
         self._center_stack.addWidget(self._empty_page())       # 0  Dashboard (empty)
         self._center_stack.addWidget(self._media_page())       # 1  Media (built)
         self._center_stack.addWidget(self._characters_page())  # 2  Characters (built)
-        self._pages = {"Dashboard": 0, "Media": 1, "Characters": 2}
+        self._center_stack.addWidget(self._chat_page())        # 3  Chat (avatar + TUI)
+        self._pages = {"Dashboard": 0, "Media": 1, "Characters": 2, "Chat": 3}
         # Planned tabs — clickable wireframe stubs until each is built out.
         _STUBS = [
             ("Animation", "Trigger expressions (happy / sad / blink…), a live avatar preview, "
@@ -151,7 +153,6 @@ class MochiStudioWindow(QWidget):
             ("Assets", "Browse + preview the asset library — gifs, bitmaps, sprites, mscripts, "
                        "math, video, skins."),
             ("Packs", "Bundle + manage asset packs (export / import / share)."),
-            ("Chat", "Talk to the agent (the active character) right inside Studio."),
             ("Diagnostics", "Node + agent health, perf counters, and logs."),
             ("Learn", "Tutorials — the migrated docs/learn guides (animations, sprites, mscripts…)."),
             ("Settings", "Config — voice, model, instance paths, theme."),
@@ -175,6 +176,10 @@ class MochiStudioWindow(QWidget):
     def _characters_page(self) -> QWidget:
         from mochi.interfaces.studio.characters import CharactersPage
         return CharactersPage()
+
+    def _chat_page(self) -> QWidget:
+        from mochi.interfaces.studio.chat import ChatPage
+        return ChatPage(self._ctx)
 
     def _media_page(self) -> QWidget:
         from PySide6.QtWidgets import QListWidget
@@ -356,7 +361,7 @@ def make_surface(ctx: Any, spec: Any = None) -> MochiStudioWindow:  # noqa: ARG0
     name = (
         getattr(getattr(ctx, "core", None), "agent_name", None)
         or getattr(ctx, "agent_name", None) or "Mochi")
-    win = MochiStudioWindow(agent_name=name)
+    win = MochiStudioWindow(agent_name=name, ctx=ctx)
     bus = getattr(ctx, "bus", None)
     if bus is not None:
         from mochi.app.surfaces import make_bus_bridge
