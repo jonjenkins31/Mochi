@@ -40,11 +40,69 @@ def _parse(argv: list[str]) -> argparse.Namespace:
                    help="window zoom (default: from config.yaml)")
     p.add_argument("--no-cycle", action="store_true",
                    help="hold the default expression instead of walking them")
+    p.add_argument("--nodes", action="store_true",
+                   help="print what would run and where each part comes "
+                        "from, then exit")
     return p.parse_args(argv)
+
+
+def print_inventory() -> int:
+    """Answer "what is actually running here, and whose code is it?"
+
+    `nodes/` is empty in this project and that is correct — it holds
+    node code MOCHI owns, and Mochi owns none. But "we have no nodes"
+    is not what an operator sees at runtime: one is running, from an
+    installed module. Rather than keep a stub file per imported node
+    (a second copy of jaeger.toml that drifts), this reads live
+    discovery, so it cannot be wrong.
+    """
+    import tomllib
+
+    from jaeger_os.core.modules import discover_modules
+
+    spec = tomllib.loads((PROJECT_ROOT / "jaeger.toml").read_text())
+    modules = discover_modules(project_dir=PROJECT_ROOT)
+
+    print(f"\n{spec['app']['name']} {spec['app'].get('version','')}"
+          f"   bus={spec['bus']['backend']}\n")
+    print(f"  {'node':12} {'slot':11} {'source':34} where")
+    print("  " + "-" * 74)
+    for node in spec.get("node", []):
+        if not node.get("enabled", True):
+            print(f"  {node['id']:12} {node.get('slot',''):11} "
+                  f"{'(disabled)':34} —")
+            continue
+        slot = node.get("slot", "")
+        if not slot:
+            print(f"  {node['id']:12} {'—':11} {node.get('factory',''):34} "
+                  f"this project")
+            continue
+        found = modules.get(slot) or []
+        if not found:
+            print(f"  {node['id']:12} {slot:11} "
+                  f"{'!! NO MODULE FILLS THIS SLOT':34} —")
+            continue
+        m = found[0]
+        where = "modules/ (LOCAL, shadows installed)" if m.local else "installed"
+        print(f"  {node['id']:12} {slot:11} {m.module + ' ' + m.version:34} "
+              f"{where}")
+        print(f"  {'':12} {'':11} {str(m.source_dir)}")
+
+    for surface in spec.get("surface", []):
+        print(f"\n  surface      {surface['id']:11} {surface['factory']:34} "
+              f"this project")
+
+    print(f"\n  nodes/ holds node code THIS project owns. Empty is correct "
+          f"here —\n  Mochi owns none. Copy a module into modules/ to "
+          f"override one.\n")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse(list(sys.argv[1:] if argv is None else argv))
+
+    if args.nodes:
+        return print_inventory()
 
     # Flags reach the surface factory as env overrides rather than
     # globals — the same trick JP01 uses, and the reason the factory
@@ -67,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"no jaeger.toml at {PROJECT_ROOT}", file=sys.stderr)
         return 2
 
-    from jaeger_os.app.app import JaegerApp
+    from jaeger_os.app import JaegerApp
 
     # run() boots, starts the surfaces, and blocks on the event loop.
     # Calling boot() first double-boots and trips the single-instance

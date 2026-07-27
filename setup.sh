@@ -18,10 +18,17 @@ command -v "$PY" >/dev/null || {
 venv/bin/pip install --quiet --upgrade pip
 
 # Sibling checkouts win when present — editing the framework or the
-# animation engine next door should take effect here without a
-# reinstall. Falls back to the git pins in pyproject.toml otherwise.
+# animation engine next door takes effect here without a reinstall.
+#
+# editable_mode=compat is NOT optional cosmetics. The default PEP 660
+# editable install writes an import-HOOK (__editable___*_finder.py)
+# that only runs at runtime; PyCharm and Pylance cannot follow it, so
+# every `from jaeger_os...` import shows unresolved in the editor while
+# working perfectly when you run it. compat writes a plain path
+# instead, which static analysis reads.
 for sib in ../JaegerOS ../JaegerAnimation; do
-  [ -d "$sib" ] && venv/bin/pip install --quiet -e "$sib" 2>/dev/null || true
+  [ -d "$sib" ] && venv/bin/pip install --quiet -e "$sib" \
+      --config-settings editable_mode=compat 2>/dev/null || true
 done
 # Dependencies only — the project itself is NOT installed. Mochi is a
 # workspace you run from this directory, so core/ and interfaces/ are
