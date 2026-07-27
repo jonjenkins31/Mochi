@@ -1,22 +1,18 @@
-"""Mochi — a local-first agentic agent framework for embodied AI.
+"""Mochi — a virtual character you can run.
 
-The brain layer of the JROS platform: agent loop, tools, memory,
-skills, and safety scaffolding. Runs on-device by default. Concrete
-agents (Lilith, ARES, …) are *instances* of this framework, not forks.
+v5 is a JaegerOS APP and owns no engine code. The face is rendered by
+whichever module fills the `animation` slot; Mochi composes, shows a
+window, and gets out of the way. `jaeger.toml` is the whole app.
+
+v5.0 is a PLAYER: a character on screen and nothing else. No AI, no
+microphone, no network — the same thing Mochi 3.0 was, rebuilt on the
+framework. A face that works before a mind that talks.
+
+v5.1 adds the mind and the voice as three more [[node]] blocks in
+jaeger.toml. No code in this package changes when it does; that is the
+test of whether the composition is real.
 """
 
-# macOS fork-safety: Apple's Objective-C runtime aborts a forked
-# child the first time it touches a class the parent initialized.
-# Python's stdlib (ssl, locale, platform, …) drags Obj-C in before
-# we get a chance to fork from the daemon path, so by the time
-# ``jaeger start`` forks, llama-cpp-python's Metal backend dies
-# silently inside ``ggml_metal_device_init`` in the child. The
-# documented workaround is this env var; we set it at framework
-# import time so it's in place BEFORE the parent's first
-# transitive Obj-C touch. ``setdefault`` so an operator who has
-# their own opinion on the policy can override us.
-import os as _os
-if _os.uname().sysname == "Darwin":
-    _os.environ.setdefault("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES")
+__version__ = "5.0.0"
 
-__version__ = "0.5.0"
+__all__ = ["__version__"]

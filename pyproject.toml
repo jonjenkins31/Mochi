@@ -1,42 +1,40 @@
-# JROS — Mochi.
+# Mochi v5 — packaging.
 #
-# 0.2.3+: JROS is no longer distributed as a pip package. Operators
-# clone the repo and run ./install.sh (or use the one-line curl
-# installer in scripts/install.sh). Runtime dependencies are pinned
-# in requirements.txt. The README has the full install flow.
-#
-# This file only carries config for dev tooling (pytest, ruff). The
-# package itself is imported by adding the install root to PYTHONPATH
-# (which run.sh does automatically), not by installing it.
-#
-# 0.2.6: dev-only material moved under dev_-prefixed directories so the
-# repo root makes the framework/dev distinction obvious:
-#
-#   <repo>/
-#   ├── mochi/        ← framework code (the product)
-#   ├── install.sh, run.sh, requirements.txt, scripts/install.sh
-#   ├── README.md, CHANGELOG.md, LICENSE
-#   ├── dev/docs/         ← architecture, design notes (dev)
-#   ├── dev/tests/        ← test suite (dev)
-#   ├── dev/benchmark/    ← bench corpus + harness (dev)
-#   ├── dev/scripts/      ← dev_env.sh, run_tests.sh, … (dev)
-#   └── sandbox/          ← in-repo test install (gitignored)
-#
-# See dev/docs/setup.md for the canonical install / upgrade story.
+# Depends on the FRAMEWORK and the modules it composes, never the other
+# way round. Nothing imports mochi.
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mochi"
+description = "A virtual character you can run — a JaegerOS app."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dynamic = ["version"]
+dependencies = [
+  # The framework: bus, app manifest, node lifecycle, contract.
+  "jaeger-os @ git+https://github.com/JenkinsRobotics/JaegerOS@master",
+  # The face. Bound by SLOT in jaeger.toml — this dependency installs
+  # an animation-slot module; the manifest never names it.
+  "jaeger-animation @ git+https://github.com/JenkinsRobotics/JaegerAnimation@master",
+  # The window. PySide6 is the ecosystem's standard cross-platform GUI.
+  "pyside6>=6.5",
+  "pyyaml>=6.0",
+]
+
+[project.scripts]
+mochi = "mochi.__main__:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff"]
+
+[tool.setuptools.dynamic]
+version = { attr = "mochi.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["mochi*"]
 
 [tool.pytest.ini_options]
 testpaths = ["dev/tests"]
-# Marker tiers — the bench, daemon, model-load, UI, and integration
-# suites take real wall time. Mark them and skip by default; the
-# ``dev/scripts/run_tests.sh`` driver picks the right subset for CI vs
-# local iteration. New tests should pick the closest marker that
-# applies (or none — unmarked = fast deterministic unit test).
-markers = [
-    "slow: tests that fork real processes or do real network I/O (a few seconds each).",
-    "integration: cross-module end-to-end paths; may touch the filesystem heavily.",
-    "model: tests that load a real GGUF / external LLM; minutes-scale.",
-    "ui: TUI / rumps tray tests that may render to a terminal or display.",
-    "subprocess: tests that spawn a real Python subprocess (boot, daemon, bench).",
-    "smoke: a tiny set tagged so ``pytest -m smoke`` is a 30-second sanity check.",
-    "regression: pins a specific bug fix — run on every PR even when narrowing markers.",
-]

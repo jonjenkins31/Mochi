@@ -1,0 +1,69 @@
+# Mochi v5 — the app manifest.
+#
+# Mochi is a JaegerOS APP: it owns no engine code. Everything that
+# renders is a module the framework discovers, and this file is the
+# whole composition. Swapping the animation engine, or adding a voice,
+# is an edit here — never a code change.
+#
+# v5.0 is a PLAYER, deliberately. It shows a character and nothing
+# else: no AI, no microphone, no network. That is the same thing
+# Mochi 3.0 was, rebuilt on the framework, and it is the honest
+# starting point — a face that works before a mind that talks.
+#
+# v5.1 adds jaeger-ai + kokoro-tts + whisper-stt as three more [[node]]
+# blocks. No code here changes when it does.
+
+[app]
+name = "mochi"
+version = "5.0.0"
+requires_framework = ">=0.10"
+mode = "fused"
+event_loop = "qt"
+ui = "pyside6"
+single_instance = true
+config = "config.yaml"
+
+[bus]
+# In-process: one machine, one window, every hop a reference pass.
+# Flip to "zmq" and the same nodes run in separate processes without a
+# code change — which is the point of declaring it here rather than
+# wiring a bus in main().
+backend = "inproc"
+
+# ── the face ─────────────────────────────────────────────────────
+# Bound by SLOT, not by import path. Whichever module claims
+# `animation` fills this — jaeger-animation today. Mochi never names
+# the engine.
+[[node]]
+id = "animation"
+tier = 3
+backend = "thread"
+slot = "animation"
+restart = "on_failure"
+config_key = "animation"
+
+# ── v5.1, not yet installed ──────────────────────────────────────
+# Left here disabled rather than in a design doc: the composition IS
+# the plan, and an operator can see exactly what turning the mind on
+# would mean. Each needs its module installed before enabling.
+#
+# [[node]]
+# id = "tts"
+# slot = "tts"
+# enabled = false
+#
+# [[node]]
+# id = "stt"
+# slot = "stt"
+# enabled = false
+#
+# [[node]]
+# id = "mind"
+# slot = "mind"
+# enabled = false
+
+# ── the window ───────────────────────────────────────────────────
+[[surface]]
+id = "player"
+main = true
+factory = "mochi.player:make_player"
