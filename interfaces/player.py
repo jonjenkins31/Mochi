@@ -69,6 +69,9 @@ class PlayerWindow:
         self.dwell_ms = int(float(config.get("dwell_s", 1.5)) * 1000)
         self.character = character_mod.load(
             os.environ.get("MOCHI_CHARACTER", config.get("character", "emotes")))
+        # The pack's own vocabulary, in declaration order — the order a
+        # character author chose is more useful than alphabetical.
+        self._expressions = list(self.character.expressions)
 
         self._frame = None            # QImage; written by the bus thread
         self._status_text: str | None = None   # ditto — drained on repaint
@@ -126,7 +129,7 @@ class PlayerWindow:
 
         # ── expressions: the character's OWN vocabulary ──
         self.expr_box = QtWidgets.QComboBox()
-        self.expr_box.addItems(self.character.expression_names)
+        self.expr_box.addItems(self._expressions)
         self.expr_box.setCurrentText(self.character.default_expression)
         self.expr_box.currentTextChanged.connect(self._on_expression_picked)
 
@@ -172,7 +175,7 @@ class PlayerWindow:
         self._playing_asset = None
         self.bus.publish(topics.DisplayCommand(
             adapter=self.character.adapter,
-            asset_path=str(self.character.asset),
+            asset_path=str(self.character.asset_path),
             params=self.character.play_params(expression, mouth or self._mouth),
         ))
 
@@ -193,7 +196,7 @@ class PlayerWindow:
         self.status.setText(f"playing {path.name}")
 
     def next_expression(self) -> None:
-        names = self.character.expression_names
+        names = self._expressions
         self._expression_idx = (self._expression_idx + 1) % len(names)
         name = names[self._expression_idx]
         self.expr_box.blockSignals(True)
@@ -225,11 +228,12 @@ class PlayerWindow:
         except character_mod.CharacterError as exc:
             self.status.setText(str(exc))
             return
+        self._expressions = list(self.character.expressions)
         self._expression_idx = 0
         self._mouth = self.character.default_mouth
         self.expr_box.blockSignals(True)
         self.expr_box.clear()
-        self.expr_box.addItems(self.character.expression_names)
+        self.expr_box.addItems(self._expressions)
         self.expr_box.setCurrentText(self.character.default_expression)
         self.expr_box.blockSignals(False)
         self.mouth_btn.setChecked(False)
@@ -237,7 +241,7 @@ class PlayerWindow:
         self.show_expression(self.character.default_expression)
 
     def _on_expression_picked(self, name: str) -> None:
-        self._expression_idx = self.character.expression_names.index(name)
+        self._expression_idx = self._expressions.index(name)
         self.show_expression(name)
 
     def _on_mouth_toggled(self, checked: bool) -> None:
@@ -296,7 +300,7 @@ class PlayerWindow:
             # 128x128 sprite readable. The pack asks for nearest and
             # this is where that request has to be honoured.
             QtCore.Qt.FastTransformation
-            if self.character.scaling == "nearest"
+            if self.character.render.get("scaling", "nearest") == "nearest"
             else QtCore.Qt.SmoothTransformation,
         ))
 

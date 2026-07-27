@@ -19,11 +19,26 @@ MANIFEST = tomllib.loads((ROOT / "jaeger.toml").read_text())
 
 # ── the app owns no engine ───────────────────────────────────────
 
-def test_mochi_never_imports_an_engine():
-    """The property the whole design rests on. Import the animation
-    module here and the window stops being a subscriber — it becomes a
-    second code path that an LED matrix cannot take."""
-    forbidden = {"jaeger_animation", "jaeger_ai", "PIL", "numpy"}
+def test_mochi_never_calls_the_render_path():
+    """The property the whole design rests on: the window RECEIVES
+    frames, it does not ask for them. Import the node or an adapter
+    here and the window becomes a second code path an LED matrix
+    cannot take.
+
+    Reading the character FORMAT is not that. jaeger_animation.characters
+    parses a yaml file and returns a dataclass — no bus, no pixels, no
+    engine. Forbidding the whole package (as this test did until
+    2026-07-27) is what pushed a 209-line duplicate pack reader into
+    this app. The rule protects the render boundary, not the package
+    name."""
+    forbidden = {
+        "jaeger_animation.node": "the animation NODE — subscribe, don't call",
+        "jaeger_animation.adapters": "decoders are the engine's business",
+        "jaeger_animation.play": "the module's own player",
+        "jaeger_ai": "a body must show a face with no AI installed",
+        "PIL": "decoding is the engine's job",
+        "numpy": "if the app needs pixels, it is doing the engine's work",
+    }
     for d in ("core", "interfaces", "nodes"):
       for path in (ROOT / d).rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text())):
@@ -33,10 +48,9 @@ def test_mochi_never_imports_an_engine():
             elif isinstance(node, ast.ImportFrom) and node.module:
                 names = [node.module]
             for name in names:
-                root_pkg = name.split(".")[0]
-                assert root_pkg not in forbidden, (
-                    f"{path.name} imports {name} — Mochi composes "
-                    f"modules, it does not link against them")
+                for bad, why in forbidden.items():
+                    assert not (name == bad or name.startswith(bad + ".")), (
+                        f"{path.name} imports {name} — {why}")
 
 
 def test_the_face_is_bound_by_slot_not_by_import():
@@ -124,63 +138,57 @@ def emotes():
     return characters.load("emotes")
 
 
-def test_a_pack_loads_with_its_own_vocabulary(emotes):
-    assert emotes.name == "emotes"
-    assert emotes.grid == (9, 2)
-    assert "happy" in emotes.expression_names
-    assert emotes.default_expression == "neutral"
 
 
-def test_expression_and_mouth_are_two_axes(emotes):
-    """Row-major: holding an expression and alternating the mouth row
-    IS the talking animation. If both axes collapsed to one index this
-    would be 18 unrelated pictures."""
-    talking = emotes.cell("happy", "open")
-    resting = emotes.cell("happy", "closed")
-    assert talking != resting
-    assert abs(talking - resting) == emotes.grid[0], \
-        "mouth states must differ by exactly one row"
 
 
-def test_every_declared_expression_resolves(emotes):
-    cells = {n: emotes.cell(n) for n in emotes.expression_names}
-    assert len(set(cells.values())) == len(cells), "two expressions collide"
-    assert max(cells.values()) < emotes.grid[0] * emotes.grid[1]
-
-
-def test_an_unknown_expression_says_what_the_character_knows(emotes):
-    from core.characters import CharacterError
-    with pytest.raises(CharacterError, match="ecstatic"):
-        emotes.cell("ecstatic")
-
-
-def test_play_params_are_what_the_adapter_expects(emotes):
-    params = emotes.play_params("happy", "open")
-    assert params["grid"] == (9, 2)
-    assert isinstance(params["cell"], int)
-    assert params["scaling"] == "nearest"
-
-
-def test_a_missing_pack_names_where_it_looked():
-    from core.characters import CharacterError, load
-    with pytest.raises(CharacterError, match="Looked in"):
-        load("no-such-character")
 
 
 # ── the project is where your stuff is visible ───────────────────
+
+def test_the_pack_reader_comes_from_the_module():
+    """The format is the contract between Anima Studio and
+    JaegerAnimation; the module owns the reader. An app that parses
+    character.yaml itself is a second copy of that truth, and the one
+    in the module is better — it refuses a `kind` it cannot render
+    instead of silently showing nothing."""
+    import inspect
+
+    from core import characters
+    from jaeger_animation import characters as module_characters
+
+    assert characters.Character is module_characters.Character
+    src = inspect.getsource(characters)
+    assert "yaml" not in src, "the app is parsing the pack format itself"
+    assert len(src.splitlines()) < 90, (
+        "core/characters.py should be a locator, not a reader — it says "
+        "WHERE to look, the module says HOW to read")
+
 
 def test_a_project_character_shadows_a_bundled_one():
     """What Mochi is FOR: demo packs exported from Anima Studio. Drop a
     folder into assets/characters/ and it plays — and a project copy
     beats the one bundled inside an installed module, so editing it
-    means editing files you can see."""
+    means editing files you can see.
+
+    This is the ONLY character behaviour Mochi owns. Reading the
+    format, validating it, and turning an expression into adapter
+    params are the module's, and it has 30 tests for them."""
     pytest.importorskip("jaeger_animation")
     from core import characters
 
     loaded = characters.load("emotes")
-    assert loaded.directory.is_relative_to(ROOT / "assets" / "characters"), (
-        f"loaded the bundled copy at {loaded.directory} — a project pack "
+    assert loaded.root.is_relative_to(ROOT / "assets" / "characters"), (
+        f"loaded the bundled copy at {loaded.root} — a project pack "
         f"must win, or 'edit the character' means editing site-packages")
+
+
+def test_a_missing_pack_says_where_it_looked():
+    """Mochi owns the search order, so Mochi owns this error."""
+    from core.characters import CharacterError, load
+
+    with pytest.raises(CharacterError, match="Looked in"):
+        load("no-such-character")
 
 
 def test_packs_are_listed_from_the_filesystem():
