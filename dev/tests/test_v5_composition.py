@@ -62,10 +62,57 @@ def test_the_face_is_bound_by_slot_not_by_import():
         "binding by factory hardcodes which engine fills the slot"
 
 
-def test_v5_0_ships_no_mind_and_no_microphone():
-    """v5.0 is a player. A face that works before a mind that talks."""
-    enabled = {n["id"] for n in MANIFEST["node"] if n.get("enabled", True)}
-    assert enabled == {"animation"}, f"v5.0 boots more than a face: {enabled}"
+def test_the_face_is_required_and_the_voice_is_not():
+    """v5.1 adds speech and hearing, and they are OPTIONAL — the app
+    boots into a working character with neither installed, which is
+    exactly what v5.0 was.
+
+    The distinction is capability, not taste. Mochi without its
+    animation module has nothing to show and must fail loudly; Mochi
+    without a voice is a character that does not speak."""
+    nodes = {n["id"]: n for n in MANIFEST["node"]}
+    assert nodes["animation"].get("optional", False) is False, \
+        "a face is not optional — a Mochi with nothing to show is broken"
+    for node_id in ("audio_io", "tts", "stt"):
+        assert nodes[node_id].get("optional") is True, (
+            f"{node_id} must be optional, or a user with no voice "
+            f"installed cannot run Mochi at all")
+
+
+def test_v5_1_added_no_code_to_the_app():
+    """The claim v5.0 made about itself, now checkable: adding speech
+    and hearing should be MANIFEST blocks, not app code. core/ is
+    still one file, and nothing in it knows what a TTS is."""
+    import ast
+
+    core = list((ROOT / "core").glob("*.py"))
+    assert [p.name for p in core] == ["__init__.py", "characters.py"], \
+        f"v5.1 grew core/: {[p.name for p in core]}"
+
+    for path in core + list((ROOT / "interfaces").glob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names = [node.module]
+            for name in names:
+                assert not name.startswith(("jaeger_kokoro", "jaeger_whisper")), (
+                    f"{path.name} imports {name} — the tabs watch TOPICS; "
+                    f"importing an engine makes them stop working when a "
+                    f"different one is installed")
+
+
+def test_every_tab_is_a_pure_subscriber():
+    """A tab must work whether its module is installed or not. That is
+    only true if it never calls the engine — it watches topics."""
+    from interfaces import hearing, voice
+
+    for mod in (voice, hearing):
+        src = pathlib.Path(mod.__file__).read_text()
+        assert "topics." in src, f"{mod.__name__} watches nothing"
+        assert "import jaeger_kokoro" not in src
+        assert "import jaeger_whisper" not in src
 
 
 def test_the_bus_backend_is_declared_not_wired():

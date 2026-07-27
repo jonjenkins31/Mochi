@@ -51,31 +51,53 @@ slot = "animation"
 restart = "on_failure"
 config_key = "animation"
 
-# ── v5.1, not yet installed ──────────────────────────────────────
-# Left here disabled rather than in a design doc: the composition IS
-# the plan, and an operator can see exactly what turning the mind on
-# would mean. Each needs its module installed before enabling.
+# ── the voice ────────────────────────────────────────────────────
+# optional = true: these boot if their module is installed and are
+# skipped, loudly, if not. A character with no voice is still a
+# character — that is exactly what v5.0 was.
 #
-# [[node]]
-# id = "tts"
-# slot = "tts"
-# enabled = false
-#
-# [[node]]
-# id = "stt"
-# slot = "stt"
-# enabled = false
+# The audio driver owns the microphone and the speaker. Both engines
+# talk to it over topics rather than opening a device, which is what
+# lets the wake chime and the TTS share one speaker, and what gives
+# echo cancellation the played audio for free.
+[[node]]
+id = "audio_io"
+tier = 2
+backend = "thread"
+factory = "jaeger_os.nodes.audio_io:make_audio_io_node"
+optional = true
+config_key = "audio_io"
+
+[[node]]
+id = "tts"
+tier = 3
+backend = "thread"
+slot = "tts"
+optional = true
+config_key = "tts"
+
+[[node]]
+id = "stt"
+tier = 3
+backend = "thread"
+slot = "stt"
+optional = true
+config_key = "stt"
+
+# ── v5.2: the mind ───────────────────────────────────────────────
+# Still a plan, so still commented. Enabling it is the step that makes
+# the face RESPOND rather than merely speak.
 #
 # [[node]]
 # id = "mind"
 # slot = "mind"
-# enabled = false
+# optional = true
 
 # ── the window ───────────────────────────────────────────────────
 [[surface]]
 id = "player"
 main = true
-factory = "interfaces.player:make_player"
+factory = "interfaces.window:make_player"
 
 
 # ── settings ─────────────────────────────────────────────────────
@@ -96,3 +118,21 @@ character = "emotes"
 # choose expressions, so it walks them.
 dwell_s = 1.5
 scale = 2
+
+[config.audio_io]
+# Capture at 16 kHz (Whisper's rate, and what the echo canceller is
+# tuned for); play back at 24 kHz (what Kokoro and the chimes
+# synthesise). Two separate streams — forcing one rate would mean
+# resampling everything the speaker plays for no gain.
+sample_rate = 16000
+playback_rate = 24000
+
+[config.tts]
+# Warm the model at boot rather than paying the load on first speech.
+warm = false
+
+[config.stt]
+# Barge-in needs echo cancellation, or the agent hears its own voice
+# and answers itself. Off until the audio path has been walked with
+# real hardware.
+barge_in = false

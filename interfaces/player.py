@@ -1,4 +1,4 @@
-"""The window — a subscriber that happens to have pixels in it.
+"""Face tab — a subscriber that happens to have pixels in it.
 
     /act/display/play  ◀── controls
     /act/display/frame ──▶ PlayerWindow
@@ -46,22 +46,11 @@ _FILE_FILTER = (
 )
 
 
-def _qt():
-    try:
-        from PySide6 import QtCore, QtGui, QtWidgets
-    except ImportError as exc:  # pragma: no cover - env dependent
-        raise RuntimeError(
-            "Mochi's window needs PySide6 — the ecosystem's standard "
-            "cross-platform GUI toolkit:\n    pip install pyside6"
-        ) from exc
-    return QtCore, QtGui, QtWidgets
-
-
-class PlayerWindow:
+class FaceTab:
     """Shows whatever is on ``/act/display/frame``, and drives it."""
 
-    def __init__(self, app: Any, config: dict[str, Any]) -> None:
-        QtCore, QtGui, QtWidgets = _qt()
+    def __init__(self, app: Any, qt: tuple, config: dict[str, Any]) -> None:
+        QtCore, QtGui, QtWidgets = qt
         self._QtCore, self._QtGui, self._QtWidgets = QtCore, QtGui, QtWidgets
 
         self.bus = app.bus
@@ -102,17 +91,6 @@ class PlayerWindow:
         QtCore, QtGui, QtWidgets = self._QtCore, self._QtGui, self._QtWidgets
 
         self.widget = QtWidgets.QWidget()
-        self.widget.setWindowTitle(f"Mochi — {self.character.name}")
-        self.widget.setStyleSheet(
-            "QWidget { background:#101014; color:#c8c8d0; "
-            "font-family:-apple-system,Segoe UI,sans-serif; font-size:12px; }"
-            "QPushButton { background:#1e1e26; border:1px solid #33333f; "
-            "border-radius:4px; padding:5px 10px; }"
-            "QPushButton:hover { background:#2a2a34; }"
-            "QPushButton:checked { background:#3a5a8a; border-color:#4a7ab0; }"
-            "QComboBox { background:#1e1e26; border:1px solid #33333f; "
-            "border-radius:4px; padding:4px 8px; }"
-        )
 
         self.screen = QtWidgets.QLabel()
         self.screen.setAlignment(QtCore.Qt.AlignCenter)
@@ -165,7 +143,7 @@ class PlayerWindow:
         layout.addWidget(self.screen, 1)
         layout.addLayout(row)
         layout.addWidget(self.status)
-        self.widget.resize(256 * self.scale, 256 * self.scale + 70)
+
 
     # ── driving the engine ───────────────────────────────────────
 
@@ -237,7 +215,6 @@ class PlayerWindow:
         self.expr_box.setCurrentText(self.character.default_expression)
         self.expr_box.blockSignals(False)
         self.mouth_btn.setChecked(False)
-        self.widget.setWindowTitle(f"Mochi — {self.character.name}")
         self.show_expression(self.character.default_expression)
 
     def _on_expression_picked(self, name: str) -> None:
@@ -307,7 +284,6 @@ class PlayerWindow:
     # ── lifecycle ────────────────────────────────────────────────
 
     def start(self) -> None:
-        self.widget.show()
         asset = os.environ.get("MOCHI_ASSET")
         if asset:
             self.play_asset(pathlib.Path(asset))
@@ -322,18 +298,8 @@ class PlayerWindow:
             self.bus.unsubscribe(topics.ACT_DISPLAY_STATE, self._on_state)
         except Exception:  # noqa: BLE001
             pass
-        self.widget.close()
 
 
-def make_player(app: Any, spec: Any) -> PlayerWindow:
-    """Surface factory named by ``jaeger.toml``."""
-    try:
-        config = (app.config or {}).get("player", {}) or {}
-    except Exception:  # noqa: BLE001
-        config = {}
-    window = PlayerWindow(app, config)
-    window.start()
-    return window
 
 
-__all__ = ["PlayerWindow", "make_player"]
+__all__ = ["FaceTab"]
