@@ -69,14 +69,13 @@ def main(argv: list[str] | None = None) -> int:
 
     from jaeger_os.app.app import JaegerApp
 
-    app = JaegerApp(manifest)
+    # run() boots, starts the surfaces, and blocks on the event loop.
+    # Calling boot() first double-boots and trips the single-instance
+    # guard with "mochi is already running" — against itself.
     try:
-        app.boot()
-        return app.run()
+        return JaegerApp(manifest).run()
     except KeyboardInterrupt:
         return 0
-    finally:
-        app.shutdown()
 
 
 if __name__ == "__main__":
