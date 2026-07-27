@@ -1,0 +1,63 @@
+# Mochi Animation Node Configuration
+
+node:
+  id: "animation"
+  fps: 60
+  logical_size:
+    width: 288
+    height: 192
+  pub_address: "tcp://127.0.0.1:5555"
+  pub_backend_address: "tcp://127.0.0.1:5557"
+  ctrl_address: "tcp://127.0.0.1:5556"
+  default_script: "assets/mscripts/demo_wink.mscript"
+  optional_topics: []
+  capabilities:
+    controls:
+      - id: "mode"
+        label: "Mode"
+        type: "command"
+        command: "mode {value}"
+        input: "text"
+        description: "Activate an animation mode by name."
+      - id: "color"
+        label: "Solid Color"
+        type: "color"
+        command: "color solid_color {r} {g} {b}"
+        description: "Update the fallback solid color."
+      - id: "script"
+        label: "Play Script"
+        type: "file"
+        command: "play {path}"
+        filters: ["*.mscript"]
+        description: "Play an Mscript asset."
+    outputs:
+      - id: "frame"
+        label: "Frame Stream"
+        topic: "node.animation.frame"
+      - id: "events"
+        label: "Animation Events"
+        topic: "node.animation.event"
+
+gui:
+  pub_address: "tcp://127.0.0.1:5556"
+
+display:
+  sub_address: "tcp://127.0.0.1:5555"
+  zoom: 1
+  poll_ms: 5
+
+display_players:
+  tv1:
+    image: "assets/video/player/tv1.png"
+    screen_bbox: [425, 289, 150, 150]
+    topmost: true
+    drag: true
+    stream:
+      enabled: true
+      sub_address: "tcp://127.0.0.1:5555"
+      poll_ms: 10
+  tv1_static:
+    image: "assets/video/player/tv1.png"
+    screen_bbox: [425, 289, 150, 150]
+    stream:
+      enabled: false

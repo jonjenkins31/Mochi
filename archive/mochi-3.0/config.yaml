@@ -1,0 +1,31 @@
+infrastructure:
+  broker:
+    frontend_addr: "tcp://127.0.0.1:5555"
+    backend_addr: "tcp://127.0.0.1:5557"
+  monitor:
+    rep_address: "tcp://127.0.0.1:5560"
+  gui:
+    ctrl_address: "tcp://127.0.0.1:5556"
+  display:
+    sub_address: "tcp://127.0.0.1:5555"
+    zoom: 4
+    poll_ms: 5
+
+plugins:
+  - id: "animation"
+    type: "animation_node"
+    module: "plugins.animation_node.node"
+    cwd: "plugins/animation_node"
+    config_path: "plugins/animation_node/config.yaml"
+    enabled: true
+  - id: "llm"
+    type: "llm_node"
+    module: "plugins.llm_node.node"
+    cwd: "plugins/llm_node"
+    config_path: "plugins/llm_node/config.yaml"
+    enabled: true
+  - id: "mochi_gui"
+    type: "gui"
+    entry: "gui/mochi_gui.py"
+    cwd: "gui"
+    enabled: true
