@@ -71,4 +71,4 @@ config_key = "animation"
 [[surface]]
 id = "player"
 main = true
-factory = "mochi.player:make_player"
+factory = "interfaces.player:make_player"

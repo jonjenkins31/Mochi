@@ -20,11 +20,20 @@ from typing import Any
 
 import yaml
 
-#: Character packs ship with the animation module. Mochi has none of
-#: its own — a player that bundled a character would be that character.
-_PACK_ROOTS: tuple[str, ...] = (
+#: Where packs are installed by a module, in import-path form. Scanned
+#: only AFTER the project's own assets/characters/.
+_INSTALLED_PACK_ROOTS: tuple[str, ...] = (
     "jaeger_animation/assets/characters",
 )
+
+#: The project's own character folder. This is where a pack exported
+#: from Anima Studio lands — drop the folder in and it is playable.
+#:
+#: Scanned FIRST, so a project copy shadows a module's bundled demo
+#: exactly the way <project>/modules/ shadows an installed module. Same
+#: rule, one tier down: what you are working on is visible in the
+#: project, not buried in site-packages.
+PROJECT_CHARACTERS = pathlib.Path("assets/characters")
 
 
 class CharacterError(RuntimeError):
@@ -80,19 +89,59 @@ class Character:
         return list(self.expressions)
 
 
-def _pack_dir(name: str) -> pathlib.Path:
-    """Find a character pack among the installed module roots."""
+def project_root() -> pathlib.Path:
+    """The project directory — where assets/ and jaeger.toml live."""
+    return pathlib.Path(__file__).resolve().parent.parent
+
+
+def available() -> list[str]:
+    """Every playable pack, project copies first.
+
+    What a "demo the packs Anima Studio exports" app needs: the list
+    comes from the filesystem, so exporting a folder into
+    assets/characters/ is the whole install step.
+    """
+    seen: dict[str, None] = {}
+    local = project_root() / PROJECT_CHARACTERS
+    if local.is_dir():
+        for d in sorted(local.iterdir()):
+            if (d / "character.yaml").is_file():
+                seen[d.name] = None
+    for root in _INSTALLED_PACK_ROOTS:
+        base = _installed_base(root)
+        if base is None or not base.is_dir():
+            continue
+        for d in sorted(base.iterdir()):
+            if (d / "character.yaml").is_file():
+                seen.setdefault(d.name, None)
+    return list(seen)
+
+
+def _installed_base(root: str) -> pathlib.Path | None:
     import importlib.util
 
+    pkg = root.split("/")[0]
+    spec = importlib.util.find_spec(pkg)
+    if spec is None or not spec.submodule_search_locations:
+        return None
+    return pathlib.Path(list(spec.submodule_search_locations)[0]).parent / root
+
+
+def _pack_dir(name: str) -> pathlib.Path:
+    """Find a character pack. The project's own assets win."""
     tried: list[str] = []
-    for root in _PACK_ROOTS:
-        pkg = root.split("/")[0]
-        spec = importlib.util.find_spec(pkg)
-        if spec is None or not spec.submodule_search_locations:
-            tried.append(f"{pkg} (not installed)")
+
+    local = project_root() / PROJECT_CHARACTERS / name
+    tried.append(str(local))
+    if (local / "character.yaml").is_file():
+        return local
+
+    for root in _INSTALLED_PACK_ROOTS:
+        base = _installed_base(root)
+        if base is None:
+            tried.append(f"{root.split('/')[0]} (not installed)")
             continue
-        base = pathlib.Path(list(spec.submodule_search_locations)[0]).parent
-        candidate = base / root / name
+        candidate = base / name
         tried.append(str(candidate))
         if (candidate / "character.yaml").is_file():
             return candidate
@@ -156,4 +205,5 @@ def load(name: str) -> Character:
     )
 
 
-__all__ = ["Character", "CharacterError", "load"]
+__all__ = ["Character", "CharacterError", "load", "available",
+           "project_root", "PROJECT_CHARACTERS"]

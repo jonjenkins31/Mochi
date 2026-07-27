@@ -24,7 +24,8 @@ def test_mochi_never_imports_an_engine():
     module here and the window stops being a subscriber — it becomes a
     second code path that an LED matrix cannot take."""
     forbidden = {"jaeger_animation", "jaeger_ai", "PIL", "numpy"}
-    for path in (ROOT / "mochi").rglob("*.py"):
+    for d in ("mochi", "interfaces", "nodes"):
+      for path in (ROOT / d).rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text())):
             names = []
             if isinstance(node, ast.Import):
@@ -32,8 +33,8 @@ def test_mochi_never_imports_an_engine():
             elif isinstance(node, ast.ImportFrom) and node.module:
                 names = [node.module]
             for name in names:
-                root = name.split(".")[0]
-                assert root not in forbidden, (
+                root_pkg = name.split(".")[0]
+                assert root_pkg not in forbidden, (
                     f"{path.name} imports {name} — Mochi composes "
                     f"modules, it does not link against them")
 
@@ -107,8 +108,9 @@ def test_the_expression_vocabulary_comes_from_the_pack():
     words; a different character declares different ones and plays
     through the same code."""
     literals: set[str] = set()
-    for name in ("character.py", "player.py", "__main__.py"):
-        literals |= _string_literals(ROOT / "mochi" / name)
+    for name in ("mochi/characters.py", "interfaces/player.py",
+                 "main.py"):
+        literals |= _string_literals(ROOT / name)
     for word in ("happy", "angry", "crying", "shocked", "unamused", "love"):
         assert word not in literals, (
             f"{word!r} is a literal in Mochi's source — that writes one "
@@ -118,8 +120,8 @@ def test_the_expression_vocabulary_comes_from_the_pack():
 @pytest.fixture
 def emotes():
     pytest.importorskip("jaeger_animation")
-    from mochi import character
-    return character.load("emotes")
+    from mochi import characters
+    return characters.load("emotes")
 
 
 def test_a_pack_loads_with_its_own_vocabulary(emotes):
@@ -147,7 +149,7 @@ def test_every_declared_expression_resolves(emotes):
 
 
 def test_an_unknown_expression_says_what_the_character_knows(emotes):
-    from mochi.character import CharacterError
+    from mochi.characters import CharacterError
     with pytest.raises(CharacterError, match="ecstatic"):
         emotes.cell("ecstatic")
 
@@ -160,6 +162,47 @@ def test_play_params_are_what_the_adapter_expects(emotes):
 
 
 def test_a_missing_pack_names_where_it_looked():
-    from mochi.character import CharacterError, load
+    from mochi.characters import CharacterError, load
     with pytest.raises(CharacterError, match="Looked in"):
         load("no-such-character")
+
+
+# ── the project is where your stuff is visible ───────────────────
+
+def test_a_project_character_shadows_a_bundled_one():
+    """What Mochi is FOR: demo packs exported from Anima Studio. Drop a
+    folder into assets/characters/ and it plays — and a project copy
+    beats the one bundled inside an installed module, so editing it
+    means editing files you can see."""
+    pytest.importorskip("jaeger_animation")
+    from mochi import characters
+
+    loaded = characters.load("emotes")
+    assert loaded.directory.is_relative_to(ROOT / "assets" / "characters"), (
+        f"loaded the bundled copy at {loaded.directory} — a project pack "
+        f"must win, or 'edit the character' means editing site-packages")
+
+
+def test_packs_are_listed_from_the_filesystem():
+    """Installing a pack is copying a folder. No registry, no build
+    step, nothing to edit — that is the demo workflow."""
+    from mochi import characters
+    assert "emotes" in characters.available()
+
+
+def test_the_project_carries_a_modules_dir():
+    """The overlay seam. Empty is the healthy default; what matters is
+    that the door exists and is documented, so overriding an engine
+    never means editing a venv."""
+    modules = ROOT / "modules"
+    assert modules.is_dir()
+    assert (modules / "README.md").is_file(), \
+        "an empty directory with no explanation teaches nobody"
+
+
+def test_the_surface_lives_in_interfaces():
+    """Same shape as JP01-CC01: nodes/ for what the project runs,
+    interfaces/ for what an operator looks at."""
+    surface = [s for s in MANIFEST["surface"] if s.get("main")][0]
+    assert surface["factory"].startswith("interfaces."), surface["factory"]
+    assert (ROOT / "interfaces" / "player.py").is_file()

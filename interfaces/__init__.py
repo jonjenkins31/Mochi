@@ -1,0 +1,1 @@
+"""interfaces — see README.md."""
