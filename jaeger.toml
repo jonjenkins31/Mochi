@@ -26,7 +26,11 @@ mode = "fused"
 event_loop = "qt"
 ui = "pyside6"
 single_instance = true
-config = "config.yaml"
+# No config file: settings are the [config.*] tables at the bottom of
+# THIS file. One file, one format, real types — YAML reads 1.10 as the
+# float 1.1 and NO as False, and the settings file was the one with no
+# schema to catch it.
+config = ""
 
 [bus]
 # In-process: one machine, one window, every hop a reference pass.
@@ -72,3 +76,23 @@ config_key = "animation"
 id = "player"
 main = true
 factory = "interfaces.player:make_player"
+
+
+# ── settings ─────────────────────────────────────────────────────
+# One table per node's `config_key`. The framework hands each block to
+# that node's factory; nothing else reads it.
+
+[config.animation]
+# The face's render geometry. A window may display it larger; this is
+# what the engine actually rasterises.
+width = 256
+height = 256
+
+[config.player]
+# Which pack to load at boot. A character is a folder in
+# assets/characters/ — drop one in and it is playable.
+character = "emotes"
+# Seconds each expression holds while cycling. v5.0 has no mind to
+# choose expressions, so it walks them.
+dwell_s = 1.5
+scale = 2
