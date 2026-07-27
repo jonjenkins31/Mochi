@@ -16,7 +16,12 @@
 [app]
 name = "mochi"
 version = "5.0.0"
-requires_framework = ">=0.10"
+# The app-FORMAT stamp (jaeger_os.app.FRAMEWORK_FORMAT), not the
+# jaeger-os release version. Two different axes: the format is how
+# THIS FILE is shaped, the release is what implements it. The topic
+# contract v5 needs (0.10) is pinned in pyproject.toml instead, where
+# dependency versions belong.
+requires_framework = ">=0.1"
 mode = "fused"
 event_loop = "qt"
 ui = "pyside6"

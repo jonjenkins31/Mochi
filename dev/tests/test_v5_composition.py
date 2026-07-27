@@ -57,11 +57,22 @@ def test_the_bus_backend_is_declared_not_wired():
     assert MANIFEST["bus"]["backend"] in ("inproc", "zmq")
 
 
-def test_it_pins_a_framework_that_has_the_hierarchy():
-    """v5 publishes /act/display/play, which does not exist before
-    0.10. Pinning lower would install a framework whose contract this
-    app's topics are absent from."""
-    assert MANIFEST["app"]["requires_framework"] == ">=0.10"
+def test_the_manifest_declares_the_app_FORMAT_not_the_release():
+    """These are two axes and conflating them refuses to boot.
+    `requires_framework` checks jaeger_os.app.FRAMEWORK_FORMAT — the
+    shape of this file — which is 0.1 and moves rarely. The topic
+    contract v5 actually needs (0.10, where /act/display/play exists)
+    is a DEPENDENCY, pinned in pyproject.toml."""
+    from jaeger_os.app import FRAMEWORK_FORMAT
+
+    declared = MANIFEST["app"]["requires_framework"].lstrip(">=")
+    assert tuple(int(x) for x in declared.split(".")) <= \
+        tuple(int(x) for x in FRAMEWORK_FORMAT.split(".")), (
+        f"manifest wants format {declared}, chassis is {FRAMEWORK_FORMAT}")
+
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    assert "JaegerOS@master" in pyproject or "jaeger-os>=0.10" in pyproject, \
+        "the topic contract must be pinned as a dependency"
 
 
 # ── the character carries the persona ────────────────────────────
