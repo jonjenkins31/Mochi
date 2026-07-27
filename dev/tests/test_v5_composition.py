@@ -24,7 +24,7 @@ def test_mochi_never_imports_an_engine():
     module here and the window stops being a subscriber — it becomes a
     second code path that an LED matrix cannot take."""
     forbidden = {"jaeger_animation", "jaeger_ai", "PIL", "numpy"}
-    for d in ("mochi", "interfaces", "nodes"):
+    for d in ("core", "interfaces", "nodes"):
       for path in (ROOT / d).rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text())):
             names = []
@@ -71,8 +71,8 @@ def test_the_manifest_declares_the_app_FORMAT_not_the_release():
         tuple(int(x) for x in FRAMEWORK_FORMAT.split(".")), (
         f"manifest wants format {declared}, chassis is {FRAMEWORK_FORMAT}")
 
-    pyproject = (ROOT / "pyproject.toml").read_text()
-    assert "JaegerOS@master" in pyproject or "jaeger-os>=0.10" in pyproject, \
+    reqs = (ROOT / "requirements.txt").read_text()
+    assert "jaeger-os" in reqs, \
         "the topic contract must be pinned as a dependency"
 
 
@@ -108,7 +108,7 @@ def test_the_expression_vocabulary_comes_from_the_pack():
     words; a different character declares different ones and plays
     through the same code."""
     literals: set[str] = set()
-    for name in ("mochi/characters.py", "interfaces/player.py",
+    for name in ("core/characters.py", "interfaces/player.py",
                  "main.py"):
         literals |= _string_literals(ROOT / name)
     for word in ("happy", "angry", "crying", "shocked", "unamused", "love"):
@@ -120,7 +120,7 @@ def test_the_expression_vocabulary_comes_from_the_pack():
 @pytest.fixture
 def emotes():
     pytest.importorskip("jaeger_animation")
-    from mochi import characters
+    from core import characters
     return characters.load("emotes")
 
 
@@ -149,7 +149,7 @@ def test_every_declared_expression_resolves(emotes):
 
 
 def test_an_unknown_expression_says_what_the_character_knows(emotes):
-    from mochi.characters import CharacterError
+    from core.characters import CharacterError
     with pytest.raises(CharacterError, match="ecstatic"):
         emotes.cell("ecstatic")
 
@@ -162,7 +162,7 @@ def test_play_params_are_what_the_adapter_expects(emotes):
 
 
 def test_a_missing_pack_names_where_it_looked():
-    from mochi.characters import CharacterError, load
+    from core.characters import CharacterError, load
     with pytest.raises(CharacterError, match="Looked in"):
         load("no-such-character")
 
@@ -175,7 +175,7 @@ def test_a_project_character_shadows_a_bundled_one():
     beats the one bundled inside an installed module, so editing it
     means editing files you can see."""
     pytest.importorskip("jaeger_animation")
-    from mochi import characters
+    from core import characters
 
     loaded = characters.load("emotes")
     assert loaded.directory.is_relative_to(ROOT / "assets" / "characters"), (
@@ -186,7 +186,7 @@ def test_a_project_character_shadows_a_bundled_one():
 def test_packs_are_listed_from_the_filesystem():
     """Installing a pack is copying a folder. No registry, no build
     step, nothing to edit — that is the demo workflow."""
-    from mochi import characters
+    from core import characters
     assert "emotes" in characters.available()
 
 

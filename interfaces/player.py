@@ -31,7 +31,7 @@ from typing import Any
 
 from jaeger_os.transport import topics
 
-from mochi import characters as character_mod
+from core import characters as character_mod
 
 #: Files the open dialog offers. Mirrors the adapters the animation
 #: module ships; anything else still plays if the engine knows it,

@@ -23,7 +23,11 @@ venv/bin/pip install --quiet --upgrade pip
 for sib in ../JaegerOS ../JaegerAnimation; do
   [ -d "$sib" ] && venv/bin/pip install --quiet -e "$sib" 2>/dev/null || true
 done
-venv/bin/pip install --quiet -e ".[dev]" || venv/bin/pip install --quiet -e .
+# Dependencies only — the project itself is NOT installed. Mochi is a
+# workspace you run from this directory, so core/ and interfaces/ are
+# found on sys.path rather than in site-packages.
+venv/bin/pip install --quiet -r requirements.txt
+venv/bin/pip install --quiet pytest
 
 echo
 echo "ready:  source venv/bin/activate && python3 main.py"

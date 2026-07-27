@@ -112,3 +112,10 @@ sandbox/
 # Chassis runtime: PID slot + child registry
 .run/
 .build/
+
+# junk
+.DS_Store
+__pycache__/
+*.pyc
+venv/
+.run/
