@@ -206,3 +206,57 @@ def test_the_surface_lives_in_interfaces():
     surface = [s for s in MANIFEST["surface"] if s.get("main")][0]
     assert surface["factory"].startswith("interfaces."), surface["factory"]
     assert (ROOT / "interfaces" / "player.py").is_file()
+
+
+# ── no dead surface ──────────────────────────────────────────────
+
+def test_no_module_is_a_python_package(tmp_path):
+    """modules/ is a discovery ROOT — scanned as directories, never
+    imported. An __init__.py there says 'package' to a reader and to
+    tooling, and means neither."""
+    assert not (ROOT / "modules" / "__init__.py").exists()
+
+
+def test_the_app_version_has_one_home():
+    """jaeger.toml carries it. A second copy in core/__init__.py was
+    one more thing to forget on a release.
+
+    Checked against the AST: the docstring EXPLAINING that there is no
+    __version__ contains the word, and a substring search cannot tell
+    an explanation from an assignment."""
+    import ast
+
+    assert MANIFEST["app"]["version"]
+    tree = ast.parse((ROOT / "core" / "__init__.py").read_text())
+    assigned = {
+        t.id for node in tree.body if isinstance(node, ast.Assign)
+        for t in node.targets if isinstance(t, ast.Name)
+    }
+    assert "__version__" not in assigned
+
+
+def test_every_public_helper_is_actually_used():
+    """A helper only its own test calls is speculative surface. This
+    catches the shape: exported, tested, and reachable from nothing a
+    user does."""
+    import ast
+
+    used: set[str] = set()
+    for d in ("interfaces", "core", "nodes"):
+        for path in (ROOT / d).rglob("*.py"):
+            for node in ast.walk(ast.parse(path.read_text())):
+                if isinstance(node, ast.Attribute):
+                    used.add(node.attr)
+                elif isinstance(node, ast.Name):
+                    used.add(node.id)
+    used |= set(ast.parse((ROOT / "main.py").read_text()).body and
+                [n.attr for n in ast.walk(ast.parse((ROOT / "main.py").read_text()))
+                 if isinstance(n, ast.Attribute)])
+
+    from core import characters
+    for name in characters.__all__:
+        if name[0].isupper() or name.isupper():
+            continue          # types and constants, used by annotation
+        assert name in used, (
+            f"characters.{name} is exported and called by nothing — "
+            f"either wire it into the app or delete it")

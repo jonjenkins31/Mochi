@@ -71,6 +71,7 @@ class PlayerWindow:
             os.environ.get("MOCHI_CHARACTER", config.get("character", "emotes")))
 
         self._frame = None            # QImage; written by the bus thread
+        self._status_text: str | None = None   # ditto — drained on repaint
         self._expression_idx = 0
         self._mouth = self.character.default_mouth
         self._playing_asset: pathlib.Path | None = None
@@ -115,6 +116,14 @@ class PlayerWindow:
         self.screen.setMinimumSize(256, 256)
         self.screen.setStyleSheet("background:#000; border:1px solid #22222c;")
 
+        # ── which pack ──
+        # The list comes off the filesystem, so exporting a folder from
+        # Anima Studio into assets/characters/ is the whole install.
+        self.pack_box = QtWidgets.QComboBox()
+        self.pack_box.addItems(character_mod.available())
+        self.pack_box.setCurrentText(self.character.name)
+        self.pack_box.currentTextChanged.connect(self._on_pack_picked)
+
         # ── expressions: the character's OWN vocabulary ──
         self.expr_box = QtWidgets.QComboBox()
         self.expr_box.addItems(self.character.expression_names)
@@ -140,7 +149,8 @@ class PlayerWindow:
         self.status.setStyleSheet("color:#6a6a78;")
 
         row = QtWidgets.QHBoxLayout()
-        for w in (QtWidgets.QLabel("face:"), self.expr_box, self.mouth_btn,
+        for w in (QtWidgets.QLabel("pack:"), self.pack_box,
+                  QtWidgets.QLabel("face:"), self.expr_box, self.mouth_btn,
                   self.cycle_btn):
             row.addWidget(w)
         row.addStretch(1)
@@ -203,6 +213,29 @@ class PlayerWindow:
 
     # ── control callbacks ────────────────────────────────────────
 
+    def _on_pack_picked(self, name: str) -> None:
+        """Swap characters live.
+
+        The expression list is rebuilt from the new pack, because the
+        vocabulary belongs to the character — two packs need not share
+        a single word.
+        """
+        try:
+            self.character = character_mod.load(name)
+        except character_mod.CharacterError as exc:
+            self.status.setText(str(exc))
+            return
+        self._expression_idx = 0
+        self._mouth = self.character.default_mouth
+        self.expr_box.blockSignals(True)
+        self.expr_box.clear()
+        self.expr_box.addItems(self.character.expression_names)
+        self.expr_box.setCurrentText(self.character.default_expression)
+        self.expr_box.blockSignals(False)
+        self.mouth_btn.setChecked(False)
+        self.widget.setWindowTitle(f"Mochi — {self.character.name}")
+        self.show_expression(self.character.default_expression)
+
     def _on_expression_picked(self, name: str) -> None:
         self._expression_idx = self.character.expression_names.index(name)
         self.show_expression(name)
@@ -237,16 +270,21 @@ class PlayerWindow:
         self._frame = image.copy()
 
     def _on_state(self, msg: Any) -> None:
+        """The engine reporting back — chiefly why a clip stopped.
+
+        Stashed rather than shown: this runs on the bus thread, and
+        setting a widget's text from there is the same crash as
+        painting from there.
+        """
         if getattr(msg, "reason", ""):
-            self._pending_status = msg.reason
+            self._status_text = msg.reason
 
     # ── the GUI side ─────────────────────────────────────────────
 
     def _repaint(self) -> None:
-        pending = getattr(self, "_pending_status", None)
-        if pending:
-            self.status.setText(pending)
-            self._pending_status = None
+        if self._status_text is not None:
+            self.status.setText(self._status_text)
+            self._status_text = None
         frame = self._frame
         if frame is None:
             return
