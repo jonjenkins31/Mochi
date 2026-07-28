@@ -17,8 +17,11 @@ command -v "$PY" >/dev/null || {
 [ -d venv ] || "$PY" -m venv venv
 venv/bin/pip install --quiet --upgrade pip
 
-# Sibling checkouts win when present — editing the framework or the
-# animation engine next door takes effect here without a reinstall.
+# One rule for every Jaeger package: a sibling checkout WINS, the git
+# URL is only the fallback. They are not on PyPI, so a requirements
+# file can only name them by URL — and a URL requirement always forces
+# a reinstall, which is how this used to clobber the editable installs
+# made moments earlier and then fail on whatever @master happened to be.
 #
 # editable_mode=compat is NOT optional cosmetics. The default PEP 660
 # editable install writes an import-HOOK (__editable___*_finder.py)
@@ -26,10 +29,21 @@ venv/bin/pip install --quiet --upgrade pip
 # every `from jaeger_os...` import shows unresolved in the editor while
 # working perfectly when you run it. compat writes a plain path
 # instead, which static analysis reads.
-for sib in ../JaegerOS ../JaegerAnimation; do
-  [ -d "$sib" ] && venv/bin/pip install --quiet -e "$sib" \
-      --config-settings editable_mode=compat 2>/dev/null || true
-done
+install_jaeger() {          # $1 = sibling dir   $2 = repo name
+  if [ -d "$1" ]; then
+    echo "  $2  <- $1 (editable)"
+    venv/bin/pip install --quiet -e "$1" --config-settings editable_mode=compat
+  else
+    echo "  $2  <- github @master"
+    venv/bin/pip install --quiet \
+      "git+https://github.com/JenkinsRobotics/$2@master"
+  fi
+}
+
+# Order matters: the framework first, because every module pins it.
+install_jaeger ../JaegerOS        JaegerOS
+install_jaeger ../JaegerAnimation JaegerAnimation
+
 # Dependencies only — the project itself is NOT installed. Mochi is a
 # workspace you run from this directory, so core/ and interfaces/ are
 # found on sys.path rather than in site-packages.
@@ -41,12 +55,8 @@ venv/bin/pip install --quiet pytest
 # face. Sibling checkouts win when present, same as the framework.
 if [ "${1:-}" = "--voice" ]; then
   echo "installing the voice (this pulls torch — a few minutes)..."
-  for sib in ../JaegerKokoroTTS ../JaegerWhisperSTT; do
-    [ -d "$sib" ] && venv/bin/pip install --quiet -e "$sib" \
-        --config-settings editable_mode=compat && continue
-    :
-  done
-  [ -d ../JaegerKokoroTTS ] || venv/bin/pip install --quiet -r requirements-voice.txt
+  install_jaeger ../JaegerKokoroTTS JaegerKokoroTTS
+  install_jaeger ../JaegerWhisperSTT JaegerWhisperSTT
 fi
 
 echo

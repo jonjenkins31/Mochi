@@ -1,29 +1,18 @@
-# Mochi v5 runtime dependencies.
+# Mochi v5 runtime dependencies — PyPI only.
 #
 # Mochi is a WORKSPACE, not a library — it is never installed into
 # anyone's site-packages, and nothing imports it. You run it from this
 # directory with `python3 main.py`, the way a ROS workspace is run.
 # That is why core/ and interfaces/ can have generic names.
 #
-# Same shape as JP01-CC01's requirements.txt for the same reason: two
-# projects built alike is what makes a layout a standard.
-
-# ── the framework ────────────────────────────────────────────────
-# Dev pairing today: an editable install of the sibling checkout, so
-# editing ~/GITHUB/JaegerOS takes effect here with no reinstall. A
-# DEPLOYED copy exact-pins a released tag instead — never @master:
-#   jaeger-os @ git+https://github.com/JenkinsRobotics/JaegerOS@<tag>
-#
-# REQUIRES the hierarchical topic contract (0.10+). /act/display/play
-# does not exist before it, and the failure would be a node that
-# subscribes fine and then never receives anything.
-jaeger-os @ git+https://github.com/JenkinsRobotics/JaegerOS@master
-
-# ── the face ─────────────────────────────────────────────────────
-# Bound by SLOT in jaeger.toml, never by import path. This installs an
-# animation-slot module; the manifest never names it, and dropping a
-# copy into modules/ overrides it without touching either file.
-jaeger-animation @ git+https://github.com/JenkinsRobotics/JaegerAnimation@master
+# THE JAEGER PACKAGES ARE DELIBERATELY NOT LISTED HERE. `jaeger-os` and
+# `jaeger-animation` are not on PyPI, so the only way to name them in a
+# requirements file is by git URL — and a URL requirement ALWAYS forces
+# a reinstall, even when a newer satisfying copy is already present.
+# That silently undid the editable sibling installs setup.sh had just
+# made, one line earlier, and reinstalled whatever @master happened to
+# be. setup.sh installs them instead: sibling checkout first, git URL
+# only as a fallback. See install_jaeger() there.
 
 # ── the window ───────────────────────────────────────────────────
 # PySide6 is the ecosystem's standard cross-platform GUI toolkit.
