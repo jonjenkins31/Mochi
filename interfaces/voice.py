@@ -26,7 +26,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from jaeger_os import topics
+from modules import tts
 
 
 class VoiceTab:
@@ -77,12 +77,18 @@ class VoiceTab:
         self.status.setStyleSheet("color:#6a6a78;")
         layout.addWidget(self.status)
 
-        for topic, handler in (
-            (topics.ACT_SPEECH_SAY, self._on_say),
-            (topics.ACT_SPEECH_SPOKEN, self._on_spoken),
-            (topics.ACT_SPEECH_CHUNK, self._on_chunk),
-            (topics.ACT_SPEAKER_STATE, self._on_speaker),
-        ):
+        # Say so up front rather than leaving an empty log to interpret.
+        self._no_module = not tts.available()
+        if self._no_module:
+            self.status.setText(
+                f"no TTS module installed ({tts.PACKAGE}) — typing here "
+                f"publishes, nothing answers")
+
+        # The binding says which topics follow the speech path; the
+        # tab only decides how to draw them.
+        self._watching = tuple(zip(tts.WATCH, (
+            self._on_say, self._on_spoken, self._on_chunk, self._on_speaker)))
+        for topic, handler in self._watching:
             self.bus.subscribe(topic, handler)
 
         # Drain onto the GUI thread. Every handler below runs on the
@@ -95,18 +101,13 @@ class VoiceTab:
     # ── driving it ───────────────────────────────────────────────
 
     def say(self) -> None:
-        text = self.entry.text().strip()
-        if not text:
-            return
+        text = self.entry.text()
         self.entry.clear()
-        self.bus.publish(topics.SpeechCommand(text=text))
+        tts.say(self.bus, text)
 
     def stop(self) -> None:
-        """Barge-in. Two topics, deliberately: the engine stops
-        SYNTHESISING, the driver drops what is already queued. Either
-        alone leaves half a sentence playing."""
-        self.bus.publish(topics.SpeechStop())
-        self.bus.publish(topics.SpeakerStop())
+        """Barge-in. The binding knows it takes two topics."""
+        tts.stop(self.bus)
 
     # ── bus thread: record only ──────────────────────────────────
 
@@ -143,6 +144,8 @@ class VoiceTab:
         while self._pending:
             arrow, text = self._pending.pop(0)
             self.log.appendPlainText(f"{self._stamp()}  {arrow} {text}")
+        if self._no_module and not self._chunks and not self._speaking:
+            return
         self.status.setText(
             f"speaker: {'playing' if self._speaking else 'idle'}"
             + (f"   chunks: {self._chunks}  peak {self._peak:.2f}"
@@ -150,12 +153,7 @@ class VoiceTab:
 
     def close(self) -> None:
         self._timer.stop()
-        for topic, handler in (
-            (topics.ACT_SPEECH_SAY, self._on_say),
-            (topics.ACT_SPEECH_SPOKEN, self._on_spoken),
-            (topics.ACT_SPEECH_CHUNK, self._on_chunk),
-            (topics.ACT_SPEAKER_STATE, self._on_speaker),
-        ):
+        for topic, handler in self._watching:
             try:
                 self.bus.unsubscribe(topic, handler)
             except Exception:  # noqa: BLE001

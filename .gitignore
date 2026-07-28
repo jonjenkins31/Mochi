@@ -119,3 +119,6 @@ __pycache__/
 *.pyc
 venv/
 .run/
+quantum-codex/
+quantum-codex*.zip
+*.zip

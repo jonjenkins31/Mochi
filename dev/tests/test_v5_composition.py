@@ -39,7 +39,7 @@ def test_mochi_never_calls_the_render_path():
         "PIL": "decoding is the engine's job",
         "numpy": "if the app needs pixels, it is doing the engine's work",
     }
-    for d in ("core", "interfaces", "nodes"):
+    for d in ("core", "interfaces", "nodes", "modules"):
       for path in (ROOT / d).rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text())):
             names = []
@@ -85,11 +85,9 @@ def test_v5_1_added_no_code_to_the_app():
     still one file, and nothing in it knows what a TTS is."""
     import ast
 
-    core = list((ROOT / "core").glob("*.py"))
-    assert [p.name for p in core] == ["__init__.py", "characters.py"], \
-        f"v5.1 grew core/: {[p.name for p in core]}"
-
-    for path in core + list((ROOT / "interfaces").glob("*.py")):
+    for path in (list((ROOT / "core").glob("*.py"))
+                 + list((ROOT / "interfaces").glob("*.py"))
+                 + list((ROOT / "modules").glob("*.py"))):
         for node in ast.walk(ast.parse(path.read_text())):
             names = []
             if isinstance(node, ast.Import):
@@ -110,7 +108,9 @@ def test_every_tab_is_a_pure_subscriber():
 
     for mod in (voice, hearing):
         src = pathlib.Path(mod.__file__).read_text()
-        assert "topics." in src, f"{mod.__name__} watches nothing"
+        assert "WATCH" in src, (
+            f"{mod.__name__} does not use its binding's WATCH list — the "
+            f"binding owns which topics follow that module")
         assert "import jaeger_kokoro" not in src
         assert "import jaeger_whisper" not in src
 
@@ -169,8 +169,7 @@ def test_the_expression_vocabulary_comes_from_the_pack():
     words; a different character declares different ones and plays
     through the same code."""
     literals: set[str] = set()
-    for name in ("core/characters.py", "interfaces/player.py",
-                 "main.py"):
+    for name in ("modules/animation.py", "interfaces/player.py", "main.py"):
         literals |= _string_literals(ROOT / name)
     for word in ("happy", "angry", "crying", "shocked", "unamused", "love"):
         assert word not in literals, (
@@ -181,7 +180,7 @@ def test_the_expression_vocabulary_comes_from_the_pack():
 @pytest.fixture
 def emotes():
     pytest.importorskip("jaeger_animation")
-    from core import characters
+    from modules import animation as characters
     return characters.load("emotes")
 
 
@@ -195,22 +194,30 @@ def emotes():
 
 def test_the_pack_reader_comes_from_the_module():
     """The format is the contract between Anima Studio and
-    JaegerAnimation; the module owns the reader. An app that parses
-    character.yaml itself is a second copy of that truth, and the one
-    in the module is better — it refuses a `kind` it cannot render
-    instead of silently showing nothing."""
+    JaegerAnimation; the MODULE owns the reader. A binding that parsed
+    character.yaml itself would be a second copy of that truth, and
+    the module's is better — it refuses a `kind` it cannot render
+    instead of silently showing nothing.
+
+    Checked by IMPORT, not by text: the docstring naming
+    character.yaml contains the word, and a substring search cannot
+    tell a reference from a parser.
+    """
+    import ast
     import inspect
 
-    from core import characters
     from jaeger_animation import characters as module_characters
+    from modules import animation
 
-    assert characters.Character is module_characters.Character
-    src = inspect.getsource(characters)
-    assert "yaml" not in src, "the app is parsing the pack format itself"
-    assert len(src.splitlines()) < 90, (
-        "core/characters.py should be a locator, not a reader — it says "
-        "WHERE to look, the module says HOW to read")
+    assert animation.Character is module_characters.Character
 
+    imported = set()
+    for node in ast.walk(ast.parse(inspect.getsource(animation))):
+        if isinstance(node, ast.Import):
+            imported |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".")[0])
+    assert "yaml" not in imported, "the binding parses the pack format itself"
 
 def test_a_project_character_shadows_a_bundled_one():
     """What Mochi is FOR: demo packs exported from Anima Studio. Drop a
@@ -222,7 +229,7 @@ def test_a_project_character_shadows_a_bundled_one():
     format, validating it, and turning an expression into adapter
     params are the module's, and it has 30 tests for them."""
     pytest.importorskip("jaeger_animation")
-    from core import characters
+    from modules import animation as characters
 
     loaded = characters.load("emotes")
     assert loaded.root.is_relative_to(ROOT / "assets" / "characters"), (
@@ -232,7 +239,7 @@ def test_a_project_character_shadows_a_bundled_one():
 
 def test_a_missing_pack_says_where_it_looked():
     """Mochi owns the search order, so Mochi owns this error."""
-    from core.characters import CharacterError, load
+    from modules.animation import CharacterError, load
 
     with pytest.raises(CharacterError, match="Looked in"):
         load("no-such-character")
@@ -241,7 +248,7 @@ def test_a_missing_pack_says_where_it_looked():
 def test_packs_are_listed_from_the_filesystem():
     """Installing a pack is copying a folder. No registry, no build
     step, nothing to edit — that is the demo workflow."""
-    from core import characters
+    from modules import animation as characters
     assert "emotes" in characters.available()
 
 
@@ -308,7 +315,7 @@ def test_every_public_helper_is_actually_used():
                 [n.attr for n in ast.walk(ast.parse((ROOT / "main.py").read_text()))
                  if isinstance(n, ast.Attribute)])
 
-    from core import characters
+    from modules import animation as characters
     for name in characters.__all__:
         if name[0].isupper() or name.isupper():
             continue          # types and constants, used by annotation

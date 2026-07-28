@@ -29,9 +29,13 @@ import os
 import pathlib
 from typing import Any
 
-from jaeger_os.transport import topics
 
-from core import characters as character_mod
+from jaeger_os import topics
+
+from modules import animation
+
+_FRAME = topics.ACT_DISPLAY_FRAME
+_STATE = topics.ACT_DISPLAY_STATE
 
 #: Files the open dialog offers. Mirrors the adapters the animation
 #: module ships; anything else still plays if the engine knows it,
@@ -56,7 +60,7 @@ class FaceTab:
         self.bus = app.bus
         self.scale = int(os.environ.get("MOCHI_SCALE", config.get("scale", 2)))
         self.dwell_ms = int(float(config.get("dwell_s", 1.5)) * 1000)
-        self.character = character_mod.load(
+        self.character = animation.load(
             os.environ.get("MOCHI_CHARACTER", config.get("character", "emotes")))
         # The pack's own vocabulary, in declaration order — the order a
         # character author chose is more useful than alphabetical.
@@ -69,8 +73,8 @@ class FaceTab:
         self._playing_asset: pathlib.Path | None = None
 
         self._build_ui()
-        self.bus.subscribe(topics.ACT_DISPLAY_FRAME, self._on_frame)
-        self.bus.subscribe(topics.ACT_DISPLAY_STATE, self._on_state)
+        self.bus.subscribe(_FRAME, self._on_frame)
+        self.bus.subscribe(_STATE, self._on_state)
 
         # Repaint on the GUI thread, never from a bus callback. Qt
         # widgets are not thread-safe, and a subscriber runs on the
@@ -101,7 +105,7 @@ class FaceTab:
         # The list comes off the filesystem, so exporting a folder from
         # Anima Studio into assets/characters/ is the whole install.
         self.pack_box = QtWidgets.QComboBox()
-        self.pack_box.addItems(character_mod.available())
+        self.pack_box.addItems(animation.available())
         self.pack_box.setCurrentText(self.character.name)
         self.pack_box.currentTextChanged.connect(self._on_pack_picked)
 
@@ -151,11 +155,8 @@ class FaceTab:
         """Ask the engine for a face. Mechanism, not policy: which cell
         of which atlas, never what mood to be in."""
         self._playing_asset = None
-        self.bus.publish(topics.DisplayCommand(
-            adapter=self.character.adapter,
-            asset_path=str(self.character.asset_path),
-            params=self.character.play_params(expression, mouth or self._mouth),
-        ))
+        animation.play(self.bus, self.character, expression,
+                       mouth or self._mouth)
 
     def play_asset(self, path: pathlib.Path) -> None:
         """Play any file the engine has an adapter for.
@@ -166,11 +167,7 @@ class FaceTab:
         """
         self._playing_asset = path
         self.cycle_btn.setChecked(False)
-        self.bus.publish(topics.DisplayCommand(
-            adapter="auto",
-            asset_path=str(path),
-            params={"loop": True},
-        ))
+        animation.play_file(self.bus, path)
         self.status.setText(f"playing {path.name}")
 
     def next_expression(self) -> None:
@@ -202,8 +199,8 @@ class FaceTab:
         a single word.
         """
         try:
-            self.character = character_mod.load(name)
-        except character_mod.CharacterError as exc:
+            self.character = animation.load(name)
+        except animation.CharacterError as exc:
             self.status.setText(str(exc))
             return
         self._expressions = list(self.character.expressions)
@@ -277,7 +274,7 @@ class FaceTab:
             # 128x128 sprite readable. The pack asks for nearest and
             # this is where that request has to be honoured.
             QtCore.Qt.FastTransformation
-            if self.character.render.get("scaling", "nearest") == "nearest"
+            if animation.scaling(self.character) == "nearest"
             else QtCore.Qt.SmoothTransformation,
         ))
 
@@ -294,8 +291,8 @@ class FaceTab:
         try:
             self._timer.stop()
             self._cycle.stop()
-            self.bus.unsubscribe(topics.ACT_DISPLAY_FRAME, self._on_frame)
-            self.bus.unsubscribe(topics.ACT_DISPLAY_STATE, self._on_state)
+            self.bus.unsubscribe(_FRAME, self._on_frame)
+            self.bus.unsubscribe(_STATE, self._on_state)
         except Exception:  # noqa: BLE001
             pass
 

@@ -16,11 +16,10 @@ Nothing here imports Whisper. It subscribes, like everything else.
 
 from __future__ import annotations
 
-import math
 import time
 from typing import Any
 
-from jaeger_os import topics
+from modules import stt
 
 
 class HearingTab:
@@ -60,11 +59,9 @@ class HearingTab:
             "audio driver.")
         layout.addWidget(self.log, 1)
 
-        for topic, handler in (
-            (topics.SENSE_MIC_PCM, self._on_audio),
-            (topics.SENSE_STT_SPEECH_START, self._on_speech_start),
-            (topics.SENSE_STT_TRANSCRIPT, self._on_transcript),
-        ):
+        self._watching = tuple(zip(stt.WATCH, (
+            self._on_audio, self._on_speech_start, self._on_transcript)))
+        for topic, handler in self._watching:
             self.bus.subscribe(topic, handler)
 
         self._timer = QtCore.QTimer(self.widget)
@@ -74,30 +71,12 @@ class HearingTab:
     # ── bus thread ───────────────────────────────────────────────
 
     def _on_audio(self, msg: Any) -> None:
-        """Compute the level HERE, not on the GUI thread.
-
-        A frame is 640 bytes and arrives 100x a second; handing every
-        one to the GUI to be measured would put 100 wakeups a second on
-        the paint loop for a number that is one float.
-        """
-        import struct
-
+        """Bus thread. The binding computes the level — see its
+        docstring for why that happens here and not on the GUI."""
         self._frames += 1
         self._last_frame_at = time.monotonic()
-        data = msg.samples
-        if not data:
-            return
-        # RMS over a subsample — full precision is pointless for a bar
-        # 14 pixels tall, and this runs on the audio path.
-        n = len(data) // 4
-        step = max(1, n // 32)
-        try:
-            vals = struct.unpack_from(f"<{n}f", data)[::step]
-        except struct.error:
-            return
-        rms = math.sqrt(sum(v * v for v in vals) / max(1, len(vals)))
         # Decay, so the bar falls smoothly instead of flickering.
-        self._level = max(rms * 3.0, self._level * 0.8)
+        self._level = max(stt.frame_level(msg) * 3.0, self._level * 0.8)
 
     def _on_speech_start(self, msg: Any) -> None:
         self._pending.append("● speech started")
@@ -125,11 +104,7 @@ class HearingTab:
 
     def close(self) -> None:
         self._timer.stop()
-        for topic, handler in (
-            (topics.SENSE_MIC_PCM, self._on_audio),
-            (topics.SENSE_STT_SPEECH_START, self._on_speech_start),
-            (topics.SENSE_STT_TRANSCRIPT, self._on_transcript),
-        ):
+        for topic, handler in self._watching:
             try:
                 self.bus.unsubscribe(topic, handler)
             except Exception:  # noqa: BLE001
