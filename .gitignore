@@ -122,3 +122,9 @@ venv/
 quantum-codex/
 quantum-codex*.zip
 *.zip
+
+# Scratch manifests: a walk/probe run copies jaeger.toml under another
+# app name so it can boot beside a running instance. Never committed —
+# one slipped in via `git add -A` and had to be amended out.
+jaeger.*.toml
+!jaeger.toml

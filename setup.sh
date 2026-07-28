@@ -41,8 +41,16 @@ install_jaeger() {          # $1 = sibling dir   $2 = repo name
 }
 
 # Order matters: the framework first, because every module pins it.
-install_jaeger ../JaegerOS        JaegerOS
-install_jaeger ../JaegerAnimation JaegerAnimation
+#
+# ALL FOUR, always. Mochi 5.1 is a character that shows a face, speaks
+# and listens — the voice is a feature, not an add-on, and a flag that
+# hides two thirds of the app is friction, not thrift. Kokoro does pull
+# torch (~2 GB, several minutes) the FIRST time; after that it is cached
+# and setup is seconds.
+install_jaeger ../JaegerOS         JaegerOS
+install_jaeger ../JaegerAnimation  JaegerAnimation
+install_jaeger ../JaegerKokoroTTS  JaegerKokoroTTS
+install_jaeger ../JaegerWhisperSTT JaegerWhisperSTT
 
 # Dependencies only — the project itself is NOT installed. Mochi is a
 # workspace you run from this directory, so core/ and interfaces/ are
@@ -50,17 +58,14 @@ install_jaeger ../JaegerAnimation JaegerAnimation
 venv/bin/pip install --quiet -r requirements.txt
 venv/bin/pip install --quiet pytest
 
-# The voice is opt-in: kokoro pulls torch, transformers and spacy —
-# ~2 GB. A character player should not make everyone pay that to see a
-# face. Sibling checkouts win when present, same as the framework.
-if [ "${1:-}" = "--voice" ]; then
-  echo "installing the voice (this pulls torch — a few minutes)..."
-  install_jaeger ../JaegerKokoroTTS JaegerKokoroTTS
-  install_jaeger ../JaegerWhisperSTT JaegerWhisperSTT
-fi
-
 echo
 echo "ready:  source venv/bin/activate && python3 main.py"
-[ "${1:-}" = "--voice" ] || echo "        (voice not installed — ./setup.sh --voice)"
-venv/bin/python -c "import jaeger_os, jaeger_animation; \
-print(f'  jaeger-os {jaeger_os.__version__}  jaeger-animation {jaeger_animation.__version__}')"
+venv/bin/python - <<'EOF'
+import importlib
+for name in ("jaeger_os", "jaeger_animation",
+             "jaeger_kokoro_tts", "jaeger_whisper_stt"):
+    try:
+        print(f"  {name:20} {importlib.import_module(name).__version__}")
+    except Exception as exc:
+        print(f"  {name:20} NOT IMPORTABLE — {exc}")
+EOF
