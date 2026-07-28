@@ -36,7 +36,21 @@ done
 venv/bin/pip install --quiet -r requirements.txt
 venv/bin/pip install --quiet pytest
 
+# The voice is opt-in: kokoro pulls torch, transformers and spacy —
+# ~2 GB. A character player should not make everyone pay that to see a
+# face. Sibling checkouts win when present, same as the framework.
+if [ "${1:-}" = "--voice" ]; then
+  echo "installing the voice (this pulls torch — a few minutes)..."
+  for sib in ../JaegerKokoroTTS ../JaegerWhisperSTT; do
+    [ -d "$sib" ] && venv/bin/pip install --quiet -e "$sib" \
+        --config-settings editable_mode=compat && continue
+    :
+  done
+  [ -d ../JaegerKokoroTTS ] || venv/bin/pip install --quiet -r requirements-voice.txt
+fi
+
 echo
 echo "ready:  source venv/bin/activate && python3 main.py"
+[ "${1:-}" = "--voice" ] || echo "        (voice not installed — ./setup.sh --voice)"
 venv/bin/python -c "import jaeger_os, jaeger_animation; \
 print(f'  jaeger-os {jaeger_os.__version__}  jaeger-animation {jaeger_animation.__version__}')"

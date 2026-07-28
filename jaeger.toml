@@ -75,6 +75,11 @@ backend = "thread"
 slot = "tts"
 optional = true
 config_key = "tts"
+# A HINT, not a binding. The slot still takes whichever installed
+# module claims it — naming this one does not privilege it. It is here
+# so `--nodes` can answer "how do I get a voice?" instead of leaving an
+# empty slot as a dead end.
+package = "jaeger-kokoro-tts"
 
 [[node]]
 id = "stt"
@@ -83,6 +88,7 @@ backend = "thread"
 slot = "stt"
 optional = true
 config_key = "stt"
+package = "jaeger-whisper-stt"
 
 # ── v5.2: the mind ───────────────────────────────────────────────
 # Still a plan, so still commented. Enabling it is the step that makes

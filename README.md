@@ -18,6 +18,7 @@ drives an LED matrix and JP01's face without a second code path.
 
 ```bash
 ./setup.sh                                  # needs python3.11
+./setup.sh --voice                          # ...and a voice (~2 GB, opt-in)
 source venv/bin/activate
 python3 main.py                             # the player
 python3 main.py sim                         # no audio hardware
@@ -116,3 +117,21 @@ real, and it is worth checking rather than assuming.
 
 The mouth-state axis is what makes it work: hold an expression,
 alternate the row, and you have a talking face.
+
+The voice is **opt-in**, and `./setup.sh --voice` is the whole install.
+Kokoro pulls torch, transformers and spacy — roughly 2 GB — and a
+character player should not charge everyone that to see a face. So the
+`tts` and `stt` nodes are `optional = true`: with nothing installed the
+app boots and Mochi is simply a character who does not speak.
+
+You are told, not left guessing. Each slot names the package that would
+fill it, and both `--nodes` and the startup report print it:
+
+```
+  tts          tts         not installed          pip install jaeger-kokoro-tts
+  stt          stt         not installed          pip install jaeger-whisper-stt
+```
+
+That name is a **hint, not a binding** — the slot still takes whichever
+installed module claims it. Naming one does not privilege it, which is
+what keeps a slot a slot instead of a dependency by another name.

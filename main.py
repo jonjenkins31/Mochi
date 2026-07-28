@@ -113,8 +113,10 @@ def print_inventory(manifest: pathlib.Path) -> int:
             continue
         found = modules.get(slot) or []
         if not found:
+            hint = node.get("package", "")
             print(f"  {node['id']:12} {slot:11} "
-                  f"{'!! NO MODULE FILLS THIS SLOT':34} —")
+                  f"{'not installed':34} "
+                  + (f"pip install {hint}" if hint else "—"))
             continue
         m = found[0]
         where = "modules/ (LOCAL, shadows installed)" if m.local else "installed"
