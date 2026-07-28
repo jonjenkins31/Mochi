@@ -1,0 +1,61 @@
+# sim.toml — Mochi with no hardware.
+#
+#     python3 main.py sim
+#
+# Same app, same modules, no audio device. This is the variant you
+# develop against: opening the microphone takes 3.6s on macOS, needs a
+# permission grant, and a process killed mid-stream can wedge CoreAudio
+# until it is restarted. None of that is interesting when you are
+# working on a character pack or a tab layout.
+#
+# WHY A SEPARATE MANIFEST rather than a --no-audio flag: the variants
+# differ in which NODES EXIST, not in a setting. A flag would have to
+# reach inside the composition and disable something; a manifest just
+# describes a different composition. That is the same reason ROS ships
+# sim.launch.py beside robot.launch.py instead of one launch file with
+# a boolean.
+#
+# Everything else is identical to jaeger.toml on purpose — if the two
+# drift, this stops being a test of the real thing.
+
+[app]
+name = "mochi-sim"
+version = "5.1.0"
+requires_framework = ">=0.1"
+mode = "fused"
+event_loop = "qt"
+ui = "pyside6"
+single_instance = true
+config = ""
+
+[bus]
+backend = "inproc"
+
+# The face, exactly as in jaeger.toml.
+[[node]]
+id = "animation"
+tier = 3
+backend = "thread"
+slot = "animation"
+restart = "on_failure"
+config_key = "animation"
+
+# NO audio_io, NO tts, NO stt. The Voice and Hearing tabs still open
+# and still watch their topics — they simply stay quiet, which is
+# exactly what they do when a module is not installed. That is worth
+# seeing: a tab that only works when its engine is present is a tab
+# that will surprise someone.
+
+[[surface]]
+id = "player"
+main = true
+factory = "interfaces.window:make_player"
+
+[config.animation]
+width = 256
+height = 256
+
+[config.player]
+character = "emotes"
+dwell_s = 1.5
+scale = 2

@@ -20,9 +20,31 @@ drives an LED matrix and JP01's face without a second code path.
 ./setup.sh                                  # needs python3.11
 source venv/bin/activate
 python3 main.py                             # the player
+python3 main.py sim                         # no audio hardware
+python3 main.py --nodes                     # what runs, and from where
 python3 main.py --asset ~/clip.gif          # play any file
 python3 main.py --character my-pack         # a specific pack
 ```
+
+## Bringup variants
+
+`main.py` is the launcher; the manifest is the argument — the same
+shape as `ros2 launch <pkg> <file>`.
+
+```
+jaeger.toml   the real thing: face, audio driver, voice, hearing
+sim.toml      the face alone — no device is opened
+```
+
+A variant that changes a **setting** should be a flag. One that
+changes **which nodes exist** should not: a flag would have to reach
+inside the composition and disable something, where a manifest just
+describes a different composition.
+
+`sim` is what you develop against. Opening the microphone takes 3.6s
+on macOS, needs a permission grant, and a process killed mid-stream
+can wedge CoreAudio until it is restarted — none of which is
+interesting while you are working on a character pack or a tab.
 
 ## Layout
 

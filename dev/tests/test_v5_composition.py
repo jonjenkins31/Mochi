@@ -322,3 +322,53 @@ def test_every_public_helper_is_actually_used():
         assert name in used, (
             f"characters.{name} is exported and called by nothing — "
             f"either wire it into the app or delete it")
+
+
+# ── bringup variants ─────────────────────────────────────────────
+
+def _manifest(name):
+    return tomllib.loads((ROOT / f"{name}.toml").read_text())
+
+
+def test_a_variant_is_a_manifest_not_a_flag():
+    """A variant that changes a SETTING is a flag. One that changes
+    which NODES EXIST is not — a flag would have to reach inside the
+    composition and disable something, where a manifest just describes
+    a different composition. Same reason ROS ships sim.launch.py beside
+    robot.launch.py."""
+    real = {n["id"] for n in _manifest("jaeger")["node"]}
+    sim = {n["id"] for n in _manifest("sim")["node"]}
+    assert "audio_io" in real and "audio_io" not in sim
+    assert sim < real, "sim should be a subset of the real composition"
+
+
+def test_sim_touches_no_hardware():
+    """The variant you develop against: opening the mic takes 3.6s,
+    needs a permission grant, and a process killed mid-stream can wedge
+    CoreAudio. None of that is interesting while working on a tab."""
+    sim = _manifest("sim")
+    ids = {n["id"] for n in sim["node"]}
+    for hardware in ("audio_io", "tts", "stt"):
+        assert hardware not in ids, f"sim.toml starts {hardware}"
+
+
+def test_both_variants_run_the_same_app():
+    """If sim drifts from real it stops being a test of the real
+    thing. The surface and the face must match."""
+    real, sim = _manifest("jaeger"), _manifest("sim")
+    assert real["surface"] == sim["surface"]
+    face = lambda m: [n for n in m["node"] if n["id"] == "animation"][0]
+    assert face(real)["slot"] == face(sim)["slot"]
+    assert real["config"]["player"] == sim["config"]["player"]
+
+
+def test_the_launcher_resolves_a_variant_by_name():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_m", ROOT / "main.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+
+    assert m.resolve_manifest("sim").name == "sim.toml"
+    assert m.resolve_manifest("jaeger").name == "jaeger.toml"
+    assert m.resolve_manifest("sim.toml").name == "sim.toml"
+    assert m.resolve_manifest("nope") is None

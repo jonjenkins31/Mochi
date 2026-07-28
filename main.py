@@ -4,6 +4,8 @@
 
 Run:
     python3 main.py                  # the player
+    python3 main.py sim              # sim.toml — no audio hardware
+    python3 main.py --nodes          # what would run, and from where
     python3 main.py --character NAME # a different pack
     python3 main.py --asset FILE     # play any file instead
 
@@ -31,6 +33,9 @@ PROJECT_ROOT = pathlib.Path(__file__).resolve().parent
 def _parse(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog="mochi", description="Play a character.")
+    p.add_argument("variant", nargs="?", default="jaeger", metavar="VARIANT",
+                   help="which manifest to bring up: a name (sim -> "
+                        "sim.toml) or a path. Default: jaeger.toml")
     p.add_argument("--character", metavar="NAME",
                    help="character pack to load (default: from config.yaml)")
     p.add_argument("--asset", metavar="FILE",
@@ -46,7 +51,36 @@ def _parse(argv: list[str]) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def print_inventory() -> int:
+def resolve_manifest(variant: str) -> pathlib.Path | None:
+    """Which manifest to bring up.
+
+    A NAME resolves to ``<name>.toml`` in the project root; a path is
+    taken as given. Same shape as `ros2 launch <pkg> <file>`: one
+    launcher, the composition varies.
+
+    The point of separate manifests rather than flags: a variant that
+    only changes a SETTING is a flag, but one that changes which NODES
+    exist is not. A sim build wants a fake motor and no serial link —
+    not the same nodes with a boolean.
+    """
+    candidate = pathlib.Path(variant)
+    if candidate.suffix == ".toml" or candidate.is_absolute():
+        manifest = (candidate if candidate.is_absolute()
+                    else PROJECT_ROOT / candidate)
+    else:
+        manifest = PROJECT_ROOT / f"{variant}.toml"
+
+    if manifest.is_file():
+        return manifest
+
+    available = sorted(p.stem for p in PROJECT_ROOT.glob("*.toml"))
+    print(f"no manifest at {manifest}", file=sys.stderr)
+    if available:
+        print(f"available: {', '.join(available)}", file=sys.stderr)
+    return None
+
+
+def print_inventory(manifest: pathlib.Path) -> int:
     """Answer "what is actually running here, and whose code is it?"
 
     `nodes/` is empty in this project and that is correct — it holds
@@ -60,11 +94,11 @@ def print_inventory() -> int:
 
     from jaeger_os.core.modules import discover_modules
 
-    spec = tomllib.loads((PROJECT_ROOT / "jaeger.toml").read_text())
+    spec = tomllib.loads(manifest.read_text())
     modules = discover_modules(project_dir=PROJECT_ROOT)
 
     print(f"\n{spec['app']['name']} {spec['app'].get('version','')}"
-          f"   bus={spec['bus']['backend']}\n")
+          f"   bus={spec['bus']['backend']}   ({manifest.name})\n")
     print(f"  {'node':12} {'slot':11} {'source':34} where")
     print("  " + "-" * 74)
     for node in spec.get("node", []):
@@ -102,7 +136,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse(list(sys.argv[1:] if argv is None else argv))
 
     if args.nodes:
-        return print_inventory()
+        manifest = resolve_manifest(args.variant)
+        return print_inventory(manifest) if manifest else 2
 
     # Flags reach the surface factory as env overrides rather than
     # globals — the same trick JP01 uses, and the reason the factory
@@ -120,9 +155,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_cycle:
         os.environ["MOCHI_NO_CYCLE"] = "1"
 
-    manifest = PROJECT_ROOT / "jaeger.toml"
-    if not manifest.is_file():
-        print(f"no jaeger.toml at {PROJECT_ROOT}", file=sys.stderr)
+    manifest = resolve_manifest(args.variant)
+    if manifest is None:
         return 2
 
     from jaeger_os.app import JaegerApp
