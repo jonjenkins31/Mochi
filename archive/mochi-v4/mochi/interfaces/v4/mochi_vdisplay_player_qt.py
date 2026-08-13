@@ -45,7 +45,16 @@ DEFAULT_IMAGE = Path("assets/video/player/tv1.png")
 DEFAULT_SCREEN_BBOX = (425, 289, 150, 150)  # left, top, width, height for tv1 artwork
 
 GUI_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = GUI_DIR.parent
+# Archiving moved this file one level deeper (mochi/interfaces/ ->
+# mochi/interfaces/v4/) and this constant did not follow, so every asset
+# lookup landed a directory short and the window died on a missing skin
+# before drawing anything. Resolve to whichever ancestor actually holds
+# assets/ rather than counting parents again and being wrong the next
+# time it moves.
+PROJECT_ROOT = next(
+    (p for p in (GUI_DIR, *GUI_DIR.parents) if (p / "assets").is_dir()),
+    GUI_DIR.parent,
+)
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 

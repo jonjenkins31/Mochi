@@ -176,7 +176,14 @@ def main(argv: list[str] | None = None) -> int:
 
     image_path = Path(args.image)
     if not image_path.is_absolute():
-        image_path = (Path(__file__).resolve().parent.parent / image_path).resolve()
+        # Same off-by-one-directory as the Qt player: archiving moved
+        # this file into v4/ and `parent.parent` stayed pointing at
+        # mochi/interfaces/, a level above nothing. Resolve against
+        # whichever ancestor actually holds assets/.
+        here = Path(__file__).resolve().parent
+        base = next((p for p in (here, *here.parents) if (p / "assets").is_dir()),
+                    here.parent)
+        image_path = (base / image_path).resolve()
     if not image_path.exists():
         logger.error("Image not found: %s", image_path)
         return 1

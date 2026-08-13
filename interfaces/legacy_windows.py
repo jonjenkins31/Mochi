@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import pathlib
+import shutil
 import subprocess
 import sys
+import tempfile
 from typing import Any, Callable
 
 from PySide6 import QtCore, QtWidgets
@@ -29,6 +31,51 @@ class LegacyWindowSpec:
     source: pathlib.Path
     command: tuple[str, ...]
     note: str = "old transport; visual reference"
+
+
+#: What an archived window may need that this app's venv does not have.
+#: The Mochi 3.0 GUIs are Tk, and one of them uses an f-string with a
+#: backslash — legal from Python 3.12, a SyntaxError before it. Neither
+#: is a reason to add tkinter to a PySide6 app's requirements.
+_LEGACY_NEEDS = "import _tkinter, PySide6"
+
+
+def _interpreter(generation: str = "") -> str:
+    """A python that can actually run this window, or ours if none can.
+
+    Split by GENERATION because the two eras want opposite things. The
+    Mochi 3.0 GUIs are Tk and this app's venv has no `_tkinter`, plus
+    one of them needs 3.12+ to parse at all — they need the outside
+    interpreter. The v4 windows are PySide6 and run happily in our venv;
+    pointing them at the outside one instead traded a working window for
+    a dylib that only resolves in here.
+
+    Probed once and cached: the answer cannot change while we run.
+    """
+    global _CACHED_INTERPRETER
+    if not generation.startswith("Mochi 3"):
+        return sys.executable
+    if _CACHED_INTERPRETER is not None:
+        return _CACHED_INTERPRETER
+    candidates = [sys.executable]
+    candidates += [p for name in ("python3.13", "python3.12", "python3")
+                   if (p := shutil.which(name))]
+    candidates.append("/usr/bin/python3")
+    for candidate in candidates:
+        try:
+            probe = subprocess.run(
+                [candidate, "-c", _LEGACY_NEEDS],
+                capture_output=True, timeout=20, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if probe.returncode == 0:
+            _CACHED_INTERPRETER = candidate
+            return candidate
+    _CACHED_INTERPRETER = sys.executable
+    return _CACHED_INTERPRETER
+
+
+_CACHED_INTERPRETER: str | None = None
 
 
 def legacy_window_specs(root: pathlib.Path) -> tuple[LegacyWindowSpec, ...]:
@@ -97,6 +144,19 @@ class WindowManager:
         self.media.shutdown()
         self.virtual_display.shutdown()
         self.performance.shutdown()
+
+
+def _why(log: Any) -> str:
+    """The last thing a dead window said, for the Status column."""
+    try:
+        log.close()
+        lines = [ln.strip() for ln in
+                 pathlib.Path(log.name).read_text(errors="replace").splitlines()
+                 if ln.strip()]
+        pathlib.Path(log.name).unlink(missing_ok=True)
+    except Exception:  # noqa: BLE001 — a status string is never worth raising
+        return "see the terminal"
+    return (lines[-1][:120] if lines else "no output")
 
 
 class LegacyWindowsTab:
@@ -174,13 +234,22 @@ class LegacyWindowsTab:
         cwd = (self.root / "archive" / "mochi-v4"
                if spec.generation == "Mochi v4"
                else self.root / "archive" / "mochi-3.0")
+        # Keep the child's output. These die on a missing asset or an
+        # import the archive no longer contains, and "exited(1)" sends
+        # the reader to a terminal they were not watching — the reason
+        # is one line and belongs in the row that reports the failure.
+        log = tempfile.NamedTemporaryFile(
+            mode="w+", suffix=".log", prefix=f"mochi-{spec.id}-", delete=False)
         try:
-            process = subprocess.Popen([sys.executable, *spec.command], cwd=str(cwd))
+            process = subprocess.Popen(
+                [_interpreter(spec.generation), *spec.command], cwd=str(cwd),
+                stdout=log, stderr=subprocess.STDOUT)
         except OSError as exc:
+            log.close()
             self.table.item(row, 3).setText(f"failed: {exc}")
             return
         self._processes.append(process)
-        self._watched[row] = process
+        self._watched[row] = (process, log)
         self.table.item(row, 3).setText(f"starting (pid {process.pid})…")
 
     def _poll(self) -> None:
@@ -195,15 +264,14 @@ class LegacyWindowsTab:
         that was already dead. An exit code is the useful half of the
         answer, so it is what gets shown.
         """
-        for row, process in list(self._watched.items()):
+        for row, (process, log) in list(self._watched.items()):
             code = process.poll()
             if code is None:
                 self.table.item(row, 3).setText(f"running (pid {process.pid})")
                 continue
             del self._watched[row]
             self.table.item(row, 3).setText(
-                "closed" if code == 0 else
-                f"exited({code}) — see the terminal for why")
+                "closed" if code == 0 else f"exited({code}) — {_why(log)}")
 
     def close(self) -> None:
         self._timer.stop()
