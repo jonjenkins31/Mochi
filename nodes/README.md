@@ -2,8 +2,8 @@
 
 Node code **this project owns**.
 
-Empty, and that is correct for Mochi: every node it runs comes from an
-installed module, bound by slot in `jaeger.toml`. Run
+Empty, and that is correct for Mochi: every node it currently runs comes from
+JaegerOS or an installed module bound in `jaeger.toml`. Run
 `python3 main.py --nodes` to see what is actually running and where it
 came from.
 

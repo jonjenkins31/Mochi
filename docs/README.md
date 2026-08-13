@@ -28,5 +28,5 @@ Working notes, reviews and plans do **not** belong here — they live in
 These predate v5 and have not been re-verified against it. The pack
 format in particular is being standardized jointly with Anima Studio
 and JaegerAnimation's `character/v1` schema — where they disagree, the
-schema in `assets/characters/emotes/character.yaml` is what the code
+schema in `characters/Sprite Emotes/character.yaml` is what the code
 actually reads.

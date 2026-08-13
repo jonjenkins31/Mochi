@@ -32,7 +32,8 @@ venv/bin/pip install --quiet --upgrade pip
 install_jaeger() {          # $1 = sibling dir   $2 = repo name
   if [ -d "$1" ]; then
     echo "  $2  <- $1 (editable)"
-    venv/bin/pip install --quiet -e "$1" --config-settings editable_mode=compat
+    venv/bin/pip install --quiet -e "$1" \
+      --config-settings editable_mode=compat
   else
     echo "  $2  <- github @master"
     venv/bin/pip install --quiet \
@@ -42,15 +43,19 @@ install_jaeger() {          # $1 = sibling dir   $2 = repo name
 
 # Order matters: the framework first, because every module pins it.
 #
-# ALL FOUR, always. Mochi 5.1 is a character that shows a face, speaks
-# and listens — the voice is a feature, not an add-on, and a flag that
-# hides two thirds of the app is friction, not thrift. Kokoro does pull
-# torch (~2 GB, several minutes) the FIRST time; after that it is cached
-# and setup is seconds.
+# The framework plus the four imported providers Mochi currently composes:
+# face, speech, hearing, and mind. JaegerAI is intentionally not part of this
+# setup; it does not yet expose the same Mochi module contract as these
+# providers.
 install_jaeger ../JaegerOS         JaegerOS
 install_jaeger ../JaegerAnimation  JaegerAnimation
 install_jaeger ../JaegerKokoroTTS  JaegerKokoroTTS
 install_jaeger ../JaegerWhisperSTT JaegerWhisperSTT
+# The mind. Its repo and distribution are lower-case-hyphenated, unlike the
+# four above — the directory name is the repo name, so the helper still works.
+# llama-cpp-python rides along as a BASE dependency: the brain runs on this
+# machine with no server and no API key.
+install_jaeger ../jaeger-agent     jaeger-agent
 
 # Dependencies only — the project itself is NOT installed. Mochi is a
 # workspace you run from this directory, so core/ and interfaces/ are
@@ -61,9 +66,12 @@ venv/bin/pip install --quiet pytest
 echo
 echo "ready:  source venv/bin/activate && python3 main.py"
 venv/bin/python - <<'EOF'
-import importlib
-for name in ("jaeger_os", "jaeger_animation",
-             "jaeger_kokoro_tts", "jaeger_whisper_stt"):
+import importlib, os
+# Same switch main() sets: importing jaeger_agent registers ~96 tools,
+# and a version check has no business paying for that.
+os.environ.setdefault("JAEGER_AGENT_NO_TOOLS", "1")
+for name in ("jaeger_os", "jaeger_animation", "jaeger_kokoro_tts",
+             "jaeger_whisper_stt", "jaeger_agent"):
     try:
         print(f"  {name:20} {importlib.import_module(name).__version__}")
     except Exception as exc:

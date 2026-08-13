@@ -20,3 +20,9 @@ pyside6>=6.5
 
 # Reading character.yaml.
 pyyaml>=6.0
+
+# Character packs can declare MP4/MOV assets.  These are JaegerAnimation's
+# optional video decoder dependencies, but video is a first-class character
+# type in Mochi's editor and therefore part of this app's normal install.
+imageio>=2.30
+imageio-ffmpeg>=0.4

@@ -43,5 +43,6 @@ at the cost of needing the metadata to be right.
 Currently most of Mochi's catalog uses GIF where games would have
 used sprites.  Authoring a sprite-sheet character pack (per the
 operator's pack work) is one of the most accessible first
-contributions — see `tools/sprite_editor_gui.py` for an in-tree
-authoring tool.
+contributions — the **Characters → Sprite Editor** tab is the in-tree
+authoring tool: drag regions on the atlas, build the timeline, save it
+as an `.mscript`.

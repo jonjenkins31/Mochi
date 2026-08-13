@@ -43,8 +43,8 @@ Every claim on the page is verifiable in this repo, deliberately:
 
 | Claim | Where |
 |---|---|
-| plays a character pack | `assets/characters/emotes/` |
-| 25 of 26 procedural scenes render | `archive/mochi-3.0/assets/math/` |
+| plays a character pack | `characters/Sprite Emotes/` |
+| 25 of 26 procedural scenes render | `assets/math/` |
 | modules/ shadows installed | `modules/README.md` |
 | v5.1 needs no code change | the disabled nodes in `jaeger.toml` |
 

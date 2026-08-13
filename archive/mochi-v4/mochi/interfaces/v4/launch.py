@@ -33,6 +33,13 @@ def launch(name: str) -> int:
     if name not in WINDOWS:
         print(f"unknown window {name!r}; choose: {', '.join(WINDOWS)}")
         return 2
+    # Every one of these windows has a stand-alone `main()` that runs
+    # `argparse.parse_args()` on the REAL sys.argv, so the window name we
+    # were invoked with reaches a parser that only knows --ctrl-addr and
+    # --health-addr. It exits 2 before drawing anything, which looked
+    # from the Windows tab like a launch that silently did nothing.
+    # Consume our own argument and leave the rest for the window.
+    sys.argv = [sys.argv[0], *sys.argv[2:]]
     return importlib.import_module(WINDOWS[name]).main()
 
 
