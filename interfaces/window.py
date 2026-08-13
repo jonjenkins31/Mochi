@@ -1,8 +1,11 @@
 """The window — a tab per thing you can watch.
 
     Face      the character, and the controls that drive it
+    Windows   popup/media/virtual-display/performance windows + legacy gallery
+    Chat      talk to the mind, and watch one turn happen
     Voice     what the TTS is asked to say, and what came back
     Hearing   what the microphone hears, and what the STT made of it
+    Vision    what the camera sees
 
 Same shape as JP01-CC01's `interfaces/`: one file per tab, each a bus
 subscriber that imports no engine. A tab works identically whether its
@@ -18,16 +21,23 @@ import os
 from typing import Any
 
 _STYLE = """
-QWidget { background:#101014; color:#c8c8d0;
-          font-family:-apple-system,Segoe UI,sans-serif; font-size:12px; }
+QWidget { background:#101014; color:#c8c8d0; font-size:12px; }
 QPushButton { background:#1e1e26; border:1px solid #33333f;
               border-radius:4px; padding:5px 10px; }
 QPushButton:hover { background:#2a2a34; }
 QPushButton:checked { background:#3a5a8a; border-color:#4a7ab0; }
-QComboBox, QLineEdit { background:#1e1e26; border:1px solid #33333f;
+QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox {
+                       background:#1e1e26; border:1px solid #33333f;
                        border-radius:4px; padding:4px 8px; }
 QPlainTextEdit { background:#0b0b0e; border:1px solid #22222c;
                  border-radius:4px; font-family:ui-monospace,Menlo,monospace; }
+QListWidget, QTreeWidget, QTableWidget, QGraphicsView {
+                       background:#0b0b0e; border:1px solid #22222c; }
+QHeaderView::section { background:#1e1e26; color:#c8c8d0;
+                       border:1px solid #33333f; padding:4px; }
+QGroupBox { border:1px solid #2a2a34; border-radius:4px;
+            margin-top:8px; padding-top:8px; }
+QGroupBox::title { subcontrol-origin:margin; left:8px; padding:0 4px; }
 QTabBar::tab { background:#16161c; padding:6px 14px; border:1px solid #22222c;
                border-bottom:none; }
 QTabBar::tab:selected { background:#1e1e26; color:#e0e0e8; }
@@ -55,8 +65,15 @@ class MochiWindow:
         qt = _qt()
         QtCore, QtGui, QtWidgets = qt
 
+        from .character_editor import CharacterEditorTab
+        from .chat import ChatTab
         from .hearing import HearingTab
+        from .mscript_editor import MscriptEditorTab
+        from .modules import ModulesTab
+        from .legacy_windows import LegacyWindowsTab, WindowManager
         from .player import FaceTab
+        from .runtime import RuntimeTab
+        from .vision import VisionTab
         from .voice import VoiceTab
 
         try:
@@ -67,19 +84,41 @@ class MochiWindow:
         self.widget = QtWidgets.QTabWidget()
         self.widget.setStyleSheet(_STYLE)
 
+        self.window_manager = WindowManager(app)
         self.face = FaceTab(app, qt, config.get("player", {}) or {})
+        self.face.popup_btn.clicked.connect(self.window_manager.popup.show)
+        self.mscript_editor = MscriptEditorTab(app, qt)
+        self.character_editor = CharacterEditorTab(
+            app, qt, self.face.character.name,
+            on_character_changed=self.mscript_editor.set_character)
+        self.modules = ModulesTab(app, qt)
+        self.runtime = RuntimeTab(app, qt)
+        self.windows = LegacyWindowsTab(app, qt, self.window_manager)
+        self.chat = ChatTab(app, qt)
         self.voice = VoiceTab(app, qt)
         self.hearing = HearingTab(app, qt)
-        self._tabs = (self.face, self.voice, self.hearing)
+        self.vision = VisionTab(app, qt)
+        self._tabs = (
+            self.face, self.character_editor, self.mscript_editor, self.modules,
+            self.runtime, self.windows, self.chat, self.voice, self.hearing,
+            self.vision,
+        )
 
         self.widget.addTab(self.face.widget, "Face")
+        self.widget.addTab(self.character_editor.widget, "Characters")
+        self.widget.addTab(self.mscript_editor.widget, "MScript Editor")
+        self.widget.addTab(self.modules.widget, "Modules")
+        self.widget.addTab(self.runtime.widget, "Runtime")
+        self.widget.addTab(self.windows.widget, "Windows")
+        self.widget.addTab(self.chat.widget, "Chat")
         self.widget.addTab(self.voice.widget, "Voice")
         self.widget.addTab(self.hearing.widget, "Hearing")
+        self.widget.addTab(self.vision.widget, "Vision")
 
         self.widget.setWindowTitle(f"Mochi — {self.face.character.name}")
         scale = int(os.environ.get("MOCHI_SCALE",
                                    (config.get("player") or {}).get("scale", 2)))
-        self.widget.resize(max(560, 256 * scale), 256 * scale + 130)
+        self.widget.resize(max(1100, 256 * scale), max(720, 256 * scale + 130))
 
     def start(self) -> None:
         self.widget.show()
@@ -91,6 +130,7 @@ class MochiWindow:
                 tab.close()
             except Exception:  # noqa: BLE001
                 pass
+        self.window_manager.close()
         self.widget.close()
 
 

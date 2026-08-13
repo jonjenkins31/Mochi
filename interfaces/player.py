@@ -32,7 +32,7 @@ from typing import Any
 
 from jaeger_os import topics
 
-from modules import animation
+from modules import jaeger_animation as animation
 
 _FRAME = topics.ACT_DISPLAY_FRAME
 _STATE = topics.ACT_DISPLAY_STATE
@@ -41,10 +41,12 @@ _STATE = topics.ACT_DISPLAY_STATE
 #: module ships; anything else still plays if the engine knows it,
 #: this list only shapes the dialog.
 _FILE_FILTER = (
-    "Playable (*.gif *.png *.jpg *.jpeg *.bmp *.mp4 *.mov *.mscript *.py);;"
-    "Images (*.png *.jpg *.jpeg *.bmp);;"
-    "Animations (*.gif);;"
-    "Video (*.mp4 *.mov);;"
+    "Playable (*.gif *.apng *.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff "
+    "*.mp4 *.mov *.mkv *.webm *.m4v *.avi *.json *.mscript *.py);;"
+    "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff);;"
+    "Animations (*.gif *.apng);;"
+    "Video (*.mp4 *.mov *.mkv *.webm *.m4v *.avi);;"
+    "Packed bitmaps (*.json);;"
     "Procedural (*.mscript *.py);;"
     "All files (*)"
 )
@@ -103,7 +105,7 @@ class FaceTab:
 
         # ── which pack ──
         # The list comes off the filesystem, so exporting a folder from
-        # Anima Studio into assets/characters/ is the whole install.
+        # Anima Studio into characters/ is the whole install.
         self.pack_box = QtWidgets.QComboBox()
         self.pack_box.addItems(animation.available())
         self.pack_box.setCurrentText(self.character.name)
@@ -127,6 +129,8 @@ class FaceTab:
         open_btn = QtWidgets.QPushButton("Open file…")
         open_btn.clicked.connect(self.open_asset)
 
+        self.popup_btn = QtWidgets.QPushButton("Pop-out player")
+
         back_btn = QtWidgets.QPushButton("← character")
         back_btn.clicked.connect(self.back_to_character)
 
@@ -139,6 +143,7 @@ class FaceTab:
                   self.cycle_btn):
             row.addWidget(w)
         row.addStretch(1)
+        row.addWidget(self.popup_btn)
         row.addWidget(open_btn)
         row.addWidget(back_btn)
 

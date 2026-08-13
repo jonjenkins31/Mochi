@@ -19,6 +19,20 @@ two topics, neither paying for the other.
 The send box publishes /act/speech/say — the same topic a mind would
 use in v5.2. Driving it by hand now is how you find out the wiring
 works before there is anything to blame it on.
+
+WHICH VOICE. Kokoro has one synthesis path and many voices, which is
+the mirror image of the Hearing tab: there the choice is a PIPELINE and
+costs a node rebuild, here it is a string that rides the request and
+costs nothing. So this picker applies on the next thing said — no
+restart, no reload — and the chat replies use the same choice, because
+both read it from the manifest's config slice rather than from a widget.
+
+THIS TAB OWNS THE VOICE. Trying a Kokoro voice, or checking that the
+speech path works at all, has nothing to do with holding a conversation
+— so the switch is here rather than borrowed from Chat. Chat can start
+it (ticking "Speak replies" is one click), but turning it OFF belongs
+to the tab that drives it. Both read the position back from the
+supervisor, so they cannot disagree. See `core/audio_switch.py`.
 """
 
 from __future__ import annotations
@@ -26,7 +40,9 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from modules import tts
+from core import audio_switch
+from core.module_support import background
+from modules import jaeger_kokoro_tts as tts
 
 
 class VoiceTab:
@@ -35,15 +51,47 @@ class VoiceTab:
     def __init__(self, app: Any, qt: tuple) -> None:
         QtCore, QtGui, QtWidgets = qt
         self._QtCore = QtCore
+        self.app = app
         self.bus = app.bus
 
         self._pending: list[tuple[str, str]] = []   # (kind, text)
+        self._switches: list[str] = []   # results of a start/stop, from a thread
         self._chunks = 0
         self._peak = 0.0
         self._speaking = False
 
         self.widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(self.widget)
+
+        # ── on, and which voice ──
+        picker = QtWidgets.QHBoxLayout()
+        self.power = QtWidgets.QCheckBox("Voice")
+        self.power.setToolTip(
+            f"start and stop the TTS node ({tts.PACKAGE}). Warming Kokoro is "
+            f"~8s, which is why it is not on by default."
+            if tts.available() else f"no TTS module installed ({tts.PACKAGE})")
+        self.power.setEnabled(audio_switch.available(app)[1])
+        self.power.toggled.connect(self._power_toggled)
+        picker.addWidget(self.power)
+        picker.addSpacing(10)
+        picker.addWidget(QtWidgets.QLabel("voice"))
+        self.voice = QtWidgets.QComboBox()
+        for vid, desc in tts.voices():
+            self.voice.addItem(vid, desc)
+        # Editable: the module's list is curated, not a whitelist — Kokoro
+        # accepts ids that are not on it, and refusing them here would be
+        # this app deciding what the engine supports.
+        self.voice.setEditable(True)
+        self.voice.setCurrentText(tts.voice(app) or self.voice.currentText())
+        self.voice.setEnabled(bool(self.voice.count()))
+        self.voice.currentTextChanged.connect(self._voice_chosen)
+        picker.addWidget(self.voice)
+        self.voice_note = QtWidgets.QLabel()
+        self.voice_note.setStyleSheet("color:#6a6a78;")
+        self.voice_note.setWordWrap(True)
+        picker.addWidget(self.voice_note, 1)
+        layout.addLayout(picker)
+        self._voice_chosen(self.voice.currentText())
 
         # ── say something ──
         self.entry = QtWidgets.QLineEdit()
@@ -79,12 +127,9 @@ class VoiceTab:
 
         # Say so up front rather than leaving an empty log to interpret.
         self._no_module = not tts.available()
-        if self._no_module:
-            self.status.setText(
-                f"no TTS module installed ({tts.PACKAGE}) — typing here "
-                f"publishes, nothing answers")
+        self.status.setText(self._idle_status())
 
-        # The binding says which topics follow the speech path; the
+        # The imported module says which topics follow the speech path; the
         # tab only decides how to draw them.
         self._watching = tuple(zip(tts.WATCH, (
             self._on_say, self._on_spoken, self._on_chunk, self._on_speaker)))
@@ -100,13 +145,32 @@ class VoiceTab:
 
     # ── driving it ───────────────────────────────────────────────
 
+    def _power_toggled(self, on: bool) -> None:
+        """Start or stop the voice. Warming Kokoro blocks, so: a thread."""
+        if on == audio_switch.state(self.app)[1]:
+            return                    # the tick came from _drain re-syncing
+        self.power.setEnabled(False)
+        self._pending.append(("·", f"voice {'starting' if on else 'stopping'}…"))
+        background(lambda: audio_switch.switch(self.app, voice=on),
+                   self._switches)
+
+    def _voice_chosen(self, name: str) -> None:
+        """Record the choice where both this tab and Chat read it."""
+        tts.set_voice(self.app, name)
+        index = self.voice.findText(name)
+        self.voice_note.setText(
+            str(self.voice.itemData(index)) if index >= 0
+            else (f"not on {tts.PACKAGE}'s list — Kokoro decides"
+                  if self.voice.count() else
+                  f"no TTS module installed ({tts.PACKAGE})"))
+
     def say(self) -> None:
         text = self.entry.text()
         self.entry.clear()
-        tts.say(self.bus, text)
+        tts.say(self.bus, text, voice=tts.voice(self.app))
 
     def stop(self) -> None:
-        """Barge-in. The binding knows it takes two topics."""
+        """Barge-in. The imported module knows it takes two topics."""
         tts.stop(self.bus)
 
     # ── bus thread: record only ──────────────────────────────────
@@ -140,11 +204,42 @@ class VoiceTab:
 
     # ── GUI thread ───────────────────────────────────────────────
 
+    def _idle_status(self) -> str:
+        """Why nothing is happening — the three reasons are different.
+
+        No module, module present but its node stopped, and idle-and-
+        ready all look identical from the log, and only the middle one
+        has an action attached to it.
+        """
+        if self._no_module:
+            return (f"no TTS module installed ({tts.PACKAGE}) — typing here "
+                    f"publishes, nothing answers")
+        if not tts.audible(self.app):
+            return ("voice off — tick Voice. Typing here still publishes "
+                    "/act/speech/say; nothing is listening for it.")
+        return "speaker: idle"
+
     def _drain(self) -> None:
         while self._pending:
             arrow, text = self._pending.pop(0)
             self.log.appendPlainText(f"{self._stamp()}  {arrow} {text}")
-        if self._no_module and not self._chunks and not self._speaking:
+        while self._switches:
+            failed = self._switches.pop(0)
+            if failed:
+                self.log.appendPlainText(f"{self._stamp()}  · not done — {failed}")
+            self.power.setEnabled(audio_switch.available(self.app)[1])
+
+        # The voice can be started from the Chat tab too, so the box is
+        # read back from the supervisor rather than left where it was
+        # clicked. blockSignals, or re-syncing would look like a toggle.
+        audible = tts.audible(self.app)
+        if self.power.isChecked() != audible:
+            self.power.blockSignals(True)
+            self.power.setChecked(audible)
+            self.power.blockSignals(False)
+
+        if not self._chunks and not self._speaking:
+            self.status.setText(self._idle_status())
             return
         self.status.setText(
             f"speaker: {'playing' if self._speaking else 'idle'}"
