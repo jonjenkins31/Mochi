@@ -19,8 +19,10 @@
 # drift, this stops being a test of the real thing.
 
 [app]
+id = "org.jenkinsrobotics.app.mochi"
 name = "mochi-sim"
-version = "5.1.0"
+type = "application"
+version = "5.2.0"
 requires_framework = ">=0.1"
 mode = "fused"
 event_loop = "qt"
@@ -40,11 +42,16 @@ slot = "animation"
 restart = "on_failure"
 config_key = "animation"
 
-# NO audio_io, NO tts, NO stt. The Voice and Hearing tabs still open
-# and still watch their topics — they simply stay quiet, which is
-# exactly what they do when a module is not installed. That is worth
-# seeing: a tab that only works when its engine is present is a tab
-# that will surprise someone.
+# NO audio_io, NO tts, NO stt, NO mind. The Voice, Hearing and Chat
+# tabs still open and still watch their topics — they simply stay
+# quiet, which is exactly what they do when a module is not installed.
+# That is worth seeing: a tab that only works when its engine is
+# present is a tab that will surprise someone.
+#
+# The mind is not hardware, but it is here for the same reason the mic
+# is not: loading a multi-gigabyte GGUF is several seconds and several
+# gigabytes on every launch, and none of that is interesting while
+# working on a tab layout.
 
 [[surface]]
 id = "player"

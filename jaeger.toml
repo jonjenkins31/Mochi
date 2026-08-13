@@ -5,17 +5,16 @@
 # whole composition. Swapping the animation engine, or adding a voice,
 # is an edit here — never a code change.
 #
-# v5.0 is a PLAYER, deliberately. It shows a character and nothing
-# else: no AI, no microphone, no network. That is the same thing
-# Mochi 3.0 was, rebuilt on the framework, and it is the honest
-# starting point — a face that works before a mind that talks.
-#
-# v5.1 adds jaeger-ai + kokoro-tts + whisper-stt as three more [[node]]
-# blocks. No code here changes when it does.
+# v5.2 composes a face, Kokoro voice, Whisper hearing, a JaegerAgent mind
+# used as a plain chatbot, and the Interface editors/diagnostics. Engines
+# remain imported modules bound by stable slots; this app owns the
+# character policy and UI.
 
 [app]
+id = "org.jenkinsrobotics.app.mochi"
 name = "mochi"
-version = "5.0.0"
+type = "application"
+version = "5.2.0"
 # The app-FORMAT stamp (jaeger_os.app.FRAMEWORK_FORMAT), not the
 # jaeger-os release version. Two different axes: the format is how
 # THIS FILE is shaped, the release is what implements it. The topic
@@ -56,16 +55,28 @@ config_key = "animation"
 # skipped, loudly, if not. A character with no voice is still a
 # character — that is exactly what v5.0 was.
 #
+# enabled = false: DECLARED but not started at boot. Mochi comes up as
+# a messaging LLM — you type, it answers — and the Chat tab's Mic and
+# Speakers switches start these three on demand. The alternative is
+# loading a Whisper model, warming Kokoro for ~8s and putting a
+# recording indicator in the menu bar so that a text conversation can
+# ignore all of it. Still declared, because a switch needs something to
+# switch: the supervisor holds a handle for a disabled node and starts
+# it when asked.
+#
 # The audio driver owns the microphone and the speaker. Both engines
 # talk to it over topics rather than opening a device, which is what
 # lets the wake chime and the TTS share one speaker, and what gives
-# echo cancellation the played audio for free.
+# echo cancellation the played audio for free. It starts with whichever
+# of the two is switched on first, and stays up after — reopening the
+# device costs 3.6s on macOS.
 [[node]]
 id = "audio_io"
 tier = 2
 backend = "thread"
 factory = "jaeger_os.nodes.audio_io:make_audio_io_node"
 optional = true
+enabled = false
 config_key = "audio_io"
 
 [[node]]
@@ -74,9 +85,10 @@ tier = 3
 backend = "thread"
 slot = "tts"
 optional = true
+enabled = false
 config_key = "tts"
-# A HINT, not a binding. The slot still takes whichever installed
-# module claims it — naming this one does not privilege it. It is here
+# An install hint. Discovery still takes whichever installed module
+# claims the slot — naming this one does not privilege it. It is here
 # so `--nodes` can answer "how do I get a voice?" instead of leaving an
 # empty slot as a dead end.
 package = "jaeger-kokoro-tts"
@@ -87,17 +99,52 @@ tier = 3
 backend = "thread"
 slot = "stt"
 optional = true
+enabled = false
 config_key = "stt"
 package = "jaeger-whisper-stt"
 
-# ── v5.2: the mind ───────────────────────────────────────────────
-# Still a plan, so still commented. Enabling it is the step that makes
-# the face RESPOND rather than merely speak.
+# ── the eyes ─────────────────────────────────────────────────────
+# A FACTORY, not a slot — and that is the whole decision about vision.
 #
-# [[node]]
-# id = "mind"
-# slot = "mind"
-# optional = true
+# A slot exists so an ENGINE can be swapped: whichever installed module
+# claims `stt` fills it. There is nothing to swap here. Opening a USB
+# camera is `cv2.VideoCapture(0)`, and JaegerOS already ships the node
+# and both generic adapters (USB and TCP), exactly as it ships the audio
+# driver. A `jaeger-vision` module would be a slot with one possible
+# occupant, which is the definition of an abstraction that is not
+# earning anything yet.
+#
+# What DOES deserve a slot later is inference — the thing that turns
+# frames into meaning. JaegerOS's own vision docstring locks that
+# decision: the camera publishes /sense/camera/image_raw and a separate
+# downstream node publishes /sense/vision/analysis. Whoever fills THAT
+# is a real choice (YOLO, Moondream, a face tracker), and it can arrive
+# without touching this node, because it subscribes to a topic rather
+# than living inside the eyes.
+[[node]]
+id = "vision"
+tier = 2
+backend = "thread"
+factory = "jaeger_os.nodes.vision:make_vision_node"
+optional = true
+enabled = false
+config_key = "vision"
+
+# ── the mind ─────────────────────────────────────────────────────
+# Optional for the same reason the voice is: Mochi without a brain is
+# a face that cycles expressions, which is exactly what v5.0 shipped.
+#
+# `slot = "mind"` rather than a factory — this app never names
+# jaeger-agent in the manifest either. Swapping brains means installing
+# a different module, not editing this file.
+[[node]]
+id = "mind"
+tier = 3
+backend = "thread"
+slot = "mind"
+optional = true
+config_key = "mind"
+package = "jaeger-agent"
 
 # ── the window ───────────────────────────────────────────────────
 [[surface]]
@@ -118,7 +165,7 @@ height = 256
 
 [config.player]
 # Which pack to load at boot. A character is a folder in
-# assets/characters/ — drop one in and it is playable.
+# characters/ — drop one in and it is playable.
 character = "emotes"
 # Seconds each expression holds while cycling. v5.0 has no mind to
 # choose expressions, so it walks them.
@@ -132,13 +179,124 @@ scale = 2
 # resampling everything the speaker plays for no gain.
 sample_rate = 16000
 playback_rate = 24000
+# The microphone is opened only when the ears are switched on. Chat's
+# Mic box writes this and rebuilds the driver, because otherwise turning
+# the SPEAKERS on would open an input stream — a recording indicator in
+# the menu bar for the one job that never needed one.
+capture = false
 
 [config.tts]
-# Warm the model at boot rather than paying the load on first speech.
-warm = false
+# ~8 s of weight loading happens either at boot or inside the first
+# reply. The module warms in the background, so boot is not held for
+# it. This is the module's own default; it is spelled out because it
+# is the difference between a voice that answers and one that looks
+# broken the first time you use it.
+warm = true
+
+[config.vision]
+# A local webcam. `source = "tcp"` instead, with host/port, takes frames
+# pushed by a remote board over the framework's length-prefixed
+# protocol — a Jetson on the robot, streaming to the desk.
+source = "usb"
+device_index = 0
+# 10 fps and JPEG, because the consumer is a preview pane and, later,
+# an inference node — neither wants 60 raw frames a second. Frames are
+# latest-wins at the adapter, so a slow consumer drops rather than lags.
+target_fps = 10.0
+encoding = "jpeg"
+jpeg_quality = 80
+
+[config.voice]
+# Which voice PIPELINE the Chat tab runs. Testing these against a real
+# microphone in a real room is what Mochi is for, so this is a named
+# whole composition rather than a pile of knobs:
+#
+#   assistant  half duplex. A wake phrase opens a turn, the microphone
+#              is PAUSED while the character talks, and a follow-up
+#              window lets you keep going without repeating the phrase.
+#              Needs nothing beyond the modules. This is voice_assistant.py.
+#   chat       full duplex. No wake phrase, every phrase is a turn, and
+#              you can talk over the reply. Needs an echo canceller
+#              (`pip install speexdsp`) or it hears itself. This is
+#              voice_chat.py.
+#
+# The settings each one implies live in core/voice_modes.py, next to the
+# note about which reference script they came from — two dozen fields
+# per mode in here would bury the composition this file is supposed to
+# show. Switching is a picker in the Chat tab; this is only the default.
+mode = "assistant"
 
 [config.stt]
+# Everything below is OVERWRITTEN by the selected pipeline at boot —
+# `core.voice_modes.apply()` runs before the nodes are built. It is
+# spelled out anyway because `--nodes` and a reader of this file should
+# see what the ears are actually configured with, and because a mode is
+# a starting point: change a value here and it holds until the pipeline
+# is switched.
+# Which segmentation pipeline the ears run. The module ships several and
+# they trade latency against accuracy differently — the Hearing tab
+# lists them with a one-line description each and swaps between them,
+# which is a node rebuild, so this is the value it writes back here.
+# `python3 -m jaeger_whisper_stt.engine list` prints the same table.
+#
+# two_pass, which is what both reference scripts use: base.en gates
+# every phrase cheaply and medium.en only re-decodes what got past the
+# wake phrase. (An earlier note here blamed two_pass for publishing
+# every utterance twice, measured against ambient room audio with no
+# wake gating. The engine commits one phrase per utterance — one
+# `_finalize` per VAD close — and what that recording actually showed
+# was the short-phrase hangover splitting continuous background speech.
+# With a wake phrase in front, none of it becomes a turn either way.)
+stt_mode = "two_pass"
 # Barge-in needs echo cancellation, or the agent hears its own voice
 # and answers itself. Off until the audio path has been walked with
 # real hardware.
 barge_in = false
+
+[config.mind]
+# A CHATBOT, NOT AN AGENT — and it is a switch, not a wall. `true` here
+# leaves jaeger-agent's full toolset installed: ~96 tools including
+# `look_at` (a local VLM on an image path), `speak`, `listen` and `ocr`.
+# Read by main() BEFORE jaeger_os is imported, because the module
+# registers its tools at import time and a node's config is far too late.
+#
+# False by default because a desk character wants conversation and the
+# catalogue does not fit: ~96 schemas are ~15,000 tokens against the
+# 4096-token `ctx` below. Turning it on means raising `ctx` past 16384,
+# or exporting JAEGER_TOOLSET_SCOPING=1 for the ~17-tool core set that
+# the model can widen on demand.
+tools = false
+# IN-PROCESS weights. No server to start, no account, no API key, and
+# nothing leaves the machine — the posture a character on someone's
+# desk should have by default.
+provider = "llama_cpp"
+# Empty on purpose: interfaces/chat.py finds a .gguf in the usual
+# places so the tab works without editing this file. $JAEGER_GGUF wins
+# over the search. Set a path here to pin one:
+#
+#     model_path = "~/.cache/jaeger/models/gemma-4-E4B-it-Q4_K_M.gguf"
+model_path = ""
+# 4096 rather than the module's 8192 default: a character's small talk
+# never fills it, and the difference is RAM at load time.
+ctx = 4096
+# -1 offloads every layer to the GPU — correct on Apple Silicon.
+gpu_layers = -1
+# Written to be SPOKEN. `modules/jaeger_kokoro_tts.speakable()` strips
+# emoji and markdown before synthesis regardless, but stripping them is
+# a repair — a model told to write for a listener produces answers that
+# were never shaped for a page, and the repair has nothing left to do.
+system_prompt = "You are Mochi, a small desk character with a face on a screen. You are cheerful and answer in one or two short sentences of plain conversational English. Your replies are spoken out loud, so never use emoji, markdown, code blocks, bullet points or numbered lists. If you don't know something, say so briefly."
+# Some warmth is affordable because this brain has no tools to route
+# to — tool selection is what degrades with sampling noise.
+temperature = 0.3
+max_tokens = 512
+# A chat turn is one model call. Kept low deliberately: if a reply ever
+# takes 24 iterations something is wrong and it should stop, not grind.
+max_iterations = 2
+
+# To use a SERVER instead — LM Studio, Ollama — replace the first two
+# keys above with three, and change nothing else anywhere:
+#
+#     provider = "lmstudio"                     # or "ollama"
+#     base_url = "http://localhost:1234/v1"     # :11434/v1 for Ollama
+#     model    = "google/gemma-4-e4b"

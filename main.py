@@ -37,12 +37,12 @@ def _parse(argv: list[str]) -> argparse.Namespace:
                    help="which manifest to bring up: a name (sim -> "
                         "sim.toml) or a path. Default: jaeger.toml")
     p.add_argument("--character", metavar="NAME",
-                   help="character pack to load (default: from config.yaml)")
+                   help="character pack to load (default: from the manifest)")
     p.add_argument("--asset", metavar="FILE",
                    help="play this file instead of a character — gif, png, "
                         "mp4, or mscript. The adapter is chosen by extension.")
     p.add_argument("--scale", type=int, metavar="N",
-                   help="window zoom (default: from config.yaml)")
+                   help="window zoom (default: from the manifest)")
     p.add_argument("--no-cycle", action="store_true",
                    help="hold the default expression instead of walking them")
     p.add_argument("--nodes", action="store_true",
@@ -102,14 +102,16 @@ def print_inventory(manifest: pathlib.Path) -> int:
     print(f"  {'node':12} {'slot':11} {'source':34} where")
     print("  " + "-" * 74)
     for node in spec.get("node", []):
-        if not node.get("enabled", True):
-            print(f"  {node['id']:12} {node.get('slot',''):11} "
-                  f"{'(disabled)':34} —")
-            continue
+        # `enabled = false` is DECLARED BUT NOT STARTED, not "absent" —
+        # the audio nodes live that way so a text-only launch opens no
+        # device, and printing "(disabled)" instead of the module that
+        # would fill the slot hid the answer to "what runs if I switch
+        # the mic on?".
+        boot = "" if node.get("enabled", True) else "   · off at boot"
         slot = node.get("slot", "")
         if not slot:
             print(f"  {node['id']:12} {'—':11} {node.get('factory',''):34} "
-                  f"this project")
+                  f"this project{boot}")
             continue
         found = modules.get(slot) or []
         if not found:
@@ -119,9 +121,13 @@ def print_inventory(manifest: pathlib.Path) -> int:
                   + (f"pip install {hint}" if hint else "—"))
             continue
         m = found[0]
-        where = "modules/ (LOCAL, shadows installed)" if m.local else "installed"
-        print(f"  {node['id']:12} {slot:11} {m.module + ' ' + m.version:34} "
+        where = ("modules/ (LOCAL, shadows installed)" if m.local
+                 else "installed") + boot
+        label = (m.name or m.module) + " " + m.version
+        print(f"  {node['id']:12} {slot:11} {label:34} "
               f"{where}")
+        identity = f"{m.id} · {m.implementation}" if m.id else m.module
+        print(f"  {'':12} {'':11} {identity}")
         print(f"  {'':12} {'':11} {str(m.source_dir)}")
 
     for surface in spec.get("surface", []):
@@ -134,12 +140,42 @@ def print_inventory(manifest: pathlib.Path) -> int:
     return 0
 
 
+def _wants_tools(manifest: pathlib.Path) -> bool:
+    """Does `[config.mind] tools` ask for the full agent?
+
+    Read with tomllib rather than through the framework because the
+    answer is needed BEFORE jaeger_os is imported — see main(). Default
+    False: a desk character wants conversation, and ~96 tool schemas are
+    ~15,000 tokens against this manifest's 4096-token window.
+    """
+    import tomllib
+
+    try:
+        spec = tomllib.loads(manifest.read_text())
+    except Exception:  # noqa: BLE001 — the chassis reports a bad manifest
+        return False
+    return bool(((spec.get("config") or {}).get("mind") or {}).get("tools", False))
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse(list(sys.argv[1:] if argv is None else argv))
 
+    manifest = resolve_manifest(args.variant)
+    if manifest is None:
+        return 2
+
+    # Mochi wants a chatbot, not an agent — but that is a SETTING, not a
+    # limit built into the app, so it is read from the manifest like
+    # every other composition decision. `tomllib` and not the framework's
+    # parser on purpose: this has to be decided before jaeger_os is
+    # imported at all, because discovery imports every installed module
+    # to read its manifest and jaeger-agent registers its ~96 tools at
+    # import time. By the time a node boots it is far too late.
+    from modules import jaeger_agent as mind
+    mind.chat_only(not _wants_tools(manifest))
+
     if args.nodes:
-        manifest = resolve_manifest(args.variant)
-        return print_inventory(manifest) if manifest else 2
+        return print_inventory(manifest)
 
     # Flags reach the surface factory as env overrides rather than
     # globals — the same trick JP01 uses, and the reason the factory
@@ -157,17 +193,27 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_cycle:
         os.environ["MOCHI_NO_CYCLE"] = "1"
 
-    manifest = resolve_manifest(args.variant)
-    if manifest is None:
-        return 2
-
     from jaeger_os.app import JaegerApp
 
     # run() boots, starts the surfaces, and blocks on the event loop.
     # Calling boot() first double-boots and trips the single-instance
     # guard with "mochi is already running" — against itself.
     try:
-        return JaegerApp(manifest).run()
+        app = JaegerApp(manifest)
+        # Constructing parses the manifest without booting, which is the
+        # only window in which a blank `model_path` can still be filled
+        # in: the mind node reads its config once, at setup.
+        mind.resolve_model(app.spec.inline_config.setdefault("mind", {}))
+        # The selected voice pipeline decides the ears' and the driver's
+        # settings, and both read them when they are BUILT. Applying it
+        # here rather than from the Chat tab means the manifest's choice
+        # holds for any surface, and for a node started before a window
+        # exists.
+        from core import voice_modes
+
+        voice_modes.apply(app.spec.inline_config,
+                          voice_modes.current(app.spec.inline_config))
+        return app.run()
     except KeyboardInterrupt:
         return 0
 
