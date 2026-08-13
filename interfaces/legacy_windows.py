@@ -8,6 +8,7 @@ later consolidation pass without mixing their obsolete transports into v5.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 import pathlib
 import shutil
 import subprocess
@@ -146,6 +147,23 @@ class WindowManager:
         self.performance.shutdown()
 
 
+def _environment(cwd: pathlib.Path) -> dict[str, str]:
+    """PYTHONPATH the archived tools were written to assume.
+
+    The 3.0 editors import `animations` and `core.mscript_engine` as
+    top-level packages, which worked when they ran from a tree that had
+    both on the path. In the archive they live under
+    plugins/animation_node/, so the imports fail and the window dies
+    before drawing. Handing them the path is cheaper and less invasive
+    than editing archived source to find itself.
+    """
+    env = dict(os.environ)
+    extra = [str(cwd), str(cwd / "plugins" / "animation_node")]
+    existing = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = os.pathsep.join([*extra, existing] if existing else extra)
+    return env
+
+
 def _why(log: Any) -> str:
     """The last thing a dead window said, for the Status column."""
     try:
@@ -243,7 +261,7 @@ class LegacyWindowsTab:
         try:
             process = subprocess.Popen(
                 [_interpreter(spec.generation), *spec.command], cwd=str(cwd),
-                stdout=log, stderr=subprocess.STDOUT)
+                stdout=log, stderr=subprocess.STDOUT, env=_environment(cwd))
         except OSError as exc:
             log.close()
             self.table.item(row, 3).setText(f"failed: {exc}")

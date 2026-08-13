@@ -4,6 +4,7 @@
     Windows   popup/media/virtual-display/performance windows + legacy gallery
     Chat      talk to the mind, and watch one turn happen
     Voice     what the TTS is asked to say, and what came back
+    Assets    every playable file, previewed by the engine itself
     Hearing   what the microphone hears, and what the STT made of it
     Vision    what the camera sees
 
@@ -65,6 +66,7 @@ class MochiWindow:
         qt = _qt()
         QtCore, QtGui, QtWidgets = qt
 
+        from .assets import AssetsTab
         from .character_editor import CharacterEditorTab
         from .chat import ChatTab
         from .hearing import HearingTab
@@ -91,6 +93,7 @@ class MochiWindow:
         self.character_editor = CharacterEditorTab(
             app, qt, self.face.character.name,
             on_character_changed=self.mscript_editor.set_character)
+        self.assets = AssetsTab(app, qt)
         self.modules = ModulesTab(app, qt)
         self.runtime = RuntimeTab(app, qt)
         self.windows = LegacyWindowsTab(app, qt, self.window_manager)
@@ -99,7 +102,8 @@ class MochiWindow:
         self.hearing = HearingTab(app, qt)
         self.vision = VisionTab(app, qt)
         self._tabs = (
-            self.face, self.character_editor, self.mscript_editor, self.modules,
+            self.face, self.character_editor, self.mscript_editor, self.assets,
+            self.modules,
             self.runtime, self.windows, self.chat, self.voice, self.hearing,
             self.vision,
         )
@@ -107,6 +111,7 @@ class MochiWindow:
         self.widget.addTab(self.face.widget, "Face")
         self.widget.addTab(self.character_editor.widget, "Characters")
         self.widget.addTab(self.mscript_editor.widget, "MScript Editor")
+        self.widget.addTab(self.assets.widget, "Assets")
         self.widget.addTab(self.modules.widget, "Modules")
         self.widget.addTab(self.runtime.widget, "Runtime")
         self.widget.addTab(self.windows.widget, "Windows")
