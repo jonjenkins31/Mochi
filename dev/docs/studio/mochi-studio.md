@@ -45,7 +45,16 @@ tool's real cost.
 
 ## Where it went
 
-Nowhere yet. The v4 tree has:
+> **Update 2026-08-04 — it went to v5.** `SpriteEditorWidget`,
+> `BitmapEditorWidget`, `MscriptTextEditor` and `ResourceEditorDialog` are
+> now Qt, in [interfaces/sprite_editor.py](../../../interfaces/sprite_editor.py),
+> [interfaces/bitmap_editor.py](../../../interfaces/bitmap_editor.py) and
+> [interfaces/mscript_editor.py](../../../interfaces/mscript_editor.py),
+> reached from the Characters and MScript Editor tabs. The review below was
+> written against the v4 tree and is kept for the reasoning, not the status.
+> `AssetPreviewer`'s thumbnail browser is the one piece not carried over.
+
+The v4 tree had:
 
 - **No `tools/` directory** — the editors did not come across.
 - **A stub** — Studio's "Editors" tab is a wireframe placeholder

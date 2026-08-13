@@ -9,6 +9,11 @@ is, what exists in the tree today, and how they fit the node architecture in
 
 ---
 
+> **Status note 2026-08-04.** This is a v4-era review. The "editors exist
+> only in `archive/mochi-3.0/tools/`" finding below is no longer true — they
+> were ported to Qt in `interfaces/` and are tabs in the v5 app. Kept for the
+> analysis of the three "Studio" surfaces, which still holds.
+
 ## The short version
 
 "Studio" has meant three different things in this repo:

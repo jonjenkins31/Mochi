@@ -35,19 +35,20 @@ def test_mochi_never_calls_the_render_path():
         "jaeger_animation.node": "the animation NODE — subscribe, don't call",
         "jaeger_animation.adapters": "decoders are the engine's business",
         "jaeger_animation.play": "the module's own player",
-        "jaeger_ai": "a body must show a face with no AI installed",
+        "jaeger_ai": "JaegerAI is not a Mochi module yet",
         "PIL": "decoding is the engine's job",
         "numpy": "if the app needs pixels, it is doing the engine's work",
     }
     for d in ("core", "interfaces", "nodes", "modules"):
-      for path in (ROOT / d).rglob("*.py"):
-        for node in ast.walk(ast.parse(path.read_text())):
-            names = []
-            if isinstance(node, ast.Import):
-                names = [a.name for a in node.names]
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                names = [node.module]
-            for name in names:
+        for path in (ROOT / d).rglob("*.py"):
+            tree = ast.parse(path.read_text())
+            imported = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    imported.extend(a.name for a in node.names)
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    imported.append(node.module)
+            for name in imported:
                 for bad, why in forbidden.items():
                     assert not (name == bad or name.startswith(bad + ".")), (
                         f"{path.name} imports {name} — {why}")
@@ -59,7 +60,7 @@ def test_the_face_is_bound_by_slot_not_by_import():
     animation = [n for n in MANIFEST["node"] if n["id"] == "animation"][0]
     assert animation.get("slot") == "animation"
     assert not animation.get("factory"), \
-        "binding by factory hardcodes which engine fills the slot"
+        "a factory path hardcodes which engine fills the slot"
 
 
 def test_the_face_is_required_and_the_voice_is_not():
@@ -79,15 +80,31 @@ def test_the_face_is_required_and_the_voice_is_not():
             f"installed cannot run Mochi at all")
 
 
+def test_llm_waits_for_a_real_module_contract():
+    nodes = {n["id"]: n for n in MANIFEST["node"]}
+    assert "llm" not in nodes
+    assert not (ROOT / "modules" / "jaeger_ai.py").exists()
+
+
 def test_v5_1_added_no_code_to_the_app():
     """The claim v5.0 made about itself, now checkable: adding speech
     and hearing should be MANIFEST blocks, not app code. core/ is
-    still one file, and nothing in it knows what a TTS is."""
+    still one file, and nothing in it knows what a TTS is.
+
+    ONE exception, and it is the point of the directory:
+    `modules/jaeger_kokoro_tts.py` may import `jaeger_kokoro_tts`. That
+    file exists to be the single named place a provider is spelled out —
+    `modules/jaeger_agent.py` has imported `jaeger_agent.messages` since
+    v5.2 for exactly that reason. What must not happen is a SECOND file
+    naming the provider, or an integration reaching into a provider that
+    is not its namesake, and both are still caught below."""
     import ast
 
     for path in (list((ROOT / "core").glob("*.py"))
                  + list((ROOT / "interfaces").glob("*.py"))
                  + list((ROOT / "modules").glob("*.py"))):
+        # modules/<provider>.py is named after the one package it may name.
+        own = path.stem if path.parent.name == "modules" else ""
         for node in ast.walk(ast.parse(path.read_text())):
             names = []
             if isinstance(node, ast.Import):
@@ -95,6 +112,8 @@ def test_v5_1_added_no_code_to_the_app():
             elif isinstance(node, ast.ImportFrom) and node.module:
                 names = [node.module]
             for name in names:
+                if own and name.split(".")[0] == own:
+                    continue
                 assert not name.startswith(("jaeger_kokoro", "jaeger_whisper")), (
                     f"{path.name} imports {name} — the tabs watch TOPICS; "
                     f"importing an engine makes them stop working when a "
@@ -104,15 +123,45 @@ def test_v5_1_added_no_code_to_the_app():
 def test_every_tab_is_a_pure_subscriber():
     """A tab must work whether its module is installed or not. That is
     only true if it never calls the engine — it watches topics."""
-    from interfaces import hearing, voice
+    from interfaces import chat, hearing, voice
 
-    for mod in (voice, hearing):
+    for mod in (voice, hearing, chat):
         src = pathlib.Path(mod.__file__).read_text()
         assert "WATCH" in src, (
-            f"{mod.__name__} does not use its binding's WATCH list — the "
-            f"binding owns which topics follow that module")
-        assert "import jaeger_kokoro" not in src
-        assert "import jaeger_whisper" not in src
+            f"{mod.__name__} does not use its module integration's WATCH "
+            "list — that integration owns which topics follow the module")
+        tree = ast.parse(src)
+        imported = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.extend(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported.append(node.module)
+        assert not any(name.startswith("jaeger_kokoro_tts") for name in imported)
+        assert not any(name.startswith("jaeger_whisper_stt") for name in imported)
+
+
+def test_chat_talks_to_the_mind_over_topics_not_to_a_model():
+    """Chat became real in v5.2 and the boundary did not move: the tab
+    publishes a turn and renders a reply. No provider client, no prompt
+    assembled here, no model named. If this file ever imports
+    `jaeger_agent` directly it has stopped being a subscriber and
+    started being half a brain."""
+    from interfaces import chat
+
+    src = pathlib.Path(chat.__file__).read_text()
+    assert "modules.jaeger_ai" not in src
+    for node in ast.walk(ast.parse(src)):
+        names = []
+        if isinstance(node, ast.Import):
+            names = [a.name for a in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            names = [node.module]
+        for name in names:
+            assert not name.startswith("jaeger_agent"), (
+                f"chat.py imports {name} — it must go through "
+                f"modules/jaeger_agent.py, the one file allowed to name "
+                f"the provider")
 
 
 def test_the_bus_backend_is_declared_not_wired():
@@ -169,7 +218,7 @@ def test_the_expression_vocabulary_comes_from_the_pack():
     words; a different character declares different ones and plays
     through the same code."""
     literals: set[str] = set()
-    for name in ("modules/animation.py", "interfaces/player.py", "main.py"):
+    for name in ("modules/jaeger_animation.py", "interfaces/player.py", "main.py"):
         literals |= _string_literals(ROOT / name)
     for word in ("happy", "angry", "crying", "shocked", "unamused", "love"):
         assert word not in literals, (
@@ -180,7 +229,7 @@ def test_the_expression_vocabulary_comes_from_the_pack():
 @pytest.fixture
 def emotes():
     pytest.importorskip("jaeger_animation")
-    from modules import animation as characters
+    from modules import jaeger_animation as characters
     return characters.load("emotes")
 
 
@@ -194,7 +243,7 @@ def emotes():
 
 def test_the_pack_reader_comes_from_the_module():
     """The format is the contract between Anima Studio and
-    JaegerAnimation; the MODULE owns the reader. A binding that parsed
+    JaegerAnimation; the MODULE owns the reader. An app integration that parsed
     character.yaml itself would be a second copy of that truth, and
     the module's is better — it refuses a `kind` it cannot render
     instead of silently showing nothing.
@@ -207,7 +256,7 @@ def test_the_pack_reader_comes_from_the_module():
     import inspect
 
     from jaeger_animation import characters as module_characters
-    from modules import animation
+    from modules import jaeger_animation as animation
 
     assert animation.Character is module_characters.Character
 
@@ -217,11 +266,11 @@ def test_the_pack_reader_comes_from_the_module():
             imported |= {a.name.split(".")[0] for a in node.names}
         elif isinstance(node, ast.ImportFrom) and node.module:
             imported.add(node.module.split(".")[0])
-    assert "yaml" not in imported, "the binding parses the pack format itself"
+    assert "yaml" not in imported, "the app integration parses the pack format"
 
 def test_a_project_character_shadows_a_bundled_one():
     """What Mochi is FOR: demo packs exported from Anima Studio. Drop a
-    folder into assets/characters/ and it plays — and a project copy
+    folder into characters/ and it plays — and a project copy
     beats the one bundled inside an installed module, so editing it
     means editing files you can see.
 
@@ -229,17 +278,17 @@ def test_a_project_character_shadows_a_bundled_one():
     format, validating it, and turning an expression into adapter
     params are the module's, and it has 30 tests for them."""
     pytest.importorskip("jaeger_animation")
-    from modules import animation as characters
+    from modules import jaeger_animation as characters
 
     loaded = characters.load("emotes")
-    assert loaded.root.is_relative_to(ROOT / "assets" / "characters"), (
+    assert loaded.root.is_relative_to(ROOT / "characters"), (
         f"loaded the bundled copy at {loaded.root} — a project pack "
         f"must win, or 'edit the character' means editing site-packages")
 
 
 def test_a_missing_pack_says_where_it_looked():
     """Mochi owns the search order, so Mochi owns this error."""
-    from modules.animation import CharacterError, load
+    from modules.jaeger_animation import CharacterError, load
 
     with pytest.raises(CharacterError, match="Looked in"):
         load("no-such-character")
@@ -248,7 +297,7 @@ def test_a_missing_pack_says_where_it_looked():
 def test_packs_are_listed_from_the_filesystem():
     """Installing a pack is copying a folder. No registry, no build
     step, nothing to edit — that is the demo workflow."""
-    from modules import animation as characters
+    from modules import jaeger_animation as characters
     assert "emotes" in characters.available()
 
 
@@ -315,7 +364,7 @@ def test_every_public_helper_is_actually_used():
                 [n.attr for n in ast.walk(ast.parse((ROOT / "main.py").read_text()))
                  if isinstance(n, ast.Attribute)])
 
-    from modules import animation as characters
+    from modules import jaeger_animation as characters
     for name in characters.__all__:
         if name[0].isupper() or name.isupper():
             continue          # types and constants, used by annotation

@@ -121,12 +121,17 @@ second project, it belongs in a module instead.
 
 ### What v5 has NOT proven
 
-- **3.0's tools are gone.** The bitmap, sprite and mscript editors
-  (6 files) have no v5 equivalent. They belong in Anima Studio, and
-  Anima Studio is a separate project — so today that capability is
-  simply missing.
+- ~~**3.0's tools are gone.**~~ **Superseded 2026-08-04.** The bitmap,
+  sprite and mscript editors were ported to Qt as
+  `interfaces/{bitmap,sprite,mscript}_editor.py` and live in the
+  Characters and MScript Editor tabs. What did *not* come across:
+  `bitmap_editor_gui.py`'s frame-sequence player (a preview, not an
+  editor — the media player covers it) and `mochi_studio.py`'s
+  thumbnail asset browser.
 - **The monitor CLI is gone.** 3.0 had `monitor_cli.py` and
-  `control_cli.py`. JaegerOS has a control plane that replaces them in
+  `control_cli.py`. Both spoke ZMQ to sockets v5 does not open, so
+  there was nothing to port — `main.py --nodes` answers the inventory
+  half. JaegerOS has a control plane that replaces the rest in
   principle; nobody has driven it from a terminal against Mochi.
 - **Nobody has seen the window.** Every claim here is headless.
 
@@ -137,15 +142,16 @@ second project, it belongs in a module instead.
 **25 of 26** of 3.0's procedural scenes render on v5 unmodified:
 
 ```bash
-python3 main.py --asset archive/mochi-3.0/assets/math/wave_scene.py
+python3 main.py --asset assets/math/wave_scene.py
 ```
 
 The 26th (`bars.py`) references `self.fg` and never assigns it — broken
 in 3.0 too.
 
-That number is the honest parity claim. Not "v5 replaces 3.0" — it
-does not, it has no editors — but the rendering half, which is most of
-3.0's value, came through intact and is now shared.
+That number is the honest parity claim: the rendering half, which is
+most of 3.0's value, came through intact and is now shared. The
+authoring half followed on 2026-08-04, which is what made deleting the
+3.0 tree safe.
 
 ---
 
