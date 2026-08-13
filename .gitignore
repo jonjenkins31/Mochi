@@ -105,6 +105,13 @@ sandbox/
 .env.*
 !.env.example
 
+# jaeger-agent's per-install state: logs, memory, skills, workspace.
+# Runtime, not source — the mind writes here while it runs.
+.jaeger_agent/
+
+# Stills written by the Vision tab's Capture button.
+assets/captures/
+
 # 0.2.6 — operator state lives at <install_root>/.mochi/
 # (instances/, agents/, models/, jaeger.env, backups/). Always ignored.
 .mochi/
