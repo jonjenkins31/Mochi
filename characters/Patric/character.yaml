@@ -1,0 +1,59 @@
+schema: character/v1
+
+character: patric
+name: "Patric"
+version: 0.1.0
+author: "Unknown"
+license: "Unspecified"
+description: >-
+  Sixteen pixel-art Patric poses stored in a partially populated 6x3
+  sprite sheet.
+
+kind: sprite_sheet
+
+assets:
+  primary:
+    file: assets/patric_emotes.bmp
+    type: sprite_sheet
+    adapter: sprite
+    properties: assets/patric_emotes.props.yaml
+    layout: grid
+
+default_asset: primary
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/pose_cycle.mscript
+
+render:
+  adapter: sprite
+  asset: assets/patric_emotes.bmp
+  grid: [6, 3]
+  cell_size: [111, 193]
+  ideal_size: [111, 193]
+  framing: fit
+  scaling: nearest
+
+# These are flat cells rather than expression x mouth pairs. ``column``
+# preserves compatibility with the character/v1 validator; Mochi uses the
+# explicit row-major ``cell`` value.
+expressions:
+  pose_01: {column: 0, cell: 0}
+  pose_02: {column: 1, cell: 1}
+  pose_03: {column: 2, cell: 2}
+  pose_04: {column: 3, cell: 3}
+  pose_05: {column: 4, cell: 4}
+  pose_06: {column: 5, cell: 5}
+  pose_07: {column: 0, cell: 6}
+  pose_08: {column: 1, cell: 7}
+  pose_09: {column: 2, cell: 8}
+  pose_10: {column: 3, cell: 9}
+  pose_11: {column: 4, cell: 10}
+  pose_12: {column: 5, cell: 11}
+  pose_13: {column: 0, cell: 12}
+  pose_14: {column: 1, cell: 13}
+  pose_15: {column: 2, cell: 14}
+  pose_16: {column: 3, cell: 15}
+
+default_expression: pose_01
+default_mouth: ""

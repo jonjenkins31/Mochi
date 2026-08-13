@@ -1,0 +1,11 @@
+schema: mochi/popup-player/v1
+skin: tv1
+canvas:
+- 512
+- 512
+scale: 0.75
+opacity: 1.0
+topmost: true
+draggable: true
+framing: fill
+pixel_art: true

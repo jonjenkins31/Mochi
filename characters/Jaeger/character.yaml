@@ -1,0 +1,35 @@
+schema: character/v1
+
+character: jaeger
+name: "Jaeger"
+version: 0.1.0
+author: "Unknown"
+license: "Unspecified"
+description: "A portrait-style Jaeger character."
+
+kind: clip_set
+
+assets:
+  primary:
+    file: assets/poster.jpg
+    type: image
+    adapter: image
+
+default_asset: primary
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/idle.mscript
+
+render:
+  adapter: image
+  asset: assets/poster.jpg
+  ideal_size: [720, 1280]
+  framing: fit
+  scaling: smooth
+
+expressions:
+  idle: {clips: assets/poster.jpg, loop: false}
+
+default_expression: idle
+default_mouth: ""

@@ -1,0 +1,35 @@
+schema: character/v1
+
+character: eve
+name: "Eve"
+version: 0.1.0
+author: "Unknown"
+license: "Unspecified"
+description: "A still Eve character image."
+
+kind: clip_set
+
+assets:
+  primary:
+    file: assets/eve.png
+    type: image
+    adapter: image
+
+default_asset: primary
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/idle.mscript
+
+render:
+  adapter: image
+  asset: assets/eve.png
+  ideal_size: [768, 480]
+  framing: fit
+  scaling: smooth
+
+expressions:
+  idle: {clips: assets/eve.png, loop: false}
+
+default_expression: idle
+default_mouth: ""

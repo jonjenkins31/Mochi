@@ -1,0 +1,39 @@
+schema: asset-props/v1
+
+name: "Patric Emotes"
+author: "Unknown"
+license: "Unspecified"
+kind: sprite_sheet
+layout: grid
+
+hint: >-
+  Sixteen populated cells in a 6x3 pixel-art sheet. The final two cells
+  are empty and are intentionally not exposed as character expressions.
+
+grid: [6, 3]
+cell_size: [111, 193]
+sheet_size: [668, 580]
+
+cells:
+  pose_01: 0
+  pose_02: 1
+  pose_03: 2
+  pose_04: 3
+  pose_05: 4
+  pose_06: 5
+  pose_07: 6
+  pose_08: 7
+  pose_09: 8
+  pose_10: 9
+  pose_11: 10
+  pose_12: 11
+  pose_13: 12
+  pose_14: 13
+  pose_15: 14
+  pose_16: 15
+
+unused_cells: [16, 17]
+default: pose_01
+ideal_size: [111, 193]
+framing: fit
+scaling: nearest

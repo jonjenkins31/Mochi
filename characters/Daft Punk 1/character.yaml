@@ -1,0 +1,40 @@
+schema: character/v1
+
+character: daft_punk_1
+name: "Daft Punk 1"
+version: 0.1.0
+author: "Unknown"
+license: "Unspecified"
+description: "A wide Daft Punk face with animated and still artwork."
+
+kind: clip_set
+
+assets:
+  animated:
+    file: assets/animation.gif
+    type: gif
+    adapter: gif
+  still:
+    file: assets/portrait.jpeg
+    type: image
+    adapter: image
+
+default_asset: animated
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/showcase.mscript
+
+render:
+  adapter: gif
+  asset: assets/animation.gif
+  ideal_size: [600, 200]
+  framing: fit
+  scaling: smooth
+
+expressions:
+  animated: {clips: assets/animation.gif, adapter: gif, loop: true}
+  portrait: {clips: assets/portrait.jpeg, adapter: image, loop: false}
+
+default_expression: animated
+default_mouth: ""

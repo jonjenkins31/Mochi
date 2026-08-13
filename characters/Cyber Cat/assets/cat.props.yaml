@@ -1,0 +1,59 @@
+schema: asset-props/v1
+
+name: "Cat"
+author: "Jenkins Robotics"
+license: "Unspecified"
+kind: sprite_sheet
+variant: generated
+layout: grid
+
+hint: >-
+  Nine cat expressions in two mouth states. Select an expression by
+  column and alternate rows to animate speech.
+
+grid: [9, 2]
+cell_size: [128, 128]
+sheet_size: [1152, 256]
+
+rows:
+  0: open
+  1: closed
+
+cells:
+  love_open: 0
+  shocked_open: 1
+  angry_open: 2
+  nervous_open: 3
+  frustrated_open: 4
+  crying_open: 5
+  happy_open: 6
+  unamused_open: 7
+  neutral_open: 8
+  love_closed: 9
+  shocked_closed: 10
+  angry_closed: 11
+  nervous_closed: 12
+  frustrated_closed: 13
+  crying_closed: 14
+  happy_closed: 15
+  unamused_closed: 16
+  neutral_closed: 17
+
+emotions:
+  love: 0
+  shocked: 1
+  angry: 2
+  nervous: 3
+  frustrated: 4
+  crying: 5
+  happy: 6
+  unamused: 7
+  neutral: 8
+
+default: neutral_closed
+
+ideal_size: [128, 128]
+framing: fit
+scaling: smooth
+
+source: "assets/1B47E7EA-F50C-47B9-A58B-A426C4CEDEAB_1_105_c.jpeg"

@@ -1,0 +1,28 @@
+schema: asset-props/v1
+
+name: "Bitmap Man Faces"
+author: "Unknown"
+license: "Unspecified"
+kind: bitmap_set
+
+hint: >-
+  Six playable 72x32 paired-eye faces generated from the legacy unpacked
+  32x32 eye sprite definitions.
+
+files:
+  neutral: faces/neutral_blink.json
+  happy: faces/happy_blink.json
+  closed: faces/closed.json
+  look_down: faces/look_down.json
+  sad: faces/sad_blink.json
+  look_up: faces/look_up.json
+
+ideal_size: [72, 32]
+framing: fit
+scaling: nearest
+fg_rgb: [255, 255, 255]
+bg_rgb: [0, 0, 0]
+
+source:
+  animations: source/2.json
+  sprites: source/eye_sprites.json

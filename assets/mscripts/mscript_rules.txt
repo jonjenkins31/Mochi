@@ -1,0 +1,14 @@
+! MochiScript — the language reference MOVED.
+!
+! It now lives with the engine that executes it:
+!
+!     JaegerAnimation/jaeger_animation/docs/MSCRIPT.md
+!
+! This file was the v2.0 spec and it had drifted from the engine — it
+! documented LBL/JMP that nothing implemented (they are real as of
+! 2026-08-09), promised a [Keyframes] section the parser ignores, and
+! omitted IMAGE, GIF, VIDEO, MSCRIPT, D[auto] and the EVENT mode, which
+! are all real. A spec kept next to the scripts rather than next to the
+! parser is a spec nobody updates when the parser changes.
+!
+! Mochi's pointer page: docs/learn/mscripts.md

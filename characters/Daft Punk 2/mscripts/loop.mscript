@@ -1,0 +1,11 @@
+[Header start]
+! Daft Punk 2 animation loop
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Daft Punk 2/assets/animation.gif'
+[Resources end]
+
+[Main start]
+MEDIA K[1] D[5.0]
+[Main end]

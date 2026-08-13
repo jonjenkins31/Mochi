@@ -1,0 +1,14 @@
+[Header start]
+! Patric pose cycle
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Patric/assets/patric_emotes.bmp'
+[Resources end]
+
+[Main start]
+SPRITE K[1] D[0.75] SRC[0,0,111,193]
+SPRITE K[1] D[0.75] SRC[111,0,111,193]
+SPRITE K[1] D[0.75] SRC[222,0,111,193]
+SPRITE K[1] D[0.75] SRC[333,0,111,193]
+[Main end]

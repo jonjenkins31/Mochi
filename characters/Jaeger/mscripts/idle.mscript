@@ -1,0 +1,11 @@
+[Header start]
+! Jaeger idle portrait
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Jaeger/assets/poster.jpg'
+[Resources end]
+
+[Main start]
+IMAGE K[1] D[5.0]
+[Main end]

@@ -1,0 +1,35 @@
+schema: character/v1
+
+character: daft_punk_2
+name: "Daft Punk 2"
+version: 0.1.0
+author: "Unknown"
+license: "Unspecified"
+description: "A wide animated Daft Punk face."
+
+kind: clip_set
+
+assets:
+  primary:
+    file: assets/animation.gif
+    type: gif
+    adapter: gif
+
+default_asset: primary
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/loop.mscript
+
+render:
+  adapter: gif
+  asset: assets/animation.gif
+  ideal_size: [600, 200]
+  framing: fit
+  scaling: smooth
+
+expressions:
+  animated: {clips: assets/animation.gif, loop: true}
+
+default_expression: animated
+default_mouth: ""

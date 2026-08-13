@@ -1,0 +1,64 @@
+schema: character/v1
+
+character: cat
+name: "Cat"
+version: 0.1.0
+author: "Jenkins Robotics"
+license: "Unspecified"
+description: >-
+  A black cat developer mascot with nine expressions and paired
+  speaking and resting mouth states.
+
+kind: sprite_sheet
+
+# All artwork carried by this character. ``render`` below remains the
+# character/v1-compatible active asset; consumers can select either entry
+# and read its layout from the named sidecar.
+assets:
+  generated:
+    file: assets/cat.png
+    type: sprite_sheet
+    properties: assets/cat.props.yaml
+    adapter: sprite
+    layout: grid
+  legacy:
+    file: assets/1B47E7EA-F50C-47B9-A58B-A426C4CEDEAB_1_105_c.jpeg
+    type: sprite_sheet
+    properties: assets/1B47E7EA-F50C-47B9-A58B-A426C4CEDEAB_1_105_c.props.yaml
+    adapter: sprite
+    layout: regions
+
+default_asset: generated
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/talking.mscript
+
+render:
+  adapter: sprite
+  asset: assets/cat.png
+  grid: [9, 2]
+  cell_size: [128, 128]
+  ideal_size: [128, 128]
+  framing: fit
+  scaling: smooth
+
+expressions:
+  love: {column: 0}
+  shocked: {column: 1}
+  angry: {column: 2}
+  nervous: {column: 3}
+  frustrated: {column: 4}
+  crying: {column: 5}
+  happy: {column: 6}
+  unamused: {column: 7}
+  neutral: {column: 8}
+
+mouth_states:
+  open: 0
+  closed: 1
+
+default_expression: neutral
+default_mouth: closed
+
+source: "assets/1B47E7EA-F50C-47B9-A58B-A426C4CEDEAB_1_105_c.jpeg"

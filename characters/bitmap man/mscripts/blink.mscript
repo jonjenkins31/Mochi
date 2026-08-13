@@ -1,0 +1,16 @@
+[Header start]
+! Bitmap Man neutral blink
+[Header end]
+
+[Resources start]
+K[1]: 'characters/bitmap man/assets/faces/neutral_blink.json'
+K[2]: 'characters/bitmap man/assets/faces/closed.json'
+[Resources end]
+
+[Main start]
+BITMAP K[1] D[1.50]
+BITMAP K[2] D[0.15]
+BITMAP K[1] D[1.00]
+BITMAP K[2] D[0.15]
+BITMAP K[1] D[1.50]
+[Main end]

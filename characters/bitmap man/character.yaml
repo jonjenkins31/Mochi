@@ -1,0 +1,45 @@
+schema: character/v1
+
+character: bitmap_man
+name: "Bitmap Man"
+version: 0.1.0
+author: "Unknown"
+license: "Unspecified"
+description: >-
+  A monochrome eye character built from paired 32x32 legacy bitmap sprites.
+
+kind: clip_set
+
+assets:
+  faces:
+    root: assets/faces
+    type: bitmap_set
+    adapter: bitmap
+    properties: assets/faces.props.yaml
+  source:
+    root: assets/source
+    type: bitmap_source
+
+default_asset: faces
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/blink.mscript
+
+render:
+  adapter: bitmap
+  asset: assets/faces/neutral_blink.json
+  ideal_size: [72, 32]
+  framing: fit
+  scaling: nearest
+
+expressions:
+  neutral: {clips: assets/faces/neutral_blink.json, loop: false}
+  happy: {clips: assets/faces/happy_blink.json, loop: false}
+  closed: {clips: assets/faces/closed.json, loop: false}
+  look_down: {clips: assets/faces/look_down.json, loop: false}
+  sad: {clips: assets/faces/sad_blink.json, loop: false}
+  look_up: {clips: assets/faces/look_up.json, loop: false}
+
+default_expression: neutral
+default_mouth: ""

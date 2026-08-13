@@ -1,0 +1,35 @@
+schema: character/v1
+
+character: purge_man
+name: "Purge Man"
+version: 0.1.0
+author: "Unknown"
+license: "Unspecified"
+description: "A wide Purge Man character image."
+
+kind: clip_set
+
+assets:
+  primary:
+    file: assets/purge-man.jpg
+    type: image
+    adapter: image
+
+default_asset: primary
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/idle.mscript
+
+render:
+  adapter: image
+  asset: assets/purge-man.jpg
+  ideal_size: [960, 423]
+  framing: fit
+  scaling: smooth
+
+expressions:
+  idle: {clips: assets/purge-man.jpg, loop: false}
+
+default_expression: idle
+default_mouth: ""

@@ -1,0 +1,65 @@
+schema: asset-props/v1
+
+name: "Cat Legacy Character Board"
+author: "Jenkins Robotics"
+license: "Unspecified"
+kind: sprite_sheet
+variant: legacy
+layout: regions
+
+hint: >-
+  The original cat character board. This is an irregular atlas, so each
+  named sprite carries an explicit [x, y, width, height] source rectangle
+  instead of assuming a uniform grid.
+
+sheet_size: [886, 886]
+
+# Values map directly to the sprite adapter's ``src`` parameter. The regions
+# intentionally exclude the printed captions beneath the artwork.
+sprites:
+  growing_egg:       {src: [61, 138, 52, 63]}
+  growing_baby:      {src: [149, 141, 61, 60]}
+  growing_toddler:   {src: [250, 110, 83, 91]}
+  growing_child:     {src: [380, 75, 101, 126]}
+  growing_teen:      {src: [533, 42, 121, 160]}
+  growing_adult:     {src: [680, 15, 131, 187]}
+
+  idle_1:            {src: [37, 269, 102, 120]}
+  idle_2:            {src: [174, 276, 95, 113]}
+  idle_blink:        {src: [309, 274, 101, 115]}
+  idle_look_around:  {src: [451, 268, 104, 121]}
+  idle_tail_wag:     {src: [591, 268, 112, 121]}
+  idle_ear_twitch:   {src: [730, 267, 112, 122]}
+
+  action_idle_walk:  {src: [22, 427, 151, 132]}
+  action_run:        {src: [167, 428, 150, 131]}
+  action_jump:       {src: [331, 429, 97, 129]}
+  action_happy:      {src: [456, 447, 117, 109]}
+  action_angry:      {src: [605, 443, 100, 113]}
+  action_thinking:   {src: [734, 437, 131, 119]}
+
+  work_typing:       {src: [22, 597, 134, 115]}
+  work_coding:       {src: [172, 607, 137, 106]}
+  work_reading:      {src: [336, 610, 93, 104]}
+  work_eating:       {src: [461, 610, 118, 104]}
+  work_drinking:     {src: [599, 607, 100, 107]}
+  work_sleeping:     {src: [731, 567, 125, 147]}
+
+  emotion_neutral:   {src: [29, 777, 86, 79]}
+  emotion_happy:     {src: [130, 776, 108, 80]}
+  emotion_excited:   {src: [231, 776, 98, 80]}
+  emotion_sad:       {src: [343, 776, 86, 80]}
+  emotion_surprised: {src: [444, 773, 92, 83]}
+  emotion_confused:  {src: [561, 772, 102, 84]}
+  emotion_love:      {src: [670, 766, 97, 89]}
+  emotion_tired:     {src: [780, 776, 95, 80]}
+
+default: emotion_neutral
+ideal_size: [128, 128]
+framing: fit
+scaling: smooth
+
+notes: >-
+  Legacy art contains development stages, idle/action/work poses, and emotion
+  heads on one board. It is intentionally described with regions rather than
+  being repacked or resized.

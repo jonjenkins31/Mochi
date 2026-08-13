@@ -1,0 +1,13 @@
+[Header start]
+! Daft Punk 1 animated and still showcase
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Daft Punk 1/assets/animation.gif'
+K[2]: 'characters/Daft Punk 1/assets/portrait.jpeg'
+[Resources end]
+
+[Main start]
+MEDIA K[1] D[3.0]
+IMAGE K[2] D[2.0]
+[Main end]

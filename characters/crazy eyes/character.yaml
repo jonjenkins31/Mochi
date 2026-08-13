@@ -1,0 +1,35 @@
+schema: character/v1
+
+character: crazy_eyes
+name: "Crazy Eyes"
+version: 0.1.0
+author: "Unknown"
+license: "Unspecified"
+description: "A robotic flashing-eyes image character."
+
+kind: clip_set
+
+assets:
+  primary:
+    file: assets/crazy-eyes.webp
+    type: image
+    adapter: image
+
+default_asset: primary
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/idle.mscript
+
+render:
+  adapter: image
+  asset: assets/crazy-eyes.webp
+  ideal_size: [480, 268]
+  framing: fit
+  scaling: smooth
+
+expressions:
+  idle: {clips: assets/crazy-eyes.webp, loop: false}
+
+default_expression: idle
+default_mouth: ""

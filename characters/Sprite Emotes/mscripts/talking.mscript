@@ -1,0 +1,15 @@
+[Header start]
+! Emotes neutral talking loop
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Sprite Emotes/assets/emotes.png'
+[Resources end]
+
+[Main start]
+SPRITE K[1] D[0.35] SRC[1024,128,128,128]
+SPRITE K[1] D[0.18] SRC[1024,0,128,128]
+SPRITE K[1] D[0.30] SRC[1024,128,128,128]
+SPRITE K[1] D[0.15] SRC[1024,0,128,128]
+SPRITE K[1] D[0.50] SRC[1024,128,128,128]
+[Main end]

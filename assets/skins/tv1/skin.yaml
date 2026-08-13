@@ -1,0 +1,12 @@
+schema: mochi/player-skin/v1
+id: tv1
+name: TV 1
+description: Retro CRT television bezel imported from Mochi 3.0.
+image: assets/video/player/tv1.png
+screen_bbox: [425, 289, 150, 150]
+defaults:
+  scale: 0.75
+  opacity: 1.0
+  topmost: true
+  draggable: true
+

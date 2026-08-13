@@ -1,0 +1,72 @@
+schema: character/v1
+
+character: mochi
+name: "Mochi"
+version: 0.1.0
+author: "Jenkins Robotics"
+license: "Unspecified"
+description: >-
+  Mochi's animated face as five paired video scenes, with enhanced and
+  original clip collections preserved in the same character pack.
+
+kind: clip_set
+
+assets:
+  enhanced:
+    root: "assets/mochi enhance"
+    type: clip_set
+    adapter: video
+    resolution: [576, 384]
+  original:
+    root: assets/mochi2
+    type: clip_set
+    adapter: video
+    resolution: [360, 234]
+  source:
+    file: "assets/Mochi Gifs/mochi.mp4"
+    type: video
+    adapter: video
+
+default_asset: enhanced
+
+motion_scripts:
+  root: mscripts
+  default: mscripts/scene_cycle.mscript
+
+# ``render.asset`` is the compatibility/default clip required by
+# character/v1. Individual expressions select their own clip below.
+render:
+  adapter: video
+  asset: "assets/mochi enhance/split_0_0_restored.mp4"
+  ideal_size: [576, 384]
+  framing: fit
+  scaling: smooth
+
+expressions:
+  scene_0:
+    clips:
+      primary: "assets/mochi enhance/split_0_0_restored.mp4"
+      alternate: "assets/mochi enhance/split_0_1_restored.mp4"
+  scene_1:
+    clips:
+      primary: "assets/mochi enhance/split_1_0_restored.mp4"
+      alternate: "assets/mochi enhance/split_1_1_restored.mp4"
+  scene_2:
+    clips:
+      primary: "assets/mochi enhance/split_2_0_restored.mp4"
+      alternate: "assets/mochi enhance/split_2_1_restored.mp4"
+  scene_3:
+    clips:
+      primary: "assets/mochi enhance/split_3_0_restored.mp4"
+      alternate: "assets/mochi enhance/split_3_1_restored.mp4"
+  scene_4:
+    clips:
+      primary: "assets/mochi enhance/split_4_0_restored.mp4"
+      alternate: "assets/mochi enhance/split_4_1_restored.mp4"
+
+mouth_states:
+  primary: 0
+  alternate: 1
+
+default_expression: scene_0
+default_mouth: primary
