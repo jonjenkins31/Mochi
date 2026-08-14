@@ -105,4 +105,104 @@ def available(project_root: pathlib.Path | None = None) -> tuple:
                  for path in sorted((root / "assets" / "timelines").glob("*.json")))
 
 
-__all__ = ["StagingError", "load", "resolve", "available"]
+__all__ = ["StagingError", "Conductor", "load", "resolve", "available"]
+
+
+class Conductor:
+    """Play a timeline whose tracks may hold CUES as well as events.
+
+    This is the join between the two shapes, and the answer to "does a
+    timeline run mscripts?" — it does, one runner per script track, all
+    started against the same clock:
+
+        track: eyes    ─ events ──┐
+        track: voice   ─ events ──┼─ JaegerOS TimelineRunner (one clock)
+        track: light   ─ events ──┘
+        track: gesture ─ cue ─────── a SceneRunner, started at its offset
+        track: idle    ─ cue ─────── another, concurrently
+
+    So a track is the channel, a cue is a channel's program, and
+    concurrency comes from having several tracks — not from making one
+    sequencer multi-threaded, which is how you get a program counter
+    that no longer reads like one.
+
+    WHY THE SCHEDULER DOES NOT DO THIS ITSELF. JaegerOS owns the clock
+    and the wire format; the sequencer lives in the app. Teaching the
+    scheduler to run mscripts would make the timeline format depend on
+    one particular sequencer, and the whole point of a track kind is
+    that a consumer it has never heard of can own it.
+
+    WHAT IT STILL CANNOT DO. A cue that LISTENs stops for a person, and
+    a wall clock does not stop with it — the other tracks keep going and
+    sync is lost after. That is the honest limit of putting a reactive
+    thing on a fixed clock, and choosing per cue (hold the transport, or
+    let it drift) is the next decision, not a thing to paper over.
+    """
+
+    def __init__(self, app: Any, character: Any) -> None:
+        self.app = app
+        self.character = character
+        self._runners: list[Any] = []
+        self._timers: list[Any] = []
+        self._timeline: Any = None
+
+    @property
+    def running(self) -> bool:
+        return bool(self._timeline and not self._timeline.finished)
+
+    def start(self, timeline: Timeline,
+              on_event: Any = None) -> None:
+        """Start every track. Events go to the scheduler, cues to their
+        own runner, all measured from the same t=0."""
+        import threading
+
+        from jaeger_os.timeline import TRACK_SCRIPT, TimelineRunner
+
+        from core import scenes as scene_lib
+
+        self.stop()
+        events = Timeline(
+            name=timeline.name, description=timeline.description,
+            duration_ms=timeline.duration_ms, loop=timeline.loop,
+            tracks=[t for t in timeline.tracks if t.kind != TRACK_SCRIPT])
+        self._timeline = TimelineRunner(self.app.bus, events)
+        self._timeline.start()
+
+        for track in timeline.tracks:
+            if track.kind != TRACK_SCRIPT:
+                continue
+            for clip in track.clips:
+                path = str((clip.payload or {}).get("script", "")).strip()
+                if not path:
+                    continue
+                runner = scene_lib.SceneRunner(
+                    self.app, self.character, on_event=on_event)
+                self._runners.append(runner)
+                timer = threading.Timer(
+                    max(0.0, clip.t_offset_ms / 1000.0),
+                    self._fire, args=(runner, path))
+                timer.daemon = True
+                self._timers.append(timer)
+                timer.start()
+
+    def _fire(self, runner: Any, path: str) -> None:
+        from core import scenes as scene_lib
+
+        try:
+            runner.start(scene_lib.load(path))
+        except Exception:  # noqa: BLE001 — one bad cue, not a dead scene
+            pass
+
+    def wait(self, timeout: float | None = None) -> bool:
+        return bool(self._timeline and self._timeline.wait(timeout=timeout))
+
+    def stop(self) -> None:
+        for timer in self._timers:
+            timer.cancel()
+        self._timers = []
+        for runner in self._runners:
+            runner.stop()
+        self._runners = []
+        if self._timeline is not None:
+            self._timeline.stop()
+            self._timeline = None

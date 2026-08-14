@@ -1,0 +1,28 @@
+{
+  "name": "bitmap_two_cues",
+  "description": "Two mscripts running concurrently on one clock, plus a voice track.",
+  "duration_ms": 9000,
+  "tracks": [
+    {
+      "kind": "script", "target": "bitmap_man", "name": "eyes (a cue)",
+      "clips": [
+        {"t_offset_ms": 0, "label": "wander",
+         "payload": {"script": "characters/bitmap man/mscripts/glance_about.mscript"}}
+      ]
+    },
+    {
+      "kind": "speech", "target": "bitmap_man", "name": "voice (events)",
+      "clips": [
+        {"t_offset_ms": 800,  "payload": {"text": "I can look around and talk at the same time."}},
+        {"t_offset_ms": 4200, "payload": {"text": "The eyes are a separate cue on their own track."}}
+      ]
+    },
+    {
+      "kind": "script", "target": "bitmap_man", "name": "punctuation (a second cue)",
+      "clips": [
+        {"t_offset_ms": 7000, "label": "grin at the end",
+         "payload": {"script": "characters/bitmap man/mscripts/blink.mscript"}}
+      ]
+    }
+  ]
+}

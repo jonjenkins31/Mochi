@@ -1,0 +1,18 @@
+[Header start]
+! Bitmap Man — a cue. Eyes wander; says nothing.
+! Meant to run ON A TRACK, concurrently with a voice track.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/bitmap man/assets/faces/neutral_blink.json'
+[Resources end]
+
+[Main start]
+LBL[1:wander]
+FACE EXPR[look_up]   D[0.9]
+FACE EXPR[neutral]   D[0.5]
+FACE EXPR[look_down] D[0.9]
+FACE EXPR[neutral]   D[0.7]
+FACE EXPR[closed]    D[0.2]
+JMP LBL[1]
+[Main end]

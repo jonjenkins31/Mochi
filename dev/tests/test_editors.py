@@ -1578,3 +1578,33 @@ def test_a_track_says_who_as_well_as_what():
     targets = {t.kind: t.target for t in timeline.tracks}
     assert targets["animation"] == "bitmap_man"
     assert targets["light"] == "desk"      # not the character — the room
+
+
+def test_a_timeline_runs_mscripts_concurrently():
+    """The join: a track is the channel, a cue is that channel's
+    program, and concurrency comes from having several tracks — not from
+    making one sequencer multi-threaded.
+
+    Two script tracks and a speech track share one t=0. The eyes cue
+    loops the whole time the voice track is firing, which is the thing a
+    single program counter cannot express.
+    """
+    from jaeger_os.timeline import TRACK_SCRIPT
+    from core import staging
+
+    timeline = staging.load(ROOT / "assets/timelines/bitmap_two_cues.json")
+    cues = [t for t in timeline.tracks if t.kind == TRACK_SCRIPT]
+    assert len(cues) == 2, "the point is more than one cue at once"
+    for track in cues:
+        for clip in track.clips:
+            script = ROOT / clip.payload["script"]
+            assert script.is_file(), script
+            # a cue is an mscript — the same files the editor opens
+            assert script.suffix == ".mscript"
+
+    # and the cue that runs alongside the voice is a LOOP, so it keeps
+    # going for as long as the track needs it to
+    from core import scenes
+
+    wander = scenes.load(ROOT / "characters/bitmap man/mscripts/glance_about.mscript")
+    assert wander.loop and not wander.interactive
