@@ -385,8 +385,7 @@ class HybridPlayer:
         #: Constraints, in order. Each returns a narrowed list of squares
         #: — never an empty one, so a rule can prefer without forbidding.
         self.rules = rules if rules is not None else (
-            [rule_take_the_win, rule_block_the_loss, rule_deny_the_fork]
-            if intent == "win"
+            [rule_take_the_win, rule_block_the_loss] if intent == "win"
             else [rule_take_the_win] if intent == "even"
             else [])          # conceding: no rule should rescue the game
         self.vetoes = 0
@@ -501,17 +500,19 @@ def evolve(population: int = 24, generations: int = 30, games: int = 12,
 def rule_deny_the_fork(board: str, mark: str, options: list[int]) -> list[int]:
     """Do not hand them a square from which they get TWO threats.
 
-    Added after the bench found it. Two rules — take the win, block the
+    NOT IN THE DEFAULT SET — it measurably hurts. Added after the bench found it. Two rules — take the win, block the
     loss — removed every immediate loss and still lost 30 games in 180,
     because a fork is not an immediate loss: it is a move that makes two
     of them, and by the time either shows up it is unanswerable.
 
-    This is the property worth having, demonstrated. The failure was
-    found by measurement, described in one sentence, and fixed by adding
-    a rule — no retraining, no data, no loss curve. A learned policy
-    fixes this by seeing enough forks that it stops walking into them,
-    which is exactly the expensive long tail. A rule fixes it on the
-    first sample, and keeps working when the policy is replaced.
+    AND IT DID NOT WORK. The loss cluster it was written for did not
+    move (30/180 before and after), and it cost games elsewhere — with
+    it enabled a 10k policy loses 20/120 where two rules lose none. So
+    it is kept, exported, and switched OFF: pass it explicitly to
+    experiment with. The lesson is the honest half of the hybrid claim —
+    a rule is only right if it encodes something true, and "avoid
+    positions from which a fork is reachable" is too blunt to be true.
+    Constraints are cheap to add and not free to get right.
     """
     other = "O" if mark == "X" else "X"
 
