@@ -32,6 +32,7 @@ from typing import Any
 from jaeger_os import topics
 
 from core import expressive, scenes as scene_lib, staging
+from nodes import tictactoe
 from modules import jaeger_agent as mind
 from modules import jaeger_animation as animation
 from modules import jaeger_kokoro_tts as tts
@@ -60,6 +61,7 @@ class StageTab:
         self._frame = None
         self._pending: list[str] = []
         self.timeline = None
+        self.game = None
         self.character = animation.load("bitmap_man")
         self.runner = scene_lib.SceneRunner(
             app, self.character, on_event=self._pending.append)
@@ -87,6 +89,37 @@ class StageTab:
         self.scenes_box = QtWidgets.QGroupBox("Scenes  (timeline)")
         self.scene_layout = QtWidgets.QVBoxLayout(self.scenes_box)
         left.addWidget(self.scenes_box)
+
+        # A game is the third kind of thing a character can do, beside a
+        # performance and a scene: not authored at all. The turns come
+        # from a strategy, the reaction from the character.
+        self.games_box = QtWidgets.QGroupBox("Game  (no script at all)")
+        games = QtWidgets.QVBoxLayout(self.games_box)
+        self.strategy_box = QtWidgets.QComboBox()
+        self.strategy_box.addItems([s for s in tictactoe.STRATEGIES if s != "llm"])
+        self.strategy_box.setCurrentText("hybrid")
+        self.strategy_box.setToolTip(
+            "who chooses the move. The character reacts the same way "
+            "whichever it is — see nodes/tictactoe/README.md")
+        games.addWidget(self.strategy_box)
+        self.intent_box = QtWidgets.QComboBox()
+        self.intent_box.addItems(list(tictactoe.HybridPlayer.INTENTS))
+        self.intent_box.setToolTip("how hard to play. `let` lets you win.")
+        games.addWidget(self.intent_box)
+        start = QtWidgets.QPushButton("▶ tic-tac-toe")
+        start.clicked.connect(self.start_game)
+        games.addWidget(start)
+        self.board_grid = QtWidgets.QGridLayout()
+        self.squares = []
+        for i in range(9):
+            cell = QtWidgets.QPushButton(" ")
+            cell.setFixedSize(34, 34)
+            cell.clicked.connect(lambda _c=False, n=i: self.play_square(n))
+            cell.setEnabled(False)
+            self.squares.append(cell)
+            self.board_grid.addWidget(cell, i // 3, i % 3)
+        games.addLayout(self.board_grid)
+        left.addWidget(self.games_box)
 
         self.expressions = QtWidgets.QGroupBox("Expressions")
         self.expression_layout = QtWidgets.QVBoxLayout(self.expressions)
@@ -211,6 +244,69 @@ class StageTab:
     def play(self, scene: Any) -> None:
         self._pending.append(f"▶ {scene.name}")
         self.runner.start(scene)
+
+    # ── a game: no script, and the character still performs ──────
+
+    def start_game(self) -> None:
+        """Begin a game. The strategy chooses moves; the CHARACTER
+        reacts — same face and voice path a scripted scene uses, driven
+        by a state nobody wrote down in advance."""
+        self.stop()
+        self.game = tictactoe.Session(
+            strategy=self.strategy_box.currentText(),
+            intent=self.intent_box.currentText())
+        self._pending.append(
+            f"▶ tic-tac-toe  ({self.game.player.name}, "
+            f"{self.intent_box.currentText()}) — you are O")
+        self._refresh_board()
+        self._agent_move()
+
+    def play_square(self, square: int) -> None:
+        if self.game is None or self.game.over:
+            return
+        move = self.game.human_turn(square)
+        if move is None:
+            return
+        self._pending.append(f"you   square {square}")
+        self._refresh_board()
+        if not self.game.over:
+            self._agent_move()
+        else:
+            self._react()
+
+    def _agent_move(self) -> None:
+        move = self.game.agent_turn()
+        if move is None:
+            return
+        self._pending.append(f"plays square {move.square}   [{move.state}]")
+        self._refresh_board()
+        self._react(move)
+
+    def _react(self, move: Any = None) -> None:
+        """The face is immediate; the words are asked for.
+
+        A reaction that waits for inference is not a reaction, so the
+        expression comes from the state word straight away and the line
+        catches up when the mind answers.
+        """
+        state = move.state if move else self.game.situation()
+        face = move.face if move else tictactoe.FACE_FOR.get(state, "neutral")
+        try:
+            animation.play(self.bus, self.character, face)
+        except Exception:  # noqa: BLE001
+            pass
+        mind.ask(self.bus, (
+            f"You are playing tic-tac-toe. The game is: {state}. "
+            f"Say ONE short line about it, in character."), session="stage")
+
+    def _refresh_board(self) -> None:
+        board = self.game.board if self.game else " " * 9
+        playable = self.game is not None and not self.game.over
+        for i, cell in enumerate(self.squares):
+            cell.setText(board[i] if board[i] != " " else " ")
+            cell.setEnabled(playable and board[i] == " ")
+        if self.game is not None and self.game.over:
+            self._pending.append(f"— {self.game.result} —")
 
     def play_scene(self, path: Any) -> None:
         """Play a timeline. Simultaneity is the whole difference: a

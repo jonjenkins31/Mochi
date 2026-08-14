@@ -1712,3 +1712,49 @@ def test_a_character_chooses_how_hard_to_play():
     player = HybridPlayer(policy=net, intent="let")
     assert player.move(board, "X") in game.legal(board)
     assert dict(game.rank(board, "X"))[player.move(board, "X")] is not None
+
+
+def test_any_agent_can_play_a_game():
+    """A Session is the surface a character plays through: it knows
+    turns and outcomes and nothing about faces, buses or models. Give it
+    a strategy and the turn-taking is identical whichever one it is."""
+    from nodes.tictactoe import STRATEGIES, Session
+
+    for name in ("random", "heuristic", "minimax", "hybrid"):
+        session = Session(strategy=name, trained=2_000)
+        while not session.over:
+            assert session.agent_turn() is not None or session.over
+            if session.over:
+                break
+            session.human_turn(session.legal()[0])
+        assert session.result in ("agent", "human", "draw")
+        assert session.situation() in ("you won", "you lost", "it is a draw")
+
+    # an illegal move is refused, not silently corrected
+    session = Session(strategy="minimax")
+    session.agent_turn()
+    taken = [i for i in range(9) if session.board[i] != " "][0]
+    assert session.human_turn(taken) is None
+    assert session.human_turn(99) is None
+
+
+def test_a_move_carries_what_a_character_needs_to_react():
+    """The state comes back as a WORD, not a score — a model asked to be
+    dramatic about "-7" writes nonsense. And the face is derivable
+    immediately, because a reaction that waits for inference is not a
+    reaction."""
+    from nodes.tictactoe import FACE_FOR, Session
+
+    session = Session(strategy="minimax")
+    move = session.agent_turn()
+    assert move.state in FACE_FOR
+    assert move.face == FACE_FOR[move.state]
+    assert move.by == "minimax"
+    assert move.board.count("X") == 1
+
+    # the state is always from the AGENT's point of view, so a character
+    # says the right thing about its opponent's move too
+    session = Session(strategy="minimax")
+    session.board = "OO       "
+    assert session.human_turn(2) is not None
+    assert session.situation() == "you lost"

@@ -17,6 +17,7 @@ language model, and a small trained net, all judged by one referee.
 """
 
 from . import game
+from .session import FACE_FOR, Move, Session
 from .players import (
     HeuristicPlayer,
     HybridPlayer,
@@ -43,7 +44,7 @@ STRATEGIES = {
 }
 
 __all__ = [
-    "game", "STRATEGIES", "Player",
+    "game", "STRATEGIES", "Player", "Session", "Move", "FACE_FOR",
     "RandomPlayer", "HeuristicPlayer", "MinimaxPlayer",
     "NeuralPlayer", "HybridPlayer", "LLMPlayer",
     "encode", "duel", "agreement", "evolve",
