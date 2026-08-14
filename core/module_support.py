@@ -24,6 +24,20 @@ def installed(package: str) -> bool:
         return False
 
 
+def config_of(app: Any) -> dict:
+    """The app's LIVE settings mapping — the one a write must land in.
+
+    `app.config or {}` looks equivalent and is not: an empty dict is
+    falsy, so that idiom quietly swapped the real mapping for a
+    throwaway and every setdefault wrote into nothing. It only ever
+    worked because a manifest usually has tables in it, which is the
+    worst kind of bug — correct until the day something starts from
+    empty. Identity is what matters here, so the test is `isinstance`.
+    """
+    config = getattr(app, "config", None)
+    return config if isinstance(config, dict) else {}
+
+
 def settings(app: Any, key: str) -> dict:
     """This module's slice of the app's settings.
 
@@ -32,7 +46,7 @@ def settings(app: Any, key: str) -> dict:
     is the dict its factory re-reads on every start.
     """
     try:
-        return dict((app.config or {}).get(key, {}) or {})
+        return dict(config_of(app).get(key, {}) or {})
     except Exception:  # noqa: BLE001
         return {}
 
@@ -92,7 +106,7 @@ def audio_driver(app: Any, *, capture: bool, wanted: bool) -> str:
     """
     if not wanted:
         return set_node(app, AUDIO_NODE, False)
-    slice_ = (app.config or {}).setdefault(AUDIO_NODE, {})
+    slice_ = config_of(app).setdefault(AUDIO_NODE, {})
     if (node_state(app, AUDIO_NODE) == "running"
             and bool(slice_.get("capture")) == capture):
         return ""
@@ -113,6 +127,6 @@ def background(work: Callable[[], str], sink: list) -> None:
 
 
 __all__ = [
-    "installed", "settings", "AUDIO_NODE", "VISION_NODE",
+    "installed", "config_of", "settings", "AUDIO_NODE", "VISION_NODE",
     "node_state", "set_node", "audio_driver", "background",
 ]

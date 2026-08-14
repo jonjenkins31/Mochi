@@ -22,7 +22,8 @@ from typing import Any
 
 from jaeger_os import topics
 
-from core.module_support import installed, node_state, set_node, settings
+from core.module_support import (
+    config_of, installed, node_state, set_node, settings)
 
 SLOT = "tts"
 
@@ -154,7 +155,7 @@ def set_voice(app: Any, name: str) -> None:
     tabs read and the manifest already is that place. No restart: the id
     rides each request, and a node rebuilt later reads the same key.
     """
-    (app.config or {}).setdefault(NODE, {})["voice"] = name
+    config_of(app).setdefault(NODE, {})["voice"] = name
 
 
 # ── on or off ────────────────────────────────────────────────────

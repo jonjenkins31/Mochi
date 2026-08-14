@@ -967,14 +967,22 @@ def test_the_persona_boundary_ships_with_the_voice():
     assert "never use emoji" in composed
 
 
-def test_a_pack_with_no_persona_keeps_the_manifest_prompt():
-    """Most packs are a face and nothing else. Adding a voice must be
-    opt-in per character, not a thing that blanks the manifest."""
+def test_a_pack_with_no_persona_keeps_the_manifest_prompt(tmp_path):
+    """A face with no voice is a valid character. Adding one must be
+    opt-in per pack, not a thing that blanks the manifest.
+
+    Synthetic rather than a real pack on purpose: every pack in the
+    repo has a voice now, so pointing at one would make this pass for
+    the wrong reason the moment that stopped being true."""
     from core import persona
 
+    voiceless = tmp_path / "voiceless"
+    voiceless.mkdir()
+    (voiceless / "character.yaml").write_text(
+        "schema: character/v1\ncharacter: voiceless\nname: Voiceless\n")
+
     config = {"mind": {"system_prompt": "from the manifest"}}
-    assert persona.resolve(config, ROOT / "characters/bitmap man") \
-        == "from the manifest"
+    assert persona.resolve(config, voiceless) == "from the manifest"
     assert config["mind"]["system_prompt"] == "from the manifest"
 
     config = {"mind": {"system_prompt": "from the manifest"}}
@@ -1390,5 +1398,61 @@ def test_a_card_and_the_dropdown_cannot_disagree(monkeypatch):
         tab.pack_box.setCurrentText("cat")
         qt_app.processEvents()
         assert selected() == ["cat"]
+    finally:
+        tab.close()
+
+
+def test_switching_character_re_voices_the_running_mind(monkeypatch):
+    """A character is a face AND a voice. Switching one must switch
+    both, and must not cost a model reload — the agent reads its system
+    prompt per turn, so both halves are assignments.
+
+    This also pins `self.app` on the Face tab: Qt swallows exceptions
+    raised inside a slot, so a missing attribute here fails silently and
+    the character changes its face while keeping the old voice.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    monkeypatch.setenv("MOCHI_NO_CYCLE", "1")
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from jaeger_os import InProcBus
+    from interfaces.player import FaceTab
+
+    class _Agent:
+        def __init__(self) -> None:
+            self.system_prompt = "the old voice"
+
+    class _RuntimeConfig:
+        system_prompt = "the old voice"
+
+    class _Runtime:
+        def __init__(self) -> None:
+            self.config = _RuntimeConfig()
+            self._sessions = {"mochi-1": _Agent()}
+
+    class _MindSupervisor(_FakeSupervisor):
+        def __init__(self) -> None:
+            super().__init__()
+            self.runtime = _Runtime()
+
+        def node(self, node_id: str):
+            return self if node_id == "mind" else super().node(node_id)
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    supervisor = _MindSupervisor()
+    app = SimpleNamespace(bus=InProcBus(), root=ROOT, config={},
+                          supervisor=supervisor)
+    tab = FaceTab(app, (QtCore, QtGui, QtWidgets),
+                  {"character": "mochi", "scale": 1})
+    try:
+        tab.pack_box.setCurrentText("bitmap_man")
+        qt_app.processEvents()
+        runtime = supervisor.runtime
+        # the conversation already open
+        live = runtime._sessions["mochi-1"].system_prompt
+        assert "Bitmap Man" in live or "monochrome" in live, live
+        # and the seed for sessions built later — "New conversation"
+        assert runtime.config.system_prompt == live
+        # written back to config too, so a node rebuilt later agrees
+        assert app.config["mind"]["system_prompt"] == live
     finally:
         tab.close()

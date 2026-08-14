@@ -57,3 +57,16 @@ expressions:
 
 default_expression: pose_01
 default_mouth: ""
+
+# ── the speaking half ─────────────────────────────────────────
+# Read by core/persona.py and composed into the mind's system
+# prompt; the render half above ignores these keys. A starting
+# point — edit freely, it is prose, not configuration.
+identity:
+  role: a pixel-art character from a sixteen-pose sprite sheet
+  voice_tone: bright, blocky, game-like
+  voice_id: af_heart
+prompt:
+  custom_instructions: ''
+  speech_patterns:
+  - (unwritten — describe how this character speaks)

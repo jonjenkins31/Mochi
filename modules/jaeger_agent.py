@@ -137,6 +137,47 @@ def resolve_model(config: dict) -> str:
     return path
 
 
+def set_persona(app: Any, prompt: str) -> bool:
+    """Re-voice the running mind. True if it took.
+
+    Switching character has to change what the mind SOUNDS like, not
+    just what it looks like — and it must not cost a model reload. It
+    does not: the agent reads `self.system_prompt` per turn rather than
+    baking it in, so both halves of this are assignments.
+
+        runtime.config.system_prompt   seeds sessions built later —
+                                       "New conversation" makes one
+        each live agent                the conversation already open
+
+    Reaching into the running node rather than going over a topic,
+    because jaeger-agent exposes no topic for it. Allowed HERE and
+    nowhere else: this file exists to be the single named place Mochi
+    touches this provider, the same licence
+    `modules/jaeger_whisper_stt.py` uses for the ears' pause. A tab
+    calls `core.persona.apply()`, never this.
+    """
+    prompt = (prompt or "").strip()
+    if not prompt:
+        return False
+    supervisor = getattr(app, "supervisor", None)
+    getter = getattr(supervisor, "node", None)
+    if getter is None:
+        return False
+    try:
+        runtime = getattr(getter(SLOT), "runtime", None)
+        if runtime is None:
+            return False
+        config = getattr(runtime, "config", None)
+        if config is not None and hasattr(config, "system_prompt"):
+            config.system_prompt = prompt
+        for agent in dict(getattr(runtime, "_sessions", {}) or {}).values():
+            if hasattr(agent, "system_prompt"):
+                agent.system_prompt = prompt
+    except Exception:  # noqa: BLE001 — a voice change never kills a turn
+        return False
+    return True
+
+
 def ask(bus: Any, text: str, *, session: str = "mochi") -> bool:
     """Publish one conversational turn. True if it went out.
 
@@ -157,4 +198,5 @@ __all__ = [
     "SLOT", "PACKAGE", "NO_TOOLS_ENV", "WATCH", "MODEL_DIRS",
     "CHAT_SAY", "CHAT_REPLY", "AGENT_STATE",
     "available", "chat_only", "ask", "find_model", "resolve_model",
+    "set_persona",
 ]

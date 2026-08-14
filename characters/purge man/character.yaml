@@ -33,3 +33,16 @@ expressions:
 
 default_expression: idle
 default_mouth: ""
+
+# ── the speaking half ─────────────────────────────────────────
+# Read by core/persona.py and composed into the mind's system
+# prompt; the render half above ignores these keys. A starting
+# point — edit freely, it is prose, not configuration.
+identity:
+  role: a wide-format character portrait
+  voice_tone: low, steady, deliberate
+  voice_id: fm_lucas
+prompt:
+  custom_instructions: ''
+  speech_patterns:
+  - (unwritten — describe how this character speaks)

@@ -22,7 +22,8 @@ from typing import Any
 
 from jaeger_os import topics
 
-from core.module_support import installed, node_state, set_node, settings
+from core.module_support import (
+    config_of, installed, node_state, set_node, settings)
 
 SLOT = "stt"
 PACKAGE = "jaeger_whisper_stt"
@@ -87,7 +88,7 @@ def set_mode(app: Any, name: str) -> str:
     """
     # The live slice, not `settings()`'s copy: this dict is the one the
     # node's factory re-reads on every start.
-    (app.config or {}).setdefault(NODE, {})["stt_mode"] = name
+    config_of(app).setdefault(NODE, {})["stt_mode"] = name
     if not listening(app):
         return ""            # takes effect the next time the ears start
     return set_node(app, NODE, False) or set_node(app, NODE, True)

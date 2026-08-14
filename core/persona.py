@@ -33,6 +33,8 @@ from typing import Any
 
 import yaml
 
+from core.module_support import config_of
+
 #: Persona applies to what the character SAYS, and to nothing else. Kept
 #: verbatim from JaegerAI so the two projects can be compared, and
 #: present even while `[config.mind] tools = false` — a prompt that only
@@ -139,4 +141,35 @@ def resolve(config: dict, character_root: pathlib.Path) -> str:
     return composed
 
 
-__all__ = ["PERSONA_BOUNDARY", "SPOKEN_STYLE", "read", "compose", "resolve"]
+def apply(app: Any, character_root: pathlib.Path) -> str:
+    """Give a RUNNING mind the character's voice. Returns what it got.
+
+    `resolve()` is the boot-time half — it edits config before any node
+    is built. This is the live half, for switching character while the
+    app is up: the composed prompt goes into the config (so a node built
+    later starts in the right voice) AND into the agent that is already
+    running (so the next thing it says is in that voice, with no model
+    reload).
+
+    A pack with no persona leaves the mind alone rather than blanking
+    it — the same rule `resolve()` follows, so switching to a face-only
+    character keeps whatever voice was already there instead of
+    silencing it.
+    """
+    sheet = read(character_root)
+    if not (sheet.get("identity") or sheet.get("prompt")):
+        return ""
+    composed = compose(sheet)
+    try:
+        config_of(app).setdefault("mind", {})["system_prompt"] = composed
+    except Exception:  # noqa: BLE001
+        pass
+    from modules import jaeger_agent as mind
+
+    mind.set_persona(app, composed)
+    return composed
+
+
+__all__ = [
+    "PERSONA_BOUNDARY", "SPOKEN_STYLE", "read", "compose", "resolve", "apply",
+]

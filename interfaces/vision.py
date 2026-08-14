@@ -30,7 +30,7 @@ from typing import Any
 from jaeger_os import topics
 
 from core.module_support import (
-    VISION_NODE, background, node_state, set_node, settings)
+    VISION_NODE, background, config_of, node_state, set_node, settings)
 
 #: The one topic a camera publishes. Named here rather than imported
 #: from a `modules/` integration because there is no module — vision is
@@ -168,7 +168,7 @@ class VisionTab:
         is a restart — the same shape as swapping the STT engine."""
         # The live slice, not `settings()`'s copy: this is the dict the
         # node's factory re-reads on every start.
-        (self.app.config or {}).setdefault(VISION_NODE, {})["device_index"] = index
+        config_of(self.app).setdefault(VISION_NODE, {})["device_index"] = index
         self._pending.append(f"device → {index}")
         if node_state(self.app, VISION_NODE) != "running":
             return                       # takes effect the next time it starts

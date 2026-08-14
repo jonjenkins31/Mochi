@@ -32,6 +32,7 @@ from typing import Any
 
 from jaeger_os import topics
 
+from core import persona
 from modules import jaeger_animation as animation
 
 _FRAME = topics.ACT_DISPLAY_FRAME
@@ -78,6 +79,7 @@ class FaceTab:
         QtCore, QtGui, QtWidgets = qt
         self._QtCore, self._QtGui, self._QtWidgets = QtCore, QtGui, QtWidgets
 
+        self.app = app          # switching character re-voices the mind
         self.bus = app.bus
         self.scale = int(os.environ.get("MOCHI_SCALE", config.get("scale", 2)))
         self.dwell_ms = int(float(config.get("dwell_s", 1.5)) * 1000)
@@ -252,6 +254,10 @@ class FaceTab:
         self.expr_box.blockSignals(False)
         self.mouth_btn.setChecked(False)
         self.cards.select(name)
+        # A character is a face AND a voice, so switching one switches
+        # both. Costs no model reload — the agent reads its system
+        # prompt per turn.
+        persona.apply(self.app, pathlib.Path(self.character.root))
         self.show_expression(self.character.default_expression)
 
     def _on_expression_picked(self, name: str) -> None:
