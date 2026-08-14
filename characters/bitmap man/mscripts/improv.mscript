@@ -1,0 +1,20 @@
+[Header start]
+! Bitmap Man — improv. The author writes the TURNS; the mind writes the WORDS.
+! Structure is authored and reviewable; only the lines vary.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/bitmap man/assets/faces/neutral_blink.json'
+[Resources end]
+
+[Main start]
+FACE EXPR[happy] D[0.3]
+SAY TXT['Ask me anything.']
+LBL[1:turn]
+FACE EXPR[neutral]
+LISTEN D[15]
+FACE EXPR[closed] D[0.2]
+FACE EXPR[look_up] D[0.4]
+ASK D[25]
+JMP LBL[1]
+[Main end]
