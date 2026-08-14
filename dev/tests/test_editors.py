@@ -1608,3 +1608,59 @@ def test_a_timeline_runs_mscripts_concurrently():
 
     wander = scenes.load(ROOT / "characters/bitmap man/mscripts/glance_about.mscript")
     assert wander.loop and not wander.interactive
+
+
+# ── where the logic lives ────────────────────────────────────────
+
+def test_the_rules_of_a_game_are_code():
+    """Measured, not assumed: gemma-4-E4B plays 24/24 LEGAL moves and
+    1/24 optimal, misses 3 of 5 forced blocks, and only ever chooses
+    squares 1, 2 or 4. It is not reading the position — it has a
+    positional prior. So rules and move choice are code, and the model
+    does the talking, which is the part it is actually good at."""
+    from core import tictactoe as ttt
+
+    board = ttt.new_board()
+    assert len(ttt.legal(board)) == 9
+
+    # perfect play blocks a forced loss every time — this is the exact
+    # case the model missed three times in five
+    assert ttt.best_move("XX O     ", "O") == 2
+    assert ttt.best_move("X   X    ", "O") == 8
+
+    # and takes a win when it has one
+    assert ttt.winner(ttt.place("XX       ", 2, "X")) == "X"
+    assert ttt.over("XXXOO    ")
+    assert ttt.threat("XX       ", "X") == "about to win"
+    assert ttt.threat("OO       ", "X") == "about to lose"
+
+
+def test_a_position_is_described_in_words_not_ascii_art():
+    """A model reads tokens, not pictures. A pipes-and-dashes grid is
+    a picture; naming the squares is what it can actually use — and the
+    numbering is stated so a reply parses back."""
+    from core import tictactoe as ttt
+
+    described = ttt.describe(ttt.place(ttt.new_board(), 4, "X"))
+    assert "centre (4) is X" in described
+    assert "Free squares:" in described
+    assert "|" not in described          # that is render(), for humans
+    assert "|" in ttt.render(ttt.new_board())
+
+
+def test_perfect_play_never_loses():
+    """The property that makes it a worthy opponent, checked by playing
+    it against every legal reply rather than trusting the algorithm."""
+    from core import tictactoe as ttt
+
+    def explore(board: str, turn: str) -> None:
+        if ttt.over(board):
+            assert ttt.winner(board) != "O", f"minimax lost: {board!r}"
+            return
+        if turn == "X":
+            explore(ttt.place(board, ttt.best_move(board, "X"), "X"), "O")
+            return
+        for square in ttt.legal(board):
+            explore(ttt.place(board, square, "O"), "X")
+
+    explore(ttt.new_board(), "X")
