@@ -31,7 +31,7 @@ from typing import Any
 
 from jaeger_os import topics
 
-from core import expressive, scenes as scene_lib
+from core import expressive, scenes as scene_lib, staging
 from modules import jaeger_agent as mind
 from modules import jaeger_animation as animation
 from modules import jaeger_kokoro_tts as tts
@@ -59,6 +59,7 @@ class StageTab:
         self.bus = app.bus
         self._frame = None
         self._pending: list[str] = []
+        self.timeline = None
         self.character = animation.load("bitmap_man")
         self.runner = scene_lib.SceneRunner(
             app, self.character, on_event=self._pending.append)
@@ -76,9 +77,16 @@ class StageTab:
         left.addWidget(QtWidgets.QLabel("character"))
         left.addWidget(self.pack_box)
 
-        self.triggers = QtWidgets.QGroupBox("Scenes")
+        self.triggers = QtWidgets.QGroupBox("Performances  (mscript)")
         self.trigger_layout = QtWidgets.QVBoxLayout(self.triggers)
         left.addWidget(self.triggers)
+
+        # Timelines are the other shape and the split is the point: a
+        # performance is sequential and can WAIT for you; a scene is
+        # tracks on one clock and can do things AT THE SAME TIME.
+        self.scenes_box = QtWidgets.QGroupBox("Scenes  (timeline)")
+        self.scene_layout = QtWidgets.QVBoxLayout(self.scenes_box)
+        left.addWidget(self.scenes_box)
 
         self.expressions = QtWidgets.QGroupBox("Expressions")
         self.expression_layout = QtWidgets.QVBoxLayout(self.expressions)
@@ -155,6 +163,18 @@ class StageTab:
             note.setStyleSheet("color:#6a6a78;")
             self.trigger_layout.addWidget(note)
 
+        while self.scene_layout.count():
+            item = self.scene_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        for name, path in staging.available():
+            button = QtWidgets.QPushButton(f"▶ {name}")
+            button.setToolTip(
+                f"{path.name} — tracks on one clock, so things happen at "
+                f"the same time. Cannot wait for you.")
+            button.clicked.connect(lambda _c=False, p=path: self.play_scene(p))
+            self.scene_layout.addWidget(button)
+
         for expression in self.character.expressions:
             button = QtWidgets.QPushButton(expression)
             button.clicked.connect(
@@ -192,8 +212,26 @@ class StageTab:
         self._pending.append(f"▶ {scene.name}")
         self.runner.start(scene)
 
+    def play_scene(self, path: Any) -> None:
+        """Play a timeline. Simultaneity is the whole difference: a
+        performance says one thing at a time, a scene says several."""
+        from jaeger_os.timeline import TimelineRunner
+
+        self.stop()
+        try:
+            timeline = staging.load(path)
+        except Exception as exc:  # noqa: BLE001
+            self._pending.append(f"! {exc}")
+            return
+        self._pending.append(f"▶ {timeline.name}  ({len(timeline.tracks)} tracks)")
+        self.timeline = TimelineRunner(self.bus, timeline)
+        self.timeline.start()
+
     def stop(self) -> None:
         self.runner.stop()
+        if getattr(self, "timeline", None) is not None:
+            self.timeline.stop()
+            self.timeline = None
         animation.stop(self.bus)
 
     def show(self, expression: str) -> None:

@@ -1528,3 +1528,53 @@ def test_a_toolless_model_can_still_drive_the_face():
     block = expressive.perform_block(faces)
     assert all(face in block for face in faces)
     assert len(block) < 400, "this has to stay obviously cheaper than a schema"
+
+
+def test_a_scene_can_do_two_things_at_once():
+    """The reason a timeline exists beside a performance script: a
+    program counter says one thing at a time, so "look around WHILE you
+    talk" cannot be written in one. Here the eyes move during a line."""
+    from core import staging
+
+    timeline = staging.load(ROOT / "assets/timelines/bitmap_secret.json")
+    speech = next(t for t in timeline.tracks if t.kind == "speech")
+    faces = next(t for t in timeline.tracks if t.kind == "animation")
+
+    line = speech.clips[0].t_offset_ms
+    next_line = speech.clips[1].t_offset_ms
+    during = [c for c in faces.clips if line < c.t_offset_ms < next_line]
+    assert len(during) >= 2, "no face change happens while a line is spoken"
+
+
+def test_expressions_resolve_against_the_character_at_load():
+    """An author writes `expression: look_up`, not a path three
+    directories down. Resolving needs the pack, so Mochi does it and the
+    scheduler still receives plain asset paths — and a typo fails when
+    you OPEN the scene, not three seconds into a performance."""
+    import pytest
+    from core import staging
+    from jaeger_os.timeline import Timeline, TimelineClip, TimelineTrack
+
+    timeline = staging.load(ROOT / "assets/timelines/bitmap_secret.json")
+    glance = next(c for c in timeline.tracks[0].clips if c.label == "glance up")
+    assert glance.payload["asset"].endswith("look_up.json")
+    assert pathlib.Path(glance.payload["asset"]).is_file()
+
+    broken = Timeline(name="x", tracks=[TimelineTrack(
+        kind="animation", target="bitmap_man",
+        clips=[TimelineClip(t_offset_ms=0, payload={"expression": "smoulder"})])])
+    with pytest.raises(staging.StagingError) as exc:
+        staging.resolve(broken, ROOT)
+    assert "smoulder" in str(exc.value)
+
+
+def test_a_track_says_who_as_well_as_what():
+    """`kind` is what a clip means, `target` is who does it. One
+    character never needs it; two do, and so does a body with three
+    servos."""
+    from core import staging
+
+    timeline = staging.load(ROOT / "assets/timelines/bitmap_secret.json")
+    targets = {t.kind: t.target for t in timeline.tracks}
+    assert targets["animation"] == "bitmap_man"
+    assert targets["light"] == "desk"      # not the character — the room
