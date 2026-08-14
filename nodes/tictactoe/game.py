@@ -1,10 +1,12 @@
-"""Tic-tac-toe — the rules, as code, because rules are not language.
+"""Tic-tac-toe — the rules. Not the player; see `players.py` for those.
 
-Here to answer a question empirically rather than by opinion: when a
-character plays a game, which parts does a language model do?
+Rules are not language and they are not learned: legality, wins and
+draws are the one part of a game nobody should be clever about. They
+live here so every strategy — hand-written, learned, or asked of a
+model — is judged against the same referee.
 
-    the RULES        legal moves, wins, draws        ← code. Always.
-    the MOVE         which square to take            ← measured below
+    the RULES        legal moves, wins, draws        ← here. Always code.
+    the MOVE         which square to take            ← players.py
     the TALK         banter, reaction, character     ← the model. Only it.
 
 A board is nine characters, "         " for empty, X and O otherwise.
@@ -17,6 +19,8 @@ heuristic here would be slower to write, slower to trust, and worse.
 """
 
 from __future__ import annotations
+
+import functools
 
 EMPTY = " "
 LINES = (
@@ -76,27 +80,50 @@ def describe(board: str) -> str:
 
 # ── the opponent, as code ────────────────────────────────────────
 
+@functools.lru_cache(maxsize=None)
+def _search(board: str, mark: str, turn: str, depth: int) -> tuple[int, int]:
+    """Memoised minimax. Tic-tac-toe has 5,478 reachable positions, so
+    the whole game tree fits in a cache and every later call is a dict
+    lookup. Without this, training a policy against it is quadratic in
+    the worst place — 6,000 labels took longer than five minutes."""
+    opponent = "O" if mark == "X" else "X"
+    champion = winner(board)
+    if champion == mark:
+        return 10 - depth, -1
+    if champion == opponent:
+        return depth - 10, -1
+    options = legal(board)
+    if not options:
+        return 0, -1
+    results = [
+        (_search(place(board, square, turn), mark,
+                 opponent if turn == mark else mark, depth + 1)[0], square)
+        for square in options
+    ]
+    return max(results) if turn == mark else min(results)
+
+
 def best_move(board: str, mark: str) -> int:
     """Perfect play. Exhaustive, because nine squares is small."""
+    return _search(board, mark, mark, 0)[1]
+
+
+def rank(board: str, mark: str) -> list[tuple[int, int]]:
+    """Every legal square with its exact value, best first.
+
+    The whole board, scored — which is what makes deliberate imperfect
+    play possible without playing STUPIDLY. A random bad move looks
+    broken; the second-best move looks like a person. You can only tell
+    those apart if you know what every move is worth, and search already
+    computed that on the way to picking one.
+
+    Positive is winning for `mark`, 0 is a draw, negative is losing.
+    """
     opponent = "O" if mark == "X" else "X"
-
-    def score(state: str, turn: str, depth: int) -> tuple[int, int]:
-        champion = winner(state)
-        if champion == mark:
-            return 10 - depth, -1
-        if champion == opponent:
-            return depth - 10, -1
-        options = legal(state)
-        if not options:
-            return 0, -1
-        results = []
-        for square in options:
-            value, _ = score(place(state, square, turn),
-                             opponent if turn == mark else mark, depth + 1)
-            results.append((value, square))
-        return (max(results) if turn == mark else min(results))
-
-    return score(board, mark, 0)[1]
+    scored = [(_search(place(board, square, mark), mark, opponent, 1)[0], square)
+              for square in legal(board)]
+    scored.sort(reverse=True)
+    return [(square, value) for value, square in scored]
 
 
 def threat(board: str, mark: str) -> str:
@@ -122,4 +149,4 @@ def threat(board: str, mark: str) -> str:
 
 
 __all__ = ["EMPTY", "new_board", "legal", "place", "winner", "over",
-           "render", "describe", "best_move", "threat"]
+           "render", "describe", "best_move", "rank", "threat"]

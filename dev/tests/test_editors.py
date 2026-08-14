@@ -1618,7 +1618,7 @@ def test_the_rules_of_a_game_are_code():
     squares 1, 2 or 4. It is not reading the position — it has a
     positional prior. So rules and move choice are code, and the model
     does the talking, which is the part it is actually good at."""
-    from core import tictactoe as ttt
+    from nodes.tictactoe import game as ttt
 
     board = ttt.new_board()
     assert len(ttt.legal(board)) == 9
@@ -1639,7 +1639,7 @@ def test_a_position_is_described_in_words_not_ascii_art():
     """A model reads tokens, not pictures. A pipes-and-dashes grid is
     a picture; naming the squares is what it can actually use — and the
     numbering is stated so a reply parses back."""
-    from core import tictactoe as ttt
+    from nodes.tictactoe import game as ttt
 
     described = ttt.describe(ttt.place(ttt.new_board(), 4, "X"))
     assert "centre (4) is X" in described
@@ -1651,7 +1651,7 @@ def test_a_position_is_described_in_words_not_ascii_art():
 def test_perfect_play_never_loses():
     """The property that makes it a worthy opponent, checked by playing
     it against every legal reply rather than trusting the algorithm."""
-    from core import tictactoe as ttt
+    from nodes.tictactoe import game as ttt
 
     def explore(board: str, turn: str) -> None:
         if ttt.over(board):
@@ -1664,3 +1664,51 @@ def test_perfect_play_never_loses():
             explore(ttt.place(board, square, "O"), "X")
 
     explore(ttt.new_board(), "X")
+
+
+def test_rules_over_a_policy_remove_losses_the_policy_makes():
+    """The hybrid thesis, checked: a learned preference under hard
+    constraints. The policy alone loses games; the same weights under
+    two rules do not."""
+    from nodes.tictactoe import (HybridPlayer, HeuristicPlayer, MinimaxPlayer,
+                                 NeuralPlayer, RandomPlayer, duel)
+
+    net = NeuralPlayer(hidden=32).train(positions=30_000)
+    rivals = (RandomPlayer(seed=1), HeuristicPlayer(), MinimaxPlayer())
+    lost = lambda p: sum(duel(p, r, games=30, seed=4)[r.name] for r in rivals)
+    assert lost(HybridPlayer(policy=net, intent="win")) == 0
+
+
+def test_known_rules_make_evolution_far_cheaper():
+    """Measured: bare evolution reaches ~23% agreement and loses half
+    its games; the SAME budget spent evolving inside the rules reaches
+    ~52% and loses none. Encoding what is already known shrinks the
+    space the search has to cover — you do not pay to rediscover the
+    rules."""
+    from nodes.tictactoe import HybridPlayer, RandomPlayer, duel, evolve
+
+    bred = evolve(population=16, generations=25, games=8, seed=2,
+                  with_rules=True)
+    guarded = HybridPlayer(policy=bred, intent="win")
+    assert duel(guarded, RandomPlayer(seed=1), games=30, seed=4)["random"] == 0
+
+
+def test_a_character_chooses_how_hard_to_play():
+    """Absolute knowledge of the rules, personality about how to use it.
+    A softened move is CHOSEN by value, not randomised — a random bad
+    move reads as a bug, the second-best reads as going easy on you."""
+    from nodes.tictactoe import (HybridPlayer, NeuralPlayer, RandomPlayer,
+                                 duel, game)
+
+    net = NeuralPlayer(hidden=32).train(positions=30_000)
+    kid = RandomPlayer(seed=3)
+    hard = duel(HybridPlayer(policy=net, intent="win"), kid, games=40, seed=4)
+    easy = duel(HybridPlayer(policy=net, intent="let"), kid, games=40, seed=4)
+    assert hard["random"] == 0, "playing to win should not lose to random"
+    assert easy["random"] > hard["random"], "conceding should let them win"
+
+    # every move is still legal and understood — softening is not flailing
+    board = game.new_board()
+    player = HybridPlayer(policy=net, intent="let")
+    assert player.move(board, "X") in game.legal(board)
+    assert dict(game.rank(board, "X"))[player.move(board, "X")] is not None

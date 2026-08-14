@@ -43,7 +43,8 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 os.environ.setdefault("JAEGER_AGENT_NO_TOOLS", "1")
 
-from core import expressive, tictactoe as ttt  # noqa: E402
+from core import expressive  # noqa: E402
+from nodes.tictactoe import STRATEGIES, game as ttt  # noqa: E402
 from modules import jaeger_agent as mind  # noqa: E402
 
 #: The character's read on the position, before it says a word. A face
@@ -78,6 +79,18 @@ def main() -> int:
         return expressive.split(
             out["choices"][0]["message"]["content"].strip(), faces)
 
+    # The strategy is a choice, not a constant — that is the point of
+    # the node. `neural` and `llm` play here too; minimax is the default
+    # because a demo opponent that loses is a demo nobody watches twice.
+    which = sys.argv[1] if len(sys.argv) > 1 else "minimax"
+    agent = STRATEGIES[which]() if which != "llm" else STRATEGIES["llm"](
+        lambda p: llm.create_chat_completion(
+            messages=[{"role": "user", "content": p}],
+            max_tokens=8, temperature=0.0)["choices"][0]["message"]["content"])
+    if which == "neural":
+        agent = agent.train(positions=120_000)
+    print(f"  strategy: {agent.name} ({agent.kind})\n")
+
     random.seed(3)
     board = ttt.new_board()
     me, you = "X", "O"
@@ -85,7 +98,7 @@ def main() -> int:
 
     while not ttt.over(board):
         # ── the agent's move: CODE decides ──
-        square = ttt.best_move(board, me)
+        square = agent.move(board, me)
         board = ttt.place(board, square, me)
         state = ttt.threat(board, me)
         # the face comes from the same word, instantly
@@ -106,8 +119,8 @@ def main() -> int:
     print(ttt.render(board))
     result = ttt.winner(board)
     print(f"\n  {'Bitmap Man wins' if result == me else 'You win' if result else 'A draw'}")
-    print("\n  Every move above was chosen by minimax. Every line was "
-          "written by the model.\n  Neither could have done the other's job.")
+    print(f"\n  Every move was chosen by {agent.name} ({agent.kind}).\n"
+          f"  Every line was written by the model. Neither could do the other's job.")
     return 0
 
 
