@@ -1758,3 +1758,35 @@ def test_a_move_carries_what_a_character_needs_to_react():
     session.board = "OO       "
     assert session.human_turn(2) is not None
     assert session.situation() == "you lost"
+
+
+def test_either_seat_takes_a_strategy_or_a_person():
+    """The same object covers a character playing you and two
+    strategies playing each other — so 'any agent can partake' means
+    either side, not just one."""
+    from nodes.tictactoe import Session
+
+    versus = Session(strategy="minimax", opponent="heuristic", trained=2_000)
+    assert versus.autonomous
+    moves = versus.play_out()
+    assert versus.over and versus.result in ("agent", "human", "draw")
+    assert {m.by for m in moves} == {"minimax", "heuristic"}
+
+    # a human seat refuses to be played out — silently skipping someone's
+    # turn is a game they never got to play
+    import pytest
+
+    solo = Session(strategy="minimax")
+    assert not solo.autonomous
+    with pytest.raises(ValueError):
+        solo.play_out()
+
+    # step() is the one call both shapes use
+    assert solo.step() is not None          # the agent moves
+    assert solo.step() is None              # then it is your turn
+    assert solo.human_turn(solo.legal()[0]) is not None
+
+    # and a strategy's seat cannot be played by hand
+    taken = Session(strategy="minimax", opponent="random", trained=2_000)
+    taken.step()
+    assert taken.human_turn(taken.legal()[0]) is None

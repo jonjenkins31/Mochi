@@ -62,6 +62,7 @@ class StageTab:
         self._pending: list[str] = []
         self.timeline = None
         self.game = None
+        self._match = None
         self.character = animation.load("bitmap_man")
         self.runner = scene_lib.SceneRunner(
             app, self.character, on_event=self._pending.append)
@@ -102,6 +103,15 @@ class StageTab:
             "who chooses the move. The character reacts the same way "
             "whichever it is — see nodes/tictactoe/README.md")
         games.addWidget(self.strategy_box)
+        self.opponent_box = QtWidgets.QComboBox()
+        self.opponent_box.addItem("— you —", None)
+        for name in tictactoe.STRATEGIES:
+            if name != "llm":
+                self.opponent_box.addItem(f"vs {name}", name)
+        self.opponent_box.setToolTip(
+            "who takes the other seat. Pick a strategy and the two play "
+            "each other while the character commentates.")
+        games.addWidget(self.opponent_box)
         self.intent_box = QtWidgets.QComboBox()
         self.intent_box.addItems(list(tictactoe.HybridPlayer.INTENTS))
         self.intent_box.setToolTip("how hard to play. `let` lets you win.")
@@ -252,14 +262,36 @@ class StageTab:
         reacts — same face and voice path a scripted scene uses, driven
         by a state nobody wrote down in advance."""
         self.stop()
+        rival = self.opponent_box.currentData()
         self.game = tictactoe.Session(
             strategy=self.strategy_box.currentText(),
-            intent=self.intent_box.currentText())
+            intent=self.intent_box.currentText(), opponent=rival)
         self._pending.append(
-            f"▶ tic-tac-toe  ({self.game.player.name}, "
-            f"{self.intent_box.currentText()}) — you are O")
+            f"▶ tic-tac-toe  {self.game.player.name} "
+            f"({self.intent_box.currentText()}) vs "
+            f"{rival or 'you'}")
         self._refresh_board()
-        self._agent_move()
+        if self.game.autonomous:
+            # Two strategies: step it on a timer so it is watchable, and
+            # so the character has time to react between moves.
+            self._match = self._QtCore.QTimer(self.widget)
+            self._match.timeout.connect(self._match_step)
+            self._match.start(1400)
+            self._match_step()
+        else:
+            self._agent_move()
+
+    def _match_step(self) -> None:
+        move = self.game.step() if self.game else None
+        if move is None:
+            self._match.stop()
+            self._react()
+            return
+        self._pending.append(f"{move.by:<10} square {move.square}   [{move.state}]")
+        self._refresh_board()
+        self._react(move)
+        if self.game.over:
+            self._match.stop()
 
     def play_square(self, square: int) -> None:
         if self.game is None or self.game.over:
@@ -324,6 +356,9 @@ class StageTab:
         self.timeline.start()
 
     def stop(self) -> None:
+        if getattr(self, "_match", None) is not None:
+            self._match.stop()
+            self._match = None
         self.runner.stop()
         if getattr(self, "timeline", None) is not None:
             self.timeline.stop()

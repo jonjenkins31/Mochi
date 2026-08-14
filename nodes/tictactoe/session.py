@@ -1,5 +1,9 @@
 """One game, turn by turn — the surface any agent plays through.
 
+Either seat takes a strategy or a person, so the same object covers a
+character playing you, two strategies playing each other, and anything
+with a `.move()` joining in from outside this package.
+
 `players.py` answers "which square"; this answers "whose turn, what just
 happened, and what should the character do about it". It is the whole
 difference between a strategy and something a character can PLAY.
@@ -55,26 +59,52 @@ class Move:
 
 
 class Session:
-    """A single game between an agent and a person."""
+    """A single game. Each seat is a strategy, or a person."""
 
     def __init__(self, strategy: Any = "hybrid", *, agent_mark: str = "X",
-                 intent: str = "win", trained: int = 100_000) -> None:
-        from . import STRATEGIES
+                 intent: str = "win", trained: int = 100_000,
+                 opponent: Any = None) -> None:
+        """`strategy` takes one seat; `opponent` takes the other.
 
-        if isinstance(strategy, str):
-            if strategy == "hybrid":
-                player = HybridPlayer(
-                    policy=NeuralPlayer(hidden=32).train(positions=trained),
-                    intent=intent)
-            else:
-                player = STRATEGIES[strategy]()
-        else:
-            player = strategy                      # already built, e.g. an LLM
-        self.player = player
+        `opponent=None` means a person sits there — the common case, and
+        the reason this is not symmetrical in its defaults. Naming a
+        second strategy makes it agent-versus-agent, and nothing else
+        changes: the same Move objects come back, so a character reacts
+        to a machine opponent exactly as it reacts to a person.
+
+        Either seat accepts a NAME or an already-built player, which is
+        how a language model or anything else with `.move()` joins in
+        without this file knowing it exists.
+        """
         self.agent_mark = agent_mark
         self.human_mark = "O" if agent_mark == "X" else "X"
+        self.player = self._seat(strategy, intent, trained)
+        #: The other seat. None means a person plays it.
+        self.opponent = self._seat(opponent, "win", trained) if opponent else None
         self.board = game.new_board()
         self.moves: list[Move] = []
+
+    def _seat(self, who: Any, intent: str, trained: int) -> Any:
+        from . import STRATEGIES
+
+        if who is None or not isinstance(who, str):
+            return who                             # already built, or nobody
+        if who == "hybrid":
+            return HybridPlayer(
+                policy=NeuralPlayer(hidden=32).train(positions=trained),
+                intent=intent)
+        return STRATEGIES[who]()
+
+    def player_for(self, mark: str) -> Any:
+        """Whoever holds that seat, or None when a person does."""
+        return self.player if mark == self.agent_mark else self.opponent
+
+    @property
+    def autonomous(self) -> bool:
+        """True when neither seat needs a person — the match can run
+        itself, which is what makes agent-versus-agent a loop rather
+        than a UI."""
+        return self.opponent is not None
 
     # ── state ────────────────────────────────────────────────────
 
@@ -106,12 +136,49 @@ class Session:
         return self._record(square, self.agent_mark,
                             by=getattr(self.player, "name", "?"))
 
+    def opponent_turn(self) -> Move | None:
+        """The other seat's move, when a strategy holds it."""
+        if self.over or self.opponent is None or self.turn == self.agent_mark:
+            return None
+        square = self.opponent.move(self.board, self.human_mark)
+        return self._record(square, self.human_mark,
+                            by=getattr(self.opponent, "name", "?"))
+
+    def step(self) -> Move | None:
+        """Advance whoever is due. None means it is a person's turn.
+
+        One call for both shapes: a UI polls it and gets None when it
+        should wait for a click; a match loop calls it until the game
+        ends. Neither has to know which seats are filled.
+        """
+        if self.over:
+            return None
+        if self.turn == self.agent_mark:
+            return self.agent_turn()
+        return self.opponent_turn()
+
+    def play_out(self, limit: int = 9) -> list[Move]:
+        """Run an autonomous match to the end. Refuses if a seat is
+        human — silently skipping a person's turn would be a game they
+        never got to play."""
+        if not self.autonomous:
+            raise ValueError("a seat is human; call step() and human_turn()")
+        played = []
+        while not self.over and len(played) < limit:
+            move = self.step()
+            if move is None:
+                break
+            played.append(move)
+        return played
+
     def human_turn(self, square: int) -> Move | None:
         """A person's move. Illegal squares are refused, not corrected —
         an interface that quietly moves your piece somewhere else is
         worse than one that says no."""
         if self.over or square not in self.legal():
             return None
+        if self.opponent is not None and self.turn != self.agent_mark:
+            return None          # that seat belongs to a strategy
         return self._record(square, self.human_mark, by="human")
 
     def _record(self, square: int, mark: str, by: str) -> Move:
