@@ -6,6 +6,7 @@
     Voice     what the TTS is asked to say, and what came back
     Assets    every playable file, previewed by the engine itself
     Hearing   what the microphone hears, and what the STT made of it
+    Stage     drive a character: scenes, expressions, a line to the mind
     Vision    what the camera sees
 
 Same shape as JP01-CC01's `interfaces/`: one file per tab, each a bus
@@ -75,6 +76,7 @@ class MochiWindow:
         from .legacy_windows import LegacyWindowsTab, WindowManager
         from .player import FaceTab
         from .runtime import RuntimeTab
+        from .stage import StageTab
         from .vision import VisionTab
         from .voice import VoiceTab
 
@@ -96,6 +98,7 @@ class MochiWindow:
         self.assets = AssetsTab(app, qt)
         self.modules = ModulesTab(app, qt)
         self.runtime = RuntimeTab(app, qt)
+        self.stage = StageTab(app, qt)
         self.windows = LegacyWindowsTab(app, qt, self.window_manager)
         self.chat = ChatTab(app, qt)
         self.voice = VoiceTab(app, qt)
@@ -104,7 +107,7 @@ class MochiWindow:
         self._tabs = (
             self.face, self.character_editor, self.mscript_editor, self.assets,
             self.modules,
-            self.runtime, self.windows, self.chat, self.voice, self.hearing,
+            self.runtime, self.stage, self.windows, self.chat, self.voice, self.hearing,
             self.vision,
         )
 
@@ -114,6 +117,7 @@ class MochiWindow:
         self.widget.addTab(self.assets.widget, "Assets")
         self.widget.addTab(self.modules.widget, "Modules")
         self.widget.addTab(self.runtime.widget, "Runtime")
+        self.widget.addTab(self.stage.widget, "Stage")
         self.widget.addTab(self.windows.widget, "Windows")
         self.widget.addTab(self.chat.widget, "Chat")
         self.widget.addTab(self.voice.widget, "Voice")

@@ -400,7 +400,7 @@ def test_window_contains_migrated_editors_and_node_surfaces(monkeypatch):
         tabs = [window.widget.tabText(i) for i in range(window.widget.count())]
         assert tabs == [
             "Face", "Characters", "MScript Editor", "Assets", "Modules",
-            "Runtime", "Windows", "Chat", "Voice", "Hearing", "Vision",
+            "Runtime", "Stage", "Windows", "Chat", "Voice", "Hearing", "Vision",
         ]
         assert window.window_manager.popup.player.skins["tv1"].image.is_file()
         window.face.popup_btn.click()
