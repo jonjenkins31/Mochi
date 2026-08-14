@@ -1,21 +1,34 @@
-"""Scripted performances — a face, a voice, and waiting for a person.
+"""Performances — a face, a voice, and waiting for a person.
 
-A scene is a list of steps run against the bus. Four kinds cover
-everything the Stage demos need, and the fourth is the one that does not
-exist anywhere else:
+A performance is an MSCRIPT, saved in the character's own `mscripts/`
+beside every other motion script it owns. It is data, not code: the
+MScript Editor opens it, the node graph draws it, and the Stage runs it.
 
-    FACE    show an expression from the character's own vocabulary
-    SAY     speak a line, and WAIT FOR IT TO FINISH
-    WAIT    hold for a fixed time
-    LISTEN  hold until a person answers, or a timeout passes
+Five commands, and the last is the one that exists nowhere else:
 
-WHY THIS IS NOT A MOTION SCRIPT. mscript dispatches to one channel and
-has no speech command, so it can animate a character but not make it
-talk. A timeline has both channels but only a wall clock — every clip
-is pinned to an offset decided before anyone pressed play. Neither can
-express "say this, then wait until they answer, however long that
-takes", which is the shape of a conversation and of most performances
-worth watching.
+    FACE EXPR[happy]      an expression from the character's OWN
+                          vocabulary, so one script suits any pack
+                          that declares the same faces
+    SAY TXT['...']        speak a line, and WAIT FOR IT TO FINISH
+    WAIT D[1.5]           hold for a fixed time
+    LISTEN D[10]          hold until a person answers, or time out
+    LBL[n] / JMP LBL[n]   loop, exactly as the engine does it
+
+WHO RUNS WHAT, because there are two readers of this format and that is
+deliberate. JaegerAnimation's engine plays the ANIMATION commands —
+BITMAP, MEDIA, SPRITE, MATH — and its job ends at frames on a topic;
+making it publish speech would break the one rule that engine has. So
+the app conducts: this runner reads the same file and dispatches FACE to
+the display topic and SAY to the speech topic. The format is shared, the
+animation subset is identical, and neither reader has to know about the
+other.
+
+WHY NOT A TIMELINE. A timeline has both channels but only a wall clock:
+every clip is pinned to an offset chosen before anyone pressed play. It
+cannot express "say this, then wait until they answer, however long that
+takes" — which is the shape of a conversation, and of most performances
+worth watching. A timeline is for a scene whose timing is known; a
+performance script is for one that stops for you.
 
 WHY SAY BLOCKS ON THE DONE-ACK. Synthesis and playback are different
 events, and a scene that moves on when synthesis returns talks over
@@ -31,6 +44,7 @@ from __future__ import annotations
 
 import threading
 import time
+import pathlib
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -46,43 +60,115 @@ from modules import jaeger_whisper_stt as stt
 _WORDS_PER_SECOND = 2.6
 _MIN_SAY_S = 0.8
 
+#: Jumps allowed between two steps that take time. A loop with a WAIT,
+#: SAY or LISTEN in it resets this every pass and never approaches it; a
+#: loop with none would spin this thread at full speed forever.
+_MAX_JUMPS_PER_PASS = 64
+
 
 @dataclass
 class Step:
-    kind: str                    # face | say | wait | listen
+    kind: str                    # face | say | wait | listen | jmp | lbl
     value: str = ""
     seconds: float = 0.0
+    label: int | None = None
 
 
 @dataclass
 class Scene:
-    """A named performance, and what it needs to be worth watching."""
+    """A named performance, loaded from the character's mscripts/."""
 
     name: str
     description: str
     steps: list[Step] = field(default_factory=list)
-    loop: bool = False
-    #: True when a step waits on a person. The Stage says so, because a
-    #: scene that is waiting looks identical to one that has hung.
+    path: Any = None
+
+    @property
+    def loop(self) -> bool:
+        """A script that jumps backwards runs until something stops it."""
+        return any(s.kind == "jmp" for s in self.steps)
+
     @property
     def interactive(self) -> bool:
+        """True when a step waits on a person. The Stage says so, because
+        a performance that is waiting looks identical to one that hung."""
         return any(s.kind == "listen" for s in self.steps)
 
 
-def face(expression: str) -> Step:
-    return Step("face", expression)
+def _quoted(value: str) -> str:
+    """`TXT['hello']` keeps its quotes through the arg regex — the
+    grammar captures everything up to the bracket. Strip one matched
+    pair so a line reads as written."""
+    text = str(value or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "'\"":
+        return text[1:-1]
+    return text
 
 
-def say(text: str) -> Step:
-    return Step("say", text)
+def _label_id(raw: Any) -> int | None:
+    """`LBL[1]` and `LBL[1:name]` are the same label — the name is a
+    comment, exactly as the engine treats it."""
+    try:
+        return int(str(raw).split(":", 1)[0].strip())
+    except (TypeError, ValueError):
+        return None
 
 
-def wait(seconds: float) -> Step:
-    return Step("wait", seconds=seconds)
+def load(path: Any) -> Scene:
+    """Read a performance from a `.mscript` file.
+
+    Uses the SAME parser the editor and the node graph use, so a script
+    that round-trips there runs here — one format, one reader for its
+    shape, and no second dialect to drift.
+    """
+    from interfaces.mscript_editor import parse_mscript, parse_steps
+
+    path = pathlib.Path(path)
+    sections = parse_mscript(path.read_text(encoding="utf-8"))
+    description = " ".join(
+        line.lstrip("! ").strip() for line in sections.get("_header", [])
+        if line.strip().startswith("!"))
+
+    steps: list[Step] = []
+    for parsed in parse_steps(sections.get("main", [])):
+        command, args = parsed.command, parsed.args
+        hold = float(args.get("D", 0) or 0)
+        if command == "FACE":
+            steps.append(Step("face", str(args.get("EXPR", "")), hold))
+        elif command == "SAY":
+            steps.append(Step("say", _quoted(args.get("TXT", ""))))
+        elif command == "WAIT":
+            steps.append(Step("wait", seconds=hold))
+        elif command == "LISTEN":
+            steps.append(Step("listen", seconds=hold or 10.0))
+        elif command == "LBL":
+            steps.append(Step("lbl", label=_label_id(args.get("LBL"))))
+        elif command == "JMP":
+            steps.append(Step("jmp", label=_label_id(args.get("LBL"))))
+        # Animation commands (BITMAP/MEDIA/SPRITE/MATH) are the ENGINE's
+        # half of this format and are skipped here rather than
+        # reimplemented — see the module docstring.
+    return Scene(name=path.stem.replace("_", " "),
+                 description=description or path.name, steps=steps, path=path)
 
 
-def listen(seconds: float = 10.0) -> Step:
-    return Step("listen", seconds=seconds)
+def available(character: Any) -> tuple[Scene, ...]:
+    """Every performance in this character's mscripts/, loadable ones only.
+
+    A script with no FACE, SAY or LISTEN is an animation-only motion
+    script — the engine's to play, not a performance — so it is left out
+    rather than offered as a button that does nothing visible.
+    """
+    root = pathlib.Path(getattr(character, "root", "") or "")
+    found = []
+    for path in sorted((root / "mscripts").glob("*.mscript")):
+        try:
+            scene = load(path)
+        except Exception:  # noqa: BLE001 — a broken script is not a broken tab
+            continue
+        if scene.steps:
+            found.append(scene)
+    return tuple(found)
 
 
 class SceneRunner:
@@ -158,15 +244,38 @@ class SceneRunner:
     # ── the performance ──────────────────────────────────────────
 
     def _run(self) -> None:
+        """Walk the steps, honouring JMP.
+
+        A program counter rather than a for-loop, because JMP moves it —
+        the same shape the engine uses, and the same runaway guard: a
+        loop with nothing to wait on would spin this thread at full
+        speed forever, so jumps are budgeted between waits.
+        """
         scene = self.scene
+        labels = {s.label: i for i, s in enumerate(scene.steps)
+                  if s.kind == "lbl" and s.label is not None}
+        counter = 0
+        jumps = 0
         try:
-            while not self._stop.is_set():
-                for step in scene.steps:
-                    if self._stop.is_set():
+            while not self._stop.is_set() and counter < len(scene.steps):
+                step = scene.steps[counter]
+                counter += 1
+                if step.kind == "lbl":
+                    continue
+                if step.kind == "jmp":
+                    target = labels.get(step.label)
+                    if target is None:
+                        self._on_event(f"      ! no LBL[{step.label}]")
+                        continue
+                    jumps += 1
+                    if jumps > _MAX_JUMPS_PER_PASS:
+                        self._on_event("      ! runaway loop — a loop needs "
+                                       "a WAIT, SAY or LISTEN. stopping.")
                         return
-                    self._perform(step)
-                if not scene.loop:
-                    return
+                    counter = target
+                    continue
+                jumps = 0          # anything that takes time resets the budget
+                self._perform(step)
         finally:
             self.running = False
             self._on_event(f"— {scene.name} ended —")
@@ -178,6 +287,10 @@ class SceneRunner:
                 animation.play(self.bus, self.character, step.value)
             except Exception as exc:  # noqa: BLE001 — one bad step, not a crash
                 self._on_event(f"      ! {exc}")
+            if step.seconds:
+                # `D` on a FACE holds it, so a script reads as one line
+                # per beat instead of alternating face/wait pairs.
+                self._stop.wait(timeout=step.seconds)
         elif step.kind == "say":
             self._on_event(f"say   {step.value!r}")
             self._say(step.value)
@@ -216,4 +329,4 @@ class SceneRunner:
             self._on_event("heard nothing")
 
 
-__all__ = ["Scene", "Step", "SceneRunner", "face", "say", "wait", "listen"]
+__all__ = ["Scene", "Step", "SceneRunner", "load", "available"]

@@ -1,0 +1,22 @@
+[Header start]
+! Bitmap Man — knock knock. Stops dead until a person answers.
+! LISTEN is the one step whose length the audience chooses.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/bitmap man/assets/faces/neutral_blink.json'
+[Resources end]
+
+[Main start]
+FACE EXPR[happy] D[0.3]
+SAY TXT['Knock knock.']
+LISTEN D[10]
+FACE EXPR[neutral]
+SAY TXT['Bitmap.']
+LISTEN D[10]
+FACE EXPR[happy]
+SAY TXT['Bitmap Man. And I have only got eyes for you.']
+WAIT D[1.2]
+FACE EXPR[closed] D[0.3]
+FACE EXPR[neutral]
+[Main end]

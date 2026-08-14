@@ -1,0 +1,22 @@
+[Header start]
+! Bitmap Man — looking around. Face and voice on one clock.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/bitmap man/assets/faces/neutral_blink.json'
+[Resources end]
+
+[Main start]
+FACE EXPR[neutral] D[0.4]
+SAY TXT['Let me have a look around.']
+FACE EXPR[look_up]
+SAY TXT['Up there, the ceiling. Nothing new.']
+WAIT D[0.4]
+FACE EXPR[look_down]
+SAY TXT['Down here, the desk. Also nothing new.']
+WAIT D[0.4]
+FACE EXPR[neutral]
+SAY TXT['And straight ahead, you. That is the interesting one.']
+FACE EXPR[happy] D[1.5]
+FACE EXPR[neutral]
+[Main end]

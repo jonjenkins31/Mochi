@@ -1456,3 +1456,75 @@ def test_switching_character_re_voices_the_running_mind(monkeypatch):
         assert app.config["mind"]["system_prompt"] == live
     finally:
         tab.close()
+
+
+# ── performances are mscripts, saved with the character ──────────
+
+def test_a_performance_is_a_saved_mscript_not_code():
+    """Scenes are DATA in the character's own mscripts/, so the MScript
+    Editor opens them and the node graph draws them. A performance that
+    only exists as Python is one an author cannot write."""
+    from core import scenes
+
+    character = animation.load("bitmap_man")
+    found = {s.name: s for s in scenes.available(character)}
+    assert {"idle", "knock knock", "looking around"} <= set(found)
+    for scene in found.values():
+        assert scene.path.suffix == ".mscript"
+        assert scene.path.parent.name == "mscripts"
+        assert scene.path.parent.parent == pathlib.Path(character.root)
+
+    # and the SAME parser the editor uses reads them
+    from interfaces.mscript_editor import parse_mscript, parse_steps
+
+    text = found["knock knock"].path.read_text(encoding="utf-8")
+    commands = [s.command for s in parse_steps(parse_mscript(text)["main"])
+                if s.command]
+    assert commands.count("SAY") == 3
+    assert commands.count("LISTEN") == 2
+
+
+def test_the_three_scenes_are_progressively_harder():
+    """Each demo proves one more thing than the last."""
+    from core import scenes
+
+    by_name = {s.name: s for s in scenes.available(animation.load("bitmap_man"))}
+    # a loop, expressed the way the engine expresses one
+    assert by_name["idle"].loop and not by_name["idle"].interactive
+    # face and voice on one clock, ending on its own
+    assert not by_name["looking around"].loop
+    assert any(s.kind == "say" for s in by_name["looking around"].steps)
+    # and the one that stops for a person
+    assert by_name["knock knock"].interactive
+
+
+def test_an_animation_only_script_is_not_offered_as_a_performance():
+    """blink.mscript is the ENGINE's to play — all BITMAP commands, no
+    face, voice or wait for anyone. Offering it as a Stage button would
+    be a button that does nothing visible."""
+    from core import scenes
+
+    character = animation.load("bitmap_man")
+    assert (pathlib.Path(character.root) / "mscripts/blink.mscript").is_file()
+    assert "blink" not in {s.name for s in scenes.available(character)}
+
+
+def test_a_toolless_model_can_still_drive_the_face():
+    """The whole no-tools claim: an LLM that can only return TEXT still
+    performs, because a leading marker is applied by the app and
+    stripped before synthesis. Only the character's OWN vocabulary is
+    accepted — a model will invent faces a pack does not have."""
+    from core import expressive
+
+    faces = list(animation.load("bitmap_man").expressions)
+    assert expressive.split("[happy] Ooh, hi!", faces) == ("happy", "Ooh, hi!")
+    assert expressive.split("  [LOOK_UP] Up there!", faces) == (
+        "look_up", "Up there!")
+    # invented face: dropped, and never read aloud either
+    assert expressive.split("[excited] hello", faces) == ("", "hello")
+    assert expressive.split("no marker", faces) == ("", "no marker")
+
+    # the entire cost of performing without tools
+    block = expressive.perform_block(faces)
+    assert all(face in block for face in faces)
+    assert len(block) < 400, "this has to stay obviously cheaper than a schema"

@@ -31,33 +31,22 @@ from typing import Any
 
 from jaeger_os import topics
 
-from core import scenes as scene_lib
+from core import expressive, scenes as scene_lib
 from modules import jaeger_agent as mind
 from modules import jaeger_animation as animation
+from modules import jaeger_kokoro_tts as tts
 
 _FRAME = topics.ACT_DISPLAY_FRAME
 
 
 def load_scenes(character: Any) -> tuple:
-    """The character's own repertoire, from its pack.
+    """The character's repertoire: its own mscripts/, nothing else.
 
-    `scenes.py` beside `character.yaml`, so a performance ships with the
-    character that performs it — the same rule motion scripts follow. A
-    pack with none is normal; the Stage still drives it by hand.
+    Performances are DATA saved with the character, so they are the same
+    files the MScript Editor opens and the node graph draws. Nothing
+    here is code — an author writes a scene without touching Python.
     """
-    path = pathlib.Path(getattr(character, "root", "")) / "scenes.py"
-    if not path.is_file():
-        return ()
-    import importlib.util
-
-    try:
-        spec = importlib.util.spec_from_file_location(
-            f"_scenes_{path.parent.name}", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return tuple(getattr(module, "SCENES", ()) or ())
-    except Exception:  # noqa: BLE001 — a broken pack must not kill the tab
-        return ()
+    return scene_lib.available(character)
 
 
 class StageTab:
@@ -135,6 +124,7 @@ class StageTab:
         root.addWidget(self.log)
 
         self._rebuild_for_character()
+        self._teach_faces()
         self.bus.subscribe(_FRAME, self._on_frame)
         self.bus.subscribe(mind.CHAT_REPLY, self._on_reply)
         self._timer = QtCore.QTimer(self.widget)
@@ -181,6 +171,20 @@ class StageTab:
         self.runner = scene_lib.SceneRunner(
             self.app, self.character, on_event=self._pending.append)
         self._rebuild_for_character()
+        self._teach_faces()
+
+    def _teach_faces(self) -> None:
+        """Tell the mind which faces this character has.
+
+        One line of prompt, versus ~3,600 tokens for even a scoped tool
+        catalogue. Appended to the persona rather than replacing it, so
+        a character keeps its voice and gains a face.
+        """
+        from core import persona
+
+        sheet = persona.read(pathlib.Path(self.character.root))
+        base = persona.compose(sheet) if sheet.get("prompt") else ""
+        mind.set_persona(self.app, expressive.prompt_for(self.character, base))
 
     # ── driving it ───────────────────────────────────────────────
 
@@ -226,7 +230,20 @@ class StageTab:
         self._frame = image.copy()
 
     def _on_reply(self, msg: Any) -> None:
-        self._pending.append(f"mochi {str(getattr(msg, 'text', ''))!r}")
+        """The mind answered. A plain chat model has no tools, so the
+        only way it can drive the FACE is a marker in the text — see
+        core/expressive.py. Applied here and stripped before speaking."""
+        expression, line = expressive.split(
+            str(getattr(msg, "text", "")), self.character.expressions)
+        if expression:
+            self._pending.append(f"face  {expression}   (from the reply)")
+            try:
+                animation.play(self.bus, self.character, expression)
+            except Exception:  # noqa: BLE001
+                pass
+        self._pending.append(f"mochi {line!r}")
+        if line and tts.audible(self.app):
+            tts.say(self.bus, line, voice=tts.voice(self.app))
 
     # ── GUI thread ───────────────────────────────────────────────
 

@@ -1,0 +1,20 @@
+[Header start]
+! Bitmap Man — idle. Looks around and blinks, forever.
+! A performance script: run it from the Stage tab, which conducts
+! FACE / SAY / LISTEN. The animation engine plays the BITMAP form.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/bitmap man/assets/faces/neutral_blink.json'
+[Resources end]
+
+[Main start]
+LBL[1:loop]
+FACE EXPR[neutral]  D[1.6]
+FACE EXPR[look_up]  D[1.2]
+FACE EXPR[neutral]  D[0.8]
+FACE EXPR[look_down] D[1.2]
+FACE EXPR[closed]   D[0.25]
+FACE EXPR[neutral]  D[2.0]
+JMP LBL[1]
+[Main end]
