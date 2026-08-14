@@ -204,6 +204,18 @@ def main(argv: list[str] | None = None) -> int:
         # only window in which a blank `model_path` can still be filled
         # in: the mind node reads its config once, at setup.
         mind.resolve_model(app.spec.inline_config.setdefault("mind", {}))
+        # The active character supplies the mind's voice. Same window as
+        # the model path and for the same reason — the mind node reads
+        # its config once, at setup. A pack with no persona leaves the
+        # manifest's own `system_prompt` alone, so this adds a voice
+        # rather than fighting for one.
+        from core import persona
+
+        character = (os.environ.get("MOCHI_CHARACTER")
+                     or (app.spec.inline_config.get("player") or {}).get("character", ""))
+        if character:
+            persona.resolve(app.spec.inline_config,
+                            PROJECT_ROOT / "characters" / str(character))
         # The selected voice pipeline decides the ears' and the driver's
         # settings, and both read them when they are BUILT. Applying it
         # here rather than from the Chat tab means the manifest's choice

@@ -914,6 +914,87 @@ def test_the_mic_switch_starts_the_ears_and_routes_what_they_hear(monkeypatch):
 
 # ── the eyes ─────────────────────────────────────────────────────
 
+# ── a character is one folder, two halves ────────────────────────
+
+def test_a_character_pack_carries_both_halves():
+    """Looks-and-moves and speaks are one identity, so they are one
+    file. The render half is JaegerAnimation's and it ignores the rest,
+    which is what lets them share a character.yaml."""
+    import yaml
+    from core import persona
+
+    sheet = yaml.safe_load(
+        (ROOT / "characters/mochi/character.yaml").read_text(encoding="utf-8"))
+    # the render half — still valid to the engine that owns it
+    assert sheet["kind"] == "clip_set"
+    assert sheet["render"]["adapter"] == "video"
+    # the speaking half
+    assert sheet["identity"]["voice_id"]
+    assert sheet["prompt"]["custom_instructions"]
+    assert persona.read(ROOT / "characters/mochi")["identity"]
+
+    # and the engine still loads it, which is the whole point of merging
+    # into one file rather than inventing a second one beside it
+    assert animation.load("mochi").kind == "clip_set"
+
+
+def test_the_sliders_were_not_imported():
+    """HEXACO/SPECIAL/Expression/Domains are weights for a net that was
+    trained on them, and inert as prompt text — ~1,800 characters a turn
+    buying nothing. They stay in JaegerAI where they mean something."""
+    import yaml
+
+    sheet = yaml.safe_load(
+        (ROOT / "characters/mochi/character.yaml").read_text(encoding="utf-8"))
+    assert "traits" not in sheet
+    composed = " ".join(
+        (ROOT / "core/persona.py").read_text().split())
+    for slider in ("hexaco", "special", "openness", "conscientiousness"):
+        assert slider not in composed.lower() or "not imported" in composed.lower()
+
+
+def test_the_persona_boundary_ships_with_the_voice():
+    """Measured in JaegerAI: traits in the execution context drift tool
+    arguments toward 'in character' instead of literal. Mochi has no
+    tools switched on today, which is exactly why the rule has to be
+    there before it does."""
+    from core import persona
+
+    composed = persona.compose(persona.read(ROOT / "characters/mochi"))
+    assert persona.PERSONA_BOUNDARY in composed
+    assert "tool argument" in composed
+    # spoken, because the replies go through a synthesiser
+    assert "never use emoji" in composed
+
+
+def test_a_pack_with_no_persona_keeps_the_manifest_prompt():
+    """Most packs are a face and nothing else. Adding a voice must be
+    opt-in per character, not a thing that blanks the manifest."""
+    from core import persona
+
+    config = {"mind": {"system_prompt": "from the manifest"}}
+    assert persona.resolve(config, ROOT / "characters/bitmap man") \
+        == "from the manifest"
+    assert config["mind"]["system_prompt"] == "from the manifest"
+
+    config = {"mind": {"system_prompt": "from the manifest"}}
+    resolved = persona.resolve(config, ROOT / "characters/mochi")
+    assert "childlike" in resolved
+    assert config["mind"]["system_prompt"] == resolved
+
+
+def test_a_half_written_character_costs_nothing():
+    """An empty section must not become a header with nothing under it."""
+    from core import persona
+
+    bare = persona.compose({"id": "x", "name": "Rex",
+                            "identity": {"role": "a test"}}, spoken=False)
+    assert bare.startswith("You are Rex, a test.")
+    assert "Speech habits" not in bare
+    assert persona.PERSONA_BOUNDARY in bare
+    assert persona.compose({}) .count("\n\n") == 1   # style + boundary only
+
+
 def test_the_camera_is_a_factory_not_a_slot():
     """A slot exists so an ENGINE can be swapped. Opening a webcam is
     `cv2.VideoCapture(0)` and the framework ships the node, so a slot
