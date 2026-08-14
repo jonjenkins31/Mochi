@@ -52,6 +52,25 @@ _FILE_FILTER = (
 )
 
 
+def _roster() -> list:
+    """(id, label, folder) for every installed pack.
+
+    Ids come from the module's own discovery so they match the pack
+    dropdown exactly; the label is what the pack calls itself, which is
+    neither the id nor always the folder name.
+    """
+    entries = []
+    for identifier in animation.available():
+        try:
+            character = animation.load(identifier)
+        except Exception:  # noqa: BLE001 — a broken pack is not a broken tab
+            continue
+        entries.append((identifier,
+                        character.display_name or character.name or identifier,
+                        pathlib.Path(character.root)))
+    return entries
+
+
 class FaceTab:
     """Shows whatever is on ``/act/display/frame``, and drives it."""
 
@@ -147,9 +166,19 @@ class FaceTab:
         row.addWidget(open_btn)
         row.addWidget(back_btn)
 
+        # The roster as art rather than a list of folder names. It drives
+        # the same pack_box below, so the strip and the dropdown cannot
+        # disagree — whichever you use, the other follows.
+        from .character_cards import CharacterCards
+
+        self.cards = CharacterCards(
+            _roster(), on_pick=self._on_card_picked)
+        self.cards.select(self.character.name)
+
         layout = QtWidgets.QVBoxLayout(self.widget)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.addWidget(self.screen, 1)
+        layout.addWidget(self.cards)
         layout.addLayout(row)
         layout.addWidget(self.status)
 
@@ -196,6 +225,11 @@ class FaceTab:
 
     # ── control callbacks ────────────────────────────────────────
 
+    def _on_card_picked(self, name: str) -> None:
+        """A card was clicked. Route through the dropdown so there is one
+        code path for switching a character, not two that drift."""
+        self.pack_box.setCurrentText(name)
+
     def _on_pack_picked(self, name: str) -> None:
         """Swap characters live.
 
@@ -217,6 +251,7 @@ class FaceTab:
         self.expr_box.setCurrentText(self.character.default_expression)
         self.expr_box.blockSignals(False)
         self.mouth_btn.setChecked(False)
+        self.cards.select(name)
         self.show_expression(self.character.default_expression)
 
     def _on_expression_picked(self, name: str) -> None:

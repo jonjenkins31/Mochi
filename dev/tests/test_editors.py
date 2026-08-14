@@ -1329,3 +1329,66 @@ def test_a_reply_that_never_speaks_says_so(monkeypatch):
     finally:
         tab.close()
         bus.close()
+
+
+# ── the roster, as cards ─────────────────────────────────────────
+
+def test_every_pack_gets_a_tile():
+    """A roster where half the entries are blank rectangles is worse
+    than no roster, and most packs will never have a card drawn for
+    them — so the fallback reuses the art they already ship."""
+    from interfaces.character_cards import card_for
+
+    authored = card_for(ROOT / "characters/mochi")
+    assert authored is not None and authored.name == "card.png"
+
+    # no card of its own; falls back to what it actually renders
+    fallback = card_for(ROOT / "characters/Cyber Cat")
+    assert fallback is not None and fallback.suffix.lower() == ".png"
+
+    # a pack whose art Qt cannot decode is still selectable, by name
+    assert card_for(ROOT / "characters/bitmap man") is None
+    assert card_for(ROOT / "characters/does-not-exist") is None
+
+
+def test_the_cards_key_on_the_id_the_rest_of_the_app_uses():
+    """The folder is a display convention — "Cyber Cat" is the pack
+    `cat`. Keying cards on the folder name is exactly why the strip and
+    the dropdown could not select each other's choices."""
+    from interfaces.player import _roster
+
+    ids = [identifier for identifier, _label, _folder in _roster()]
+    assert ids == animation.available()
+    assert "cat" in ids and "Cyber Cat" not in ids
+    for identifier, label, folder in _roster():
+        assert (folder / "character.yaml").is_file(), identifier
+        assert label, identifier
+
+
+def test_a_card_and_the_dropdown_cannot_disagree(monkeypatch):
+    """Two ways to choose a character, one truth. Whichever moves, the
+    other follows — the same rule the audio switches follow."""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    monkeypatch.setenv("MOCHI_NO_CYCLE", "1")
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from jaeger_os import InProcBus
+    from interfaces.player import FaceTab
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = SimpleNamespace(bus=InProcBus(), root=ROOT, config={})
+    tab = FaceTab(app, (QtCore, QtGui, QtWidgets),
+                  {"character": "mochi", "scale": 1})
+    selected = lambda: [n for n, b in tab.cards._buttons.items() if b.isChecked()]
+    try:
+        assert selected() == ["mochi"]
+
+        tab.cards._buttons["patric"].click()
+        qt_app.processEvents()
+        assert tab.pack_box.currentText() == "patric"
+        assert tab.character.name == "patric"
+
+        tab.pack_box.setCurrentText("cat")
+        qt_app.processEvents()
+        assert selected() == ["cat"]
+    finally:
+        tab.close()
