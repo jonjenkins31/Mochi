@@ -80,10 +80,16 @@ _MAX_JUMPS_PER_PASS = 64
 
 @dataclass
 class Step:
-    kind: str                    # face | say | wait | listen | jmp | lbl
+    kind: str            # clip | face | say | wait | listen | ask | jmp | lbl
     value: str = ""
     seconds: float = 0.0
     label: int | None = None
+    #: `clip` only — which asset command it was, and its raw tokens.
+    #: Kept unparsed because the ADAPTER owns that vocabulary; a
+    #: conductor that interpreted COLOR or SPD would be a second
+    #: definition of them.
+    command: str = ""
+    params: dict | None = None
 
 
 @dataclass
@@ -126,6 +132,29 @@ def _label_id(raw: Any) -> int | None:
         return None
 
 
+#: The asset commands, straight from the engine's table. A conductor
+#: that skipped these could not run a script whose whole content is an
+#: animation and a line of speech, which is most of them.
+CLIP_COMMANDS = frozenset({"MATH", "IMAGE", "GIF", "VIDEO", "MEDIA",
+                           "SPRITE", "BITMAP"})
+
+#: Which adapter each names. MEDIA is by extension, like the engine.
+CLIP_ADAPTER = {"MATH": "math", "IMAGE": "image", "GIF": "gif",
+                "VIDEO": "video", "MEDIA": "", "SPRITE": "sprite",
+                "BITMAP": "bitmap"}
+
+
+def _resources(lines: list) -> dict:
+    """`K[1]: 'path'` -> {"1": "path"}, the engine's resource table."""
+    table = {}
+    for line in lines:
+        key, _, value = str(line).partition(":")
+        key = key.strip()
+        if key.startswith("K[") and key.endswith("]"):
+            table[key[2:-1].strip()] = value.strip().strip("'\"")
+    return table
+
+
 def load(path: Any) -> Scene:
     """Read a performance from a `.mscript` file.
 
@@ -141,6 +170,7 @@ def load(path: Any) -> Scene:
         line.lstrip("! ").strip() for line in sections.get("_header", [])
         if line.strip().startswith("!"))
 
+    resources = _resources(sections.get("resources", []))
     steps: list[Step] = []
     for parsed in parse_steps(sections.get("main", [])):
         command, args = parsed.command, parsed.args
@@ -156,6 +186,15 @@ def load(path: Any) -> Scene:
         elif command == "ASK":
             steps.append(Step("ask", _quoted(args.get("TXT", "")),
                               hold or 25.0))
+        elif command in CLIP_COMMANDS:
+            # The ENGINE's own vocabulary — MATH, IMAGE, SPRITE, BITMAP,
+            # MEDIA — kept rather than replaced. A face IS a sprite or an
+            # image or a procedural scene, so the command that plays one
+            # names what it is. Every token besides K and D rides through
+            # to the adapter, which is how a script sets COLOR, SIZE or
+            # SPD without this file knowing what those mean.
+            steps.append(Step("clip", str(args.get("K", "")), hold,
+                              command=command, params=dict(args)))
         elif command == "LBL":
             steps.append(Step("lbl", label=_label_id(args.get("LBL"))))
         elif command == "JMP":
@@ -163,8 +202,22 @@ def load(path: Any) -> Scene:
         # Animation commands (BITMAP/MEDIA/SPRITE/MATH) are the ENGINE's
         # half of this format and are skipped here rather than
         # reimplemented — see the module docstring.
+    for step in steps:
+        if step.kind == "clip":
+            step.value = resources.get(step.value, step.value)
     return Scene(name=path.stem.replace("_", " "),
                  description=description or path.name, steps=steps, path=path)
+
+
+#: Steps a conductor can actually PERFORM. `lbl` and `jmp` are control
+#: flow: a file containing only those is a loop around animation
+#: commands the engine plays, and listing it as a performance is a
+#: button that does nothing you can see.
+PERFORMABLE = frozenset({"clip", "face", "say", "listen", "ask"})
+
+
+def performable(scene: Scene) -> bool:
+    return any(step.kind in PERFORMABLE for step in scene.steps)
 
 
 def available(character: Any) -> tuple[Scene, ...]:
@@ -181,7 +234,7 @@ def available(character: Any) -> tuple[Scene, ...]:
             scene = load(path)
         except Exception:  # noqa: BLE001 — a broken script is not a broken tab
             continue
-        if scene.steps:
+        if performable(scene):
             found.append(scene)
     return tuple(found)
 
@@ -196,6 +249,8 @@ class SceneRunner:
         self.character = character
         self._on_event = on_event or (lambda _line: None)
         self._stop = threading.Event()
+        self._expression = getattr(character, "default_expression", "")
+        self.mood = ""
         self._spoken = threading.Event()
         self._heard = threading.Event()
         self._heard_text = ""
@@ -305,12 +360,11 @@ class SceneRunner:
             self._on_event(f"— {scene.name} ended —")
 
     def _perform(self, step: Step) -> None:
-        if step.kind == "face":
+        if step.kind == "clip":
+            self._clip(step)
+        elif step.kind == "face":
             self._on_event(f"face  {step.value}")
-            try:
-                animation.play(self.bus, self.character, step.value)
-            except Exception as exc:  # noqa: BLE001 — one bad step, not a crash
-                self._on_event(f"      ! {exc}")
+            self._show(step.value)
             if step.seconds:
                 # `D` on a FACE holds it, so a script reads as one line
                 # per beat instead of alternating face/wait pairs.
@@ -324,6 +378,59 @@ class SceneRunner:
             self._listen(step.seconds)
         elif step.kind == "ask":
             self._ask(step.value, step.seconds)
+
+    def _clip(self, step: Step) -> None:
+        """Play an asset the script named directly, with its own tokens.
+
+        This is the engine's half of the format, run here because only
+        one reader can own a file — and a script that says a line ABOUT
+        an animation has to be able to start it.
+        """
+        from jaeger_os import topics
+
+        from modules import jaeger_animation as animation
+
+        params = {key.lower(): value for key, value in
+                  (step.params or {}).items() if key not in {"K", "D"}}
+        shown = " ".join(f"{k}={v}" for k, v in sorted(params.items()))
+        self._on_event(f"{step.command.lower():<6}{shown or step.value}")
+        params.setdefault("asset_root", str(animation.project_root()))
+        asset = pathlib.Path(step.value)
+        if not asset.is_absolute():
+            asset = animation.project_root() / asset
+        try:
+            self.bus.publish(topics.DisplayCommand(
+                adapter=CLIP_ADAPTER.get(step.command, ""),
+                asset_path=str(asset), params=params))
+        except Exception as exc:  # noqa: BLE001
+            self._on_event(f"      ! {exc}")
+        if step.seconds:
+            self._stop.wait(timeout=step.seconds)
+
+    def _show(self, expression: str) -> None:
+        """One look: the shape, and the colour the script last named.
+
+        Routed through `agent_face.show` rather than `animation.play`
+        because that is the only path that carries a colour — and a
+        pack with no moods gets exactly what `animation.play` would
+        have sent.
+        """
+        from core import agent_face
+
+        if not expression:
+            return
+        self._expression = expression
+        colour = ""
+        if self.mood:
+            colour = agent_face.moods(
+                getattr(self.character, "root", "")).get(self.mood, "")
+        try:
+            if colour:
+                agent_face.show(self.bus, self.character, expression, colour)
+            else:
+                animation.play(self.bus, self.character, expression)
+        except Exception as exc:  # noqa: BLE001 — one bad step, not a crash
+            self._on_event(f"      ! {exc}")
 
     def _say(self, text: str) -> None:
         """Speak, then wait for the done-ack rather than guessing."""
@@ -391,7 +498,8 @@ class SceneRunner:
             self._on_event("heard nothing")
 
 
-__all__ = ["Scene", "Step", "SceneRunner", "load", "available",
+__all__ = [
+    "performable", "PERFORMABLE","Scene", "Step", "SceneRunner", "load", "available",
            "compile_timeline", "has_tracks", "track_kind", "track_parts",
            "TRACK_PREFIX"]
 

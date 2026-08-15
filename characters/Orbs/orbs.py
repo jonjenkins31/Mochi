@@ -67,10 +67,22 @@ TAU = math.pi * 2
 # ── the maths, straight across ───────────────────────────────────
 
 
+def _number(value: Any, fallback: float) -> float:
+    """mscript hands everything over as a STRING. A bad number keeps the
+    default rather than stopping the animation."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def _rgb(value: Any, fallback: tuple) -> tuple:
     """A colour from anything an operator might reasonably write: three
     numbers, or "#RRGGBB". Anything else keeps what we had — a bad
     colour should not stop the orb drawing."""
+    if isinstance(value, str) and "," in value:
+        # `BG[11,9,16]` — the token form every other command uses.
+        value = [p.strip() for p in value.split(",")]
     if isinstance(value, (list, tuple)) and len(value) == 3:
         try:
             return tuple(max(0, min(255, int(c))) for c in value)
@@ -607,32 +619,99 @@ def _shape(size: int, t: float, p: dict) -> dict:
     return _finish(dots, [], p.get("rMin", 0.25))
 
 
-#: state -> (generator, profile). The profiles are the library's own
-#: `64` presets — its chat-avatar scale, which is what a character face
-#: is — with the dot radius left to scale off the real canvas size.
+#: state -> (generator, base profile). The library's `Et` table: the
+#: full-fat design, before a size preset thins it.
 STATES: dict[str, tuple] = {
     "working": (_orbits, {"orbitN": 12, "ghostN": 40, "ghostR": 0.9,
                           "ghostA": 0.5, "particles": 3, "partR": 1.2,
-                          "partRDepth": 1.6}),
+                          "partRDepth": 1.6, "rsPow": 0.6, "rMin": 0.3}),
     "searching": (_globe, {"latRings": 17, "lonDensity": 44, "rBase": 0.6,
                            "rDepth": 1.7, "rBoost": 1, "inkFar": 0.62,
-                           "inkSpan": 0.54, "scanMul": 4.08,
-                           "dimBase": 0.45}),
+                           "inkSpan": 0.54, "rsPow": 0.6, "rMin": 0.3}),
     "solving": (_rubik, {"latRings": 15, "lonDensity": 40, "moveCount": 14,
                          "rBase": 0.6, "rDepth": 1.7, "rActive": 0.3,
-                         "inkFar": 0.62, "inkSpan": 0.54}),
+                         "inkFar": 0.62, "inkSpan": 0.54, "rsPow": 0.6,
+                         "rMin": 0.3}),
     "listening": (_wave, {"rings": 15, "lonDensity": 40, "rBase": 0.6,
-                          "rDepth": 1.7}),
+                          "rDepth": 1.7, "rsPow": 0.6, "rMin": 0.3}),
     "connecting": (_web, {"nodeN": 30, "thr": 0.72, "signals": 5,
-                          "nodeR": 1.4, "nodeRDepth": 1.8, "lineW": 0.8}),
+                          "nodeR": 1.4, "nodeRDepth": 1.8, "lineW": 0.8,
+                          "rsPow": 0.6, "rMin": 0.3}),
     "weaving": (_braid, {"strandN": 52, "turns": 3, "ghostN": 150,
-                         "rBase": 1.2, "rDepth": 1.8}),
+                         "rBase": 1.2, "rDepth": 1.8, "rsPow": 0.6,
+                         "rMin": 0.3}),
     "composing": (_ribbon, {"lanes": 5, "segs": 88, "ghostN": 150,
-                            "rBase": 1.1, "rDepth": 1.7}),
-    "breathing": (_ribbon, {"lanes": 5, "segs": 88, "ghostN": 0,
-                            "faceOn": 1, "rBase": 1.1, "rDepth": 1.7}),
+                            "rBase": 1.1, "rDepth": 1.7, "rsPow": 0.6,
+                            "rMin": 0.3}),
+    "breathing": (_ribbon, {"lanes": 5, "segs": 88, "ghostN": 0, "faceOn": 1,
+                            "rBase": 1.1, "rDepth": 1.7, "rsPow": 0.6,
+                            "rMin": 0.3}),
     "shaping": (_shape, {"rDot": 0.021, "iconD": 1, "rMin": 0.25}),
 }
+
+#: The library's `At` table. NOT a scale factor — two separate designs.
+#: `64` is chat-avatar scale, `20` is inline-text scale, and each carries
+#: its own dot count, dot size and speed because a thinned-out orb needs
+#: bigger, slower dots to still read.
+PRESETS: dict[str, dict] = {
+    "working":    {64: (1.885, 1, 1, {}),
+                   20: (3.9, 0.238, 2.4, {})},
+    "searching":  {64: (2.015, 0.42, 1.15, {"scanMul": 4.08, "dimBase": 0.45}),
+                   20: (2.665, 0.105, 1.75, {"scanMul": 4.335, "dimBase": 0.45})},
+    "solving":    {64: (1.82, 0.35, 1.05, {}),
+                   20: (1.95, 0.088, 1.9, {})},
+    "listening":  {64: (4.388, 0.341, 1, {}),
+                   20: (3.998, 0.105, 1.6, {})},
+    "connecting": {64: (3.315, 1.35, 0.95, {}),
+                   20: (6.63, 0.25, 1.52, {})},
+    "weaving":    {64: (1.625, 0.5, 1, {}),
+                   20: (2.75, 0.1125, 1.36, {})},
+    "composing":  {64: (2.34, 0.25, 0.85, {"spin": 0, "bandMul": 3.9, "wobMul": 1}),
+                   20: (3.12, 0.051, 1.073, {"spin": 0, "bandMul": 4.94, "wobMul": 1})},
+    "breathing":  {64: (3.24, 0.25, 0.956, {"spin": 0, "bandMul": 3.627, "wobMul": 0.368}),
+                   20: (3.78, 0.028, 1.622, {"spin": 0, "bandMul": 3.968, "wobMul": 0.565})},
+    "shaping":    {64: (2.405, 0.702, 0.395, {"spread": 1.45}),
+                   20: (2.08, 0.53, 1.011, {"spread": 1.45})},
+}
+
+#: Grid PAIRS thin by sqrt(count) — halving both axes of a lattice
+#: quarters it, so the square root is what keeps a globe looking like a
+#: globe rather than a handful of rings.
+_GRIDS = (("latRings", "lonDensity"), ("rings", "lonDensity"),
+          ("lanes", "segs"))
+#: Straight counts, thinned linearly.
+_COUNTS = ("orbitN", "ghostN", "nodeN", "strandN", "signals")
+#: Radii, scaled by the size multiplier.
+_RADII = ("rBase", "rDepth", "rActive", "rDot", "ghostR", "partR",
+          "partRDepth", "nodeR", "nodeRDepth")
+
+
+def profile(state: str, size: int = 64, density: float = 1.0) -> tuple:
+    """(params, speed) for one state at one size preset."""
+    _generator, base = STATES[state]
+    params = dict(base)
+    speed, count, dot, extra = PRESETS[state][64 if size >= 42 else 20]
+    count *= max(0.01, density)
+
+    if count != 1:
+        done = set()
+        for a, b in _GRIDS:
+            if a in params and b in params and a not in done and b not in done:
+                root = math.sqrt(count)
+                params[a] = max(2, round(params[a] * root))
+                params[b] = max(2, round(params[b] * root))
+                done |= {a, b}
+        for key in _COUNTS:
+            if params.get(key):
+                params[key] = max(1, round(params[key] * count))
+        if "iconD" in params:
+            params["iconD"] = max(0.02, params["iconD"] * count)
+    if dot != 1:
+        for key in _RADII:
+            if key in params:
+                params[key] *= dot
+    params.update(extra)
+    return params, speed
 
 
 class Orb(Animation):
@@ -653,6 +732,10 @@ class Orb(Animation):
         self.state = "working"
         self.speed = 1.0
         self.density = 1.0
+        #: Which of the two tuned designs — 64 is avatar scale, 20 is
+        #: the sparse inline one. A number, not a pixel count: the
+        #: canvas size is whatever the display is.
+        self.size = 64
         self.background = (11, 9, 16)
         #: What the dots are made of. White is the original's monochrome
         #: and stays the default, because a mood colour means nothing if
@@ -660,14 +743,30 @@ class Orb(Animation):
         self.color = (255, 255, 255)
 
     def on_enter(self, **kwargs: Any) -> None:
-        state = str(kwargs.get("state", self.state)).lower()
+        """Params come from two directions and must mean the same thing.
+
+        `character.yaml` writes them lower case; an mscript writes
+        `STATE[working] COLOR[#43E08A] SPD[2]`, and the engine passes
+        those tokens through verbatim. So keys are matched case-blind
+        and `SPD` is accepted for speed, which is the token every other
+        media command in the format already uses.
+        """
+        params = {str(k).lower(): v for k, v in kwargs.items()}
+
+        def pick(*names, default=None):
+            for name in names:
+                if params.get(name) not in (None, ""):
+                    return params[name]
+            return default
+
+        state = str(pick("state", default=self.state)).lower()
         self.state = state if state in STATES else "working"
-        self.speed = float(kwargs.get("speed", 1.0))
-        self.density = float(kwargs.get("density", 1.0))
-        bg = kwargs.get("background")
-        if isinstance(bg, (list, tuple)) and len(bg) == 3:
-            self.background = tuple(int(c) for c in bg)
-        self.color = _rgb(kwargs.get("color"), self.color)
+        self.speed = _number(pick("speed", "spd"), 1.0)
+        self.density = _number(pick("density"), 1.0)
+        self.size = int(_number(pick("size"), 64) or 64)
+        bg = pick("background", "bg")
+        self.background = _rgb(bg, self.background)
+        self.color = _rgb(pick("color", "fg"), self.color)
 
     def on_event(self, event: str, **kwargs: Any) -> None:
         """A scene can switch the orb mid-clip — `working` while it
@@ -684,16 +783,14 @@ class Orb(Animation):
         height, width = frame_rgb.shape[0], frame_rgb.shape[1]
         frame_rgb[:, :] = self.background
 
-        generator, profile = STATES[self.state]
-        params = dict(profile)
-        if self.density != 1.0:
-            for key in ("ghostN", "strandN", "latRings", "lonDensity",
-                        "rings", "orbitN", "nodeN", "segs", "iconD"):
-                if key in params:
-                    params[key] = max(1, int(params[key] * self.density))
+        generator = STATES[self.state][0]
+        params, tuned = profile(self.state, self.size, self.density)
 
         size = min(width, height)
-        scene = generator(size, t * self.speed, params)
+        # The preset's speed is part of its DESIGN — the sparse orb has
+        # to move faster to read as the same animation — so the operator's
+        # `speed` multiplies it rather than replacing it.
+        scene = generator(size, t * tuned * self.speed * 0.35, params)
 
         # The orb is drawn square and centred, so a wide display gets
         # bars rather than an oval — an orb that is not round is not an

@@ -1,7 +1,7 @@
 [Header start]
-! Orbs — a thought, start to finish.
-! Every step is the SAME asset with a different state param, which is
-! what a procedural character buys you: no clips to author.
+! Orbs thinking a thought through, start to finish, on a loop.
+! One asset, four states: what changes is the TOKENS, which is the
+! point of a procedural character — no clips to author.
 [Header end]
 
 [Resources start]
@@ -10,10 +10,10 @@ K[1]: 'characters/Orbs/orbs.py'
 
 [Main start]
 LBL[1]
-MATH K[1] D[3.0] P['{"state": "listening"}']
-MATH K[1] D[4.0] P['{"state": "searching"}']
-MATH K[1] D[4.0] P['{"state": "connecting"}']
-MATH K[1] D[4.0] P['{"state": "solving"}']
-MATH K[1] D[3.0] P['{"state": "breathing"}']
+MATH K[1] STATE[listening]  COLOR[#43E08A] D[3.0]
+MATH K[1] STATE[searching]  COLOR[#4FC3F7] D[4.0]
+MATH K[1] STATE[connecting] COLOR[#4FC3F7] D[4.0]
+MATH K[1] STATE[solving]    COLOR[#6C5CE7] D[4.0]
+MATH K[1] STATE[breathing]  COLOR[#8A85A6] D[3.0]
 JMP LBL[1]
 [Main end]

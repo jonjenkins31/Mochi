@@ -77,6 +77,7 @@ class MochiWindow:
         from .legacy_windows import LegacyWindowsTab, WindowManager
         from .player import FaceTab, _roster
         from .runtime import RuntimeTab
+        from .scripts import ScriptsTab
         from .stage import StageTab
         from .vision import VisionTab
         from .voice import VoiceTab
@@ -126,6 +127,13 @@ class MochiWindow:
         self.runtime = RuntimeTab(
             app, qt, self.window_manager.performance.show_window)
         self.stage = StageTab(app, qt)
+        # After agent_face, because the tab suspends it while a script
+        # runs — a script cannot own the face without something to
+        # take it from.
+        self.scripts = ScriptsTab(
+            app, qt, lambda: self.face.character, self.agent_face)
+        self.face.pack_box.currentTextChanged.connect(
+            lambda _n: self.scripts.reload())
         self.windows = LegacyWindowsTab(app, qt, self.window_manager)
         self.chat = ChatTab(app, qt, lambda: self.face.character)
         self.voice = VoiceTab(app, qt)
@@ -135,7 +143,7 @@ class MochiWindow:
             self.face, self.cast, self.character_editor, self.mscript_editor,
             self.assets,
             self.modules,
-            self.runtime, self.stage, self.windows, self.chat, self.voice, self.hearing,
+            self.runtime, self.scripts, self.stage, self.windows, self.chat, self.voice, self.hearing,
             self.vision,
         )
 
@@ -146,6 +154,7 @@ class MochiWindow:
         self.widget.addTab(self.assets.widget, "Assets")
         self.widget.addTab(self.modules.widget, "Modules")
         self.widget.addTab(self.runtime.widget, "Runtime")
+        self.widget.addTab(self.scripts.widget, "Scripts")
         self.widget.addTab(self.stage.widget, "Stage")
         self.widget.addTab(self.windows.widget, "Windows")
         self.widget.addTab(self.chat.widget, "Chat")

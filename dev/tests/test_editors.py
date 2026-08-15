@@ -425,7 +425,8 @@ def test_window_contains_migrated_editors_and_node_surfaces(monkeypatch):
         tabs = [window.widget.tabText(i) for i in range(window.widget.count())]
         assert tabs == [
             "Face", "Cast", "Characters", "MScript Editor", "Assets", "Modules",
-            "Runtime", "Stage", "Windows", "Chat", "Voice", "Hearing", "Vision",
+            "Runtime", "Scripts", "Stage", "Windows", "Chat", "Voice",
+            "Hearing", "Vision",
         ]
         assert window.window_manager.popup.player.skins["tv1"].image.is_file()
         window.face.popup_btn.click()
@@ -1598,15 +1599,31 @@ def test_the_three_scenes_are_progressively_harder():
     assert by_name["knock knock"].interactive
 
 
-def test_an_animation_only_script_is_not_offered_as_a_performance():
-    """blink.mscript is the ENGINE's to play — all BITMAP commands, no
-    face, voice or wait for anyone. Offering it as a Stage button would
-    be a button that does nothing visible."""
+def test_an_animation_only_script_is_playable_now():
+    """It used to be excluded — the conductor skipped asset commands, so
+    offering blink.mscript was a button that did nothing visible.
+
+    The conductor reads them now, in the format's OWN vocabulary: a face
+    is a bitmap or a sprite or a procedural scene, so the command that
+    plays one says which. That makes an animation-only script a
+    perfectly good performance, and what disqualifies a file is having
+    no steps at all.
+    """
     from core import scenes
 
     character = animation.load("bitmap_man")
-    assert (pathlib.Path(character.root) / "mscripts/blink.mscript").is_file()
-    assert "blink" not in {s.name for s in scenes.available(character)}
+    blink = pathlib.Path(character.root) / "mscripts/blink.mscript"
+    assert blink.is_file()
+    scene = scenes.load(blink)
+    assert scenes.performable(scene)
+    assert "blink" in {s.name for s in scenes.available(character)}
+    # Every clip resolved its K[n] to a real file on disk.
+    clips = [step for step in scene.steps if step.kind == "clip"]
+    assert clips, "blink.mscript is all asset commands"
+    for step in clips:
+        assert step.command, "the asset command was lost"
+        assert pathlib.Path(step.value).name.endswith((".json", ".png", ".py",
+                                                       ".webp", ".gif", ".mp4"))
 
 
 def test_a_toolless_model_can_still_drive_the_face():
@@ -2774,3 +2791,60 @@ def test_a_verb_pack_does_not_get_its_expressions_walked(monkeypatch):
         assert tab._may_cycle()
     finally:
         tab.close(); bus.close()
+
+
+def test_the_mscript_doc_matches_the_vocabulary_that_runs():
+    """A spec that drifts from the reader is worse than no spec.
+
+    Every command the conductor dispatches has to appear in the doc, and
+    every command the doc claims has to be one the conductor knows.
+    """
+    from core import scenes
+
+    doc = (ROOT / "docs/learn/mscripts.md").read_text(encoding="utf-8")
+    for command in sorted(scenes.CLIP_COMMANDS):
+        assert f"`{command} K[n]`" in doc, f"{command} is undocumented"
+    for command in ("FACE", "SAY", "LISTEN", "ASK", "JMP"):
+        assert command in doc, f"{command} is undocumented"
+    # The three modules a script can drive, named as such.
+    for module in ("TTS", "STT", "LLM"):
+        assert f"**{module}**" in doc, f"{module} is not named in the doc"
+    # And the sections both readers accept, which are closed.
+    from interfaces.mscript_editor import KNOWN_SECTIONS
+
+    for section in KNOWN_SECTIONS:
+        assert f"`{section}`" in doc, f"section {section} is undocumented"
+
+
+def test_the_tour_demonstrates_every_orb_state_and_every_knob():
+    """The walkthrough is the format's own documentation — if a
+    parameter is not in it, nobody finds out it exists."""
+    import importlib.util
+    from core import scenes
+
+    spec = importlib.util.spec_from_file_location(
+        "_orbs_tour", ROOT / "characters/Orbs/orbs.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    scene = scenes.load(ROOT / "characters/Orbs/mscripts/tour.mscript")
+    clips = [step for step in scene.steps if step.kind == "clip"]
+    assert clips and all(step.command == "MATH" for step in clips)
+
+    # Every state it can be in gets shown and talked about.
+    shown = {str(step.params.get("STATE", "")) for step in clips}
+    assert set(module.STATES) <= shown, set(module.STATES) - shown
+    assert len([s for s in scene.steps if s.kind == "say"]) >= len(module.STATES)
+
+    # And the three knobs, each with more than one value so the
+    # difference is actually visible.
+    for token in ("COLOR", "SIZE", "SPD"):
+        values = {step.params.get(token) for step in clips
+                  if step.params.get(token)}
+        assert len(values) > 1, f"{token} is never varied in the tour"
+
+    # A clip line must never be partial: each opens a fresh clip, so a
+    # line without STATE silently loses the shape.
+    for step in clips:
+        assert step.params.get("STATE"), (
+            f"{step.params} has no STATE — it would reset the shape")

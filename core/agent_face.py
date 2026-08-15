@@ -88,6 +88,37 @@ def speaks_function(character: Any) -> bool:
     return any(word in words for _state, word in FUNCTION)
 
 
+def show(bus: Any, character: Any, expression: str, colour: str = "") -> None:
+    """Play one look — a shape and, if the pack takes one, a colour.
+
+    A module function because a SCENE needs exactly this too, and a
+    second copy of "how to show a look" is a second place for colour to
+    go missing.
+    """
+    from jaeger_os import topics
+
+    from modules import jaeger_animation as animation
+
+    spec = dict((getattr(character, "expressions", {}) or {}).get(
+        expression) or {})
+    params = dict(spec.get("params") or {})
+    if colour:
+        params["color"] = colour
+    params.setdefault("loop", bool(spec.get("loop", True)))
+    params.setdefault("fit", "contain")
+    # `asset_root` rides INSIDE params, the same way jaeger_animation
+    # puts it there — DisplayCommand has no field of its own for it.
+    params.setdefault("asset_root", str(animation.project_root()))
+    asset = str(spec.get("asset", character.render["asset"]))
+    try:
+        bus.publish(topics.DisplayCommand(
+            adapter=str(spec.get("adapter", character.adapter)),
+            asset_path=str(pathlib.Path(character.root) / asset),
+            params=params))
+    except Exception:  # noqa: BLE001 — a face is never worth raising
+        pass
+
+
 class AgentFace:
     """Drive one character's face from what the agent is doing.
 
@@ -102,6 +133,10 @@ class AgentFace:
         self.bus = app.bus
         self.character_of = character_of
         self.mood = ""            # named by the model, wins while set
+        #: True while a SCENE is driving the face. A script that says
+        #: "this is what searching looks like" must not be overwritten
+        #: two seconds later by the mind going idle.
+        self.held = False
         self._flags = {"thinking": False, "speaking": False, "hearing": False,
                        "failed": False}
         self._showing: tuple[str, str] | None = None
@@ -196,7 +231,7 @@ class AgentFace:
         and touches nothing else, which is the only reason that is fine.
         """
         character = self._character()
-        if character is None or not speaks_function(character):
+        if self.held or character is None or not speaks_function(character):
             return
         look = self.look(character)
         if look == self._showing:
@@ -205,34 +240,16 @@ class AgentFace:
         self.play(character, *look)
 
     def play(self, character: Any, expression: str, colour: str) -> None:
-        """One command, carrying both the verb and the mood.
+        show(self.bus, character, expression, colour)
 
-        Colour has to ride WITH the expression because it is a clip
-        parameter — the adapter reads it when the clip opens. That is
-        also why `refresh` guards on change: every repaint of the same
-        look would be a visible jump back to t=0.
-        """
-        from jaeger_os import topics
-
-        from modules import jaeger_animation as animation
-
-        spec = dict(character.expressions.get(expression) or {})
-        params = dict(spec.get("params") or {})
-        params["color"] = colour
-        params.setdefault("loop", bool(spec.get("loop", True)))
-        params.setdefault("fit", "contain")
-        # `asset_root` rides INSIDE params, the same way jaeger_animation
-        # puts it there — DisplayCommand has no field of its own for it.
-        params.setdefault("asset_root", str(animation.project_root()))
-        asset = str(spec.get("asset", character.render["asset"]))
-        try:
-            self.bus.publish(topics.DisplayCommand(
-                adapter=str(spec.get("adapter", character.adapter)),
-                asset_path=str(pathlib.Path(character.root) / asset),
-                params=params,
-            ))
-        except Exception:  # noqa: BLE001 — a face is never worth raising
-            pass
+    def hold(self, held: bool) -> None:
+        """Hand the face to something else, and take it back. Taking it
+        back repaints at once, so the agent's real state returns rather
+        than leaving whatever the scene left behind."""
+        self.held = bool(held)
+        if not self.held:
+            self._showing = None
+            self.refresh()
 
     def close(self) -> None:
         for topic, handler in self._watching:
@@ -242,5 +259,5 @@ class AgentFace:
                 pass
 
 
-__all__ = ["AgentFace", "FUNCTION", "MOOD", "MOOD_FOR", "moods",
+__all__ = ["AgentFace", "FUNCTION", "MOOD", "MOOD_FOR", "moods", "show",
            "speaks_function"]

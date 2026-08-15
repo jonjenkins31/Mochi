@@ -1,0 +1,84 @@
+[Header start]
+! Orbs gives the tour — every shape, then colour, size and speed.
+! Written in the format's own vocabulary: MATH plays a procedural
+! animation, and every token besides K and D goes to the adapter. So
+! STATE, COLOR, SIZE and SPD are the orb's parameters, not commands
+! this script had to invent.
+!
+! Every clip line carries its FULL state: the engine opens a new clip
+! per command, so a line with only COLOR would quietly lose the shape.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Orbs/orbs.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[breathing] COLOR[#8A85A6] D[1.0]
+SAY TXT['This is me at rest. A ring, facing you, slowly changing its mind about its own shape.']
+
+SAY TXT['I have nine shapes. Each one is a thing I could be doing, so you can see what I am up to without me saying a word.']
+
+MATH K[1] STATE[working] D[0.8]
+SAY TXT['Working. Particles running their own orbits. This is what you get while I am thinking about something you asked.']
+
+MATH K[1] STATE[searching] D[0.8]
+SAY TXT['Searching. A scan line sweeping a globe of dots, lighting the ones it passes.']
+
+MATH K[1] STATE[solving] D[0.8]
+SAY TXT['Solving. The bands scramble, and then they click back. A puzzle taking itself apart and putting itself together.']
+
+MATH K[1] STATE[listening] D[0.8]
+SAY TXT['Listening. A wave rolling through the rings. You get this one when the microphone is on and you are talking.']
+
+MATH K[1] STATE[connecting] D[0.8]
+SAY TXT['Connecting. A constellation wiring itself up, with signals running along the edges between the nodes.']
+
+MATH K[1] STATE[weaving] D[0.8]
+SAY TXT['Weaving. Three strands plaiting around a sphere, each one crossing the other two.']
+
+MATH K[1] STATE[composing] D[0.8]
+SAY TXT['Composing. A sash of dots undulating around me. This is the one that looks like it is enjoying itself.']
+
+MATH K[1] STATE[shaping] D[0.8]
+SAY TXT['Shaping. A dotted outline melting from a circle to a triangle to a square, and back again.']
+
+MATH K[1] STATE[breathing] D[1.0]
+SAY TXT['That is all nine. My shape says what I am doing. My colour says how it is going, and it is set separately, so I can be busy and worried at the same time.']
+
+MATH K[1] STATE[working] COLOR[#6C5CE7] D[1.4]
+SAY TXT['Purple is busy. I am working on something and I have not finished.']
+
+MATH K[1] STATE[working] COLOR[#43E08A] D[1.4]
+SAY TXT['Green is listening. Someone is talking and I am taking it in.']
+
+MATH K[1] STATE[working] COLOR[#4FC3F7] D[1.4]
+SAY TXT['Blue is curious. I want to know the next thing.']
+
+MATH K[1] STATE[working] COLOR[#7BE3B8] D[1.4]
+SAY TXT['This one is pleased. Something worked.']
+
+MATH K[1] STATE[working] COLOR[#C99A6E] D[1.4]
+SAY TXT['Amber is sorry. I got something wrong and I know it.']
+
+MATH K[1] STATE[working] COLOR[#E06C75] D[1.4]
+SAY TXT['Red is trouble. Something failed and I could not route around it.']
+
+MATH K[1] STATE[working] COLOR[#FFFFFF] D[1.4]
+SAY TXT['White is certain. No hedging left.']
+
+MATH K[1] STATE[working] COLOR[#8A85A6] SIZE[64] D[1.2]
+SAY TXT['There are two of me, at different sizes. This is the large one — dense, small dots, meant to be looked at.']
+
+MATH K[1] STATE[working] COLOR[#8A85A6] SIZE[20] D[2.0]
+SAY TXT['And this is the small one. Not the same orb shrunk. Fewer dots, bigger, moving faster, so it still reads at the size of a line of text.']
+
+MATH K[1] STATE[working] COLOR[#8A85A6] SIZE[64] SPD[3.0] D[2.0]
+SAY TXT['Speed is its own knob. That is three times normal — this is what I look like when I am in a hurry.']
+
+MATH K[1] STATE[working] COLOR[#8A85A6] SIZE[64] SPD[0.3] D[2.5]
+SAY TXT['And that is a third of normal. Same animation, thinking it over.']
+
+MATH K[1] STATE[breathing] COLOR[#8A85A6] SPD[1.0] SIZE[64] D[1.0]
+SAY TXT['Back to rest. Nine shapes, any colour, two sizes and a speed — and every one of them is a token in this script, so anything you can see, you can write down.']
+[Main end]
