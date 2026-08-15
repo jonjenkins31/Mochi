@@ -2096,3 +2096,53 @@ def test_a_two_hander_lives_at_the_project_root():
     # the shared directory is discoverable from any character
     labels = {name for name, _p in staging.available(animation.load("eric"))}
     assert any("shared" in label for label in labels)
+
+
+def test_a_scene_loads_whichever_form_it_was_written_in():
+    """`.mscript` is the authoring form and compiles; `.json` is the
+    compiled form and loads. A caller picking from a list should not
+    have to know which — handing an mscript to the JSON decoder is what
+    produced `Expected 'object', got 'array'` the moment shared scenes
+    started being offered."""
+    from core import staging
+
+    listing = staging.load(ROOT / "scenes/hello_fellow_humans.mscript")
+    assert len(listing.tracks) == 5
+    compiled = staging.load(ROOT / "characters/bitmap man/scenes/secret.json")
+    assert compiled.tracks
+
+    # every scene the Stage offers must actually open
+    for name in ("bitmap_man", "jaeger", "mochi", "eric"):
+        for label, path in staging.available(animation.load(name)):
+            staging.load(path)          # raises if it cannot
+
+
+def test_only_the_visible_tab_drives_the_display(monkeypatch):
+    """The Face tab walks its character's expressions on a timer; the
+    Stage drives a performance. Both publish to /act/display/play, so
+    with both live the screen alternates between two characters'
+    artwork. A background tab has no business driving the display."""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from jaeger_os import InProcBus
+    from interfaces.window import MochiWindow
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = SimpleNamespace(
+        bus=InProcBus(), config={"player": {"character": "emotes", "scale": 1}},
+        spec=SimpleNamespace(nodes=[]), supervisor=None, root=ROOT)
+    window = MochiWindow(app)
+    try:
+        tabs = [window.widget.tabText(i) for i in range(window.widget.count())]
+        window.widget.setCurrentIndex(0)
+        window.face.cycle_btn.setChecked(True)
+        assert window.face.cycle_btn.isChecked()
+
+        window.widget.setCurrentIndex(tabs.index("Stage"))
+        assert not window.face.cycle_btn.isChecked(), \
+            "the Face tab kept driving the display from the background"
+
+        window.widget.setCurrentIndex(0)
+        assert window.face.cycle_btn.isChecked(), "cycling was not restored"
+    finally:
+        window.close()

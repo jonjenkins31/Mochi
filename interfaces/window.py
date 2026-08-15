@@ -124,10 +124,29 @@ class MochiWindow:
         self.widget.addTab(self.hearing.widget, "Hearing")
         self.widget.addTab(self.vision.widget, "Vision")
 
+        # ONE OWNER OF THE DISPLAY AT A TIME. The Face tab walks its
+        # character's expressions on a timer; the Stage drives a
+        # performance. Both publish to /act/display/play, so with both
+        # live the screen alternates between two characters' artwork —
+        # which is what "it keeps flicking between designs" was.
+        #
+        # A background tab has no business driving the display, so
+        # cycling pauses whenever the Face tab is not the visible one.
+        self.widget.currentChanged.connect(self._tab_changed)
+
         self.widget.setWindowTitle(f"Mochi — {self.face.character.name}")
         scale = int(os.environ.get("MOCHI_SCALE",
                                    (config.get("player") or {}).get("scale", 2)))
         self.widget.resize(max(1100, 256 * scale), max(720, 256 * scale + 130))
+
+    def _tab_changed(self, index: int) -> None:
+        showing_face = self.widget.widget(index) is self.face.widget
+        if not showing_face and self.face.cycle_btn.isChecked():
+            self._cycle_was_on = True
+            self.face.cycle_btn.setChecked(False)
+        elif showing_face and getattr(self, "_cycle_was_on", False):
+            self._cycle_was_on = False
+            self.face.cycle_btn.setChecked(True)
 
     def start(self) -> None:
         self.widget.show()

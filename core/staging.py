@@ -125,9 +125,23 @@ def _resolve_voices(timeline: Timeline, cache: dict) -> None:
 
 
 def load(path: Any, project_root: pathlib.Path | None = None) -> Timeline:
-    """Read a scene and resolve it against the characters it names."""
+    """Read a scene — written as a listing or as JSON — and resolve it.
+
+    Both forms are scenes and a caller should not have to know which it
+    picked from a list. `.mscript` is the authoring form and compiles;
+    `.json` is the compiled form and loads. Handing an mscript to the
+    JSON decoder is what produced `Expected 'object', got 'array'` the
+    moment shared scenes started being offered.
+    """
+    from core import scenes as scene_lib
+
     path = pathlib.Path(path)
     root = pathlib.Path(project_root or pathlib.Path(__file__).resolve().parent.parent)
+    if path.suffix == ".mscript":
+        timeline = scene_lib.compile_timeline(path)
+        if timeline is None:
+            raise StagingError(f"{path.name} has no [Track_*] sections")
+        return resolve(timeline, root)
     return resolve(load_timeline(path), root)
 
 
