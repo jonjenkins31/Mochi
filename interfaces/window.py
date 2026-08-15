@@ -73,8 +73,9 @@ class MochiWindow:
         from .hearing import HearingTab
         from .mscript_editor import MscriptEditorTab
         from .modules import ModulesTab
+        from .cast import CastTab
         from .legacy_windows import LegacyWindowsTab, WindowManager
-        from .player import FaceTab
+        from .player import FaceTab, _roster
         from .runtime import RuntimeTab
         from .stage import StageTab
         from .vision import VisionTab
@@ -91,6 +92,16 @@ class MochiWindow:
         self.face = FaceTab(app, qt, config.get("player", {}) or {})
         self.window_manager = WindowManager(
             app, character_of=lambda: self.face.character)
+        # The roster, as cards. Selecting routes through the Face tab's
+        # pack box — the one code path that loads a character — so the
+        # display, the persona and the voice all move together and this
+        # tab never has to know they exist.
+        self.cast = CastTab(
+            app, qt, _roster(), on_select=self.face.pack_box.setCurrentText,
+            active=self.face.character.name)
+        # Whoever changed it, the cards follow. Connected after the Face
+        # tab's own slot, so `face.character` is already the new one.
+        self.face.pack_box.currentTextChanged.connect(self.cast.set_active)
         self.face.popup_btn.clicked.connect(self.window_manager.popup.show)
         self.mscript_editor = MscriptEditorTab(app, qt)
         self.character_editor = CharacterEditorTab(
@@ -107,13 +118,15 @@ class MochiWindow:
         self.hearing = HearingTab(app, qt)
         self.vision = VisionTab(app, qt)
         self._tabs = (
-            self.face, self.character_editor, self.mscript_editor, self.assets,
+            self.face, self.cast, self.character_editor, self.mscript_editor,
+            self.assets,
             self.modules,
             self.runtime, self.stage, self.windows, self.chat, self.voice, self.hearing,
             self.vision,
         )
 
         self.widget.addTab(self.face.widget, "Face")
+        self.widget.addTab(self.cast.widget, "Cast")
         self.widget.addTab(self.character_editor.widget, "Characters")
         self.widget.addTab(self.mscript_editor.widget, "MScript Editor")
         self.widget.addTab(self.assets.widget, "Assets")

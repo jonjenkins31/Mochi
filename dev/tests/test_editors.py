@@ -413,7 +413,7 @@ def test_window_contains_migrated_editors_and_node_surfaces(monkeypatch):
     try:
         tabs = [window.widget.tabText(i) for i in range(window.widget.count())]
         assert tabs == [
-            "Face", "Characters", "MScript Editor", "Assets", "Modules",
+            "Face", "Cast", "Characters", "MScript Editor", "Assets", "Modules",
             "Runtime", "Stage", "Windows", "Chat", "Voice", "Hearing", "Vision",
         ]
         assert window.window_manager.popup.player.skins["tv1"].image.is_file()
@@ -1364,6 +1364,16 @@ def test_a_reply_that_never_speaks_says_so(monkeypatch):
 
 # ── the roster, as cards ─────────────────────────────────────────
 
+def tmp_pack(*, clip: str) -> pathlib.Path:
+    """A throwaway pack whose only art is something Qt cannot decode."""
+    import tempfile
+    root = pathlib.Path(tempfile.mkdtemp(prefix="pack-"))
+    (root / clip).write_bytes(b"not really a video")
+    (root / "character.yaml").write_text(
+        f"name: unreadable\nrender:\n  asset: {clip}\n", encoding="utf-8")
+    return root
+
+
 def test_every_pack_gets_a_tile():
     """A roster where half the entries are blank rectangles is worse
     than no roster, and most packs will never have a card drawn for
@@ -1373,12 +1383,18 @@ def test_every_pack_gets_a_tile():
     authored = card_for(ROOT / "characters/mochi")
     assert authored is not None and authored.name == "card.png"
 
-    # no card of its own; falls back to what it actually renders
-    fallback = card_for(ROOT / "characters/Cyber Cat")
-    assert fallback is not None and fallback.suffix.lower() == ".png"
+    # Every installed pack resolves to real art now — the ones whose
+    # faces are JSON data got a rendered card.png from
+    # dev/tools/make_cards.py, which is the point of that tool.
+    from interfaces.player import _roster
+    for identifier, _label, root in _roster():
+        found = card_for(root)
+        assert found is not None and found.is_file(), f"{identifier} has no tile"
 
-    # a pack whose art Qt cannot decode is still selectable, by name
-    assert card_for(ROOT / "characters/bitmap man") is None
+    # The last rung still has to hold: a pack whose art Qt cannot decode
+    # is selectable by name rather than crashing or drawing nothing.
+    unreadable = tmp_pack(clip="face.mp4")
+    assert card_for(unreadable) is None
     assert card_for(ROOT / "characters/does-not-exist") is None
 
 
@@ -2297,3 +2313,59 @@ def test_the_avatar_window_is_a_character_with_a_panel_that_pulls_out(monkeypatc
         assert window.width() == narrow
     finally:
         window.shutdown(); view.shutdown(); bus.close()
+
+
+def test_picking_a_cast_card_switches_the_character_everywhere(monkeypatch):
+    """The Cast tab is a VIEW of who the agent is, not a second owner.
+
+    A card click routes through the Face tab's pack box — the one code
+    path that loads a character — so the display, the persona and the
+    voice move together, and the avatar window follows without the Cast
+    tab knowing that window exists. That last part is the requirement,
+    and it is what this checks.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from jaeger_os import JaegerApp
+    from interfaces.window import MochiWindow
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = JaegerApp(ROOT / "sim.toml")
+    app.boot()
+    window = MochiWindow(app)
+    try:
+        window.start()
+        manager = window.window_manager
+        manager.show_avatar()
+
+        def settle(seconds: float = 1.2) -> None:
+            deadline = time.time() + seconds
+            while time.time() < deadline:
+                qt_app.processEvents(); time.sleep(0.02)
+
+        settle()
+        assert window.cast.cards, "no cards were built"
+        # Exactly one card is marked, and it is the live character.
+        marked = [n for n, c in window.cast.cards.items() if c._active]
+        assert marked == [window.face.character.name]
+
+        # Every card offers EDIT, and none of them do anything yet —
+        # a button that lies is worse than one that says it is not ready.
+        assert all(not c.edit.isEnabled() for c in window.cast.cards.values())
+
+        other = next(n for n in window.cast.cards if n != marked[0])
+        before = manager.avatar.view._frame
+        before = before.copy() if before is not None else None
+
+        window.cast.cards[other].select.click()
+        settle(2.0)
+
+        assert window.face.character.name == other, "the pack did not switch"
+        assert [n for n, c in window.cast.cards.items() if c._active] == [other]
+        # The avatar window is watching the same display topic, so it
+        # moved too — and its scaling now asks the NEW pack.
+        assert manager.avatar.view.character_of().name == other
+        assert manager.avatar.view._frame is not None
+        assert before is None or manager.avatar.view._frame != before
+    finally:
+        window.close(); app.shutdown()
