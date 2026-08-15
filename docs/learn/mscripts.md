@@ -30,10 +30,24 @@ Locally: `../JaegerAnimation/jaeger_animation/docs/MSCRIPT.md`.
 | Part | Where |
 |---|---|
 | Language reference | JaegerAnimation `jaeger_animation/docs/MSCRIPT.md` |
-| Interpreter | JaegerAnimation `procedural/mscript_engine.py` |
+| Interpreter (`[Main]`, asset commands) | JaegerAnimation `procedural/mscript_engine.py` |
 | Command → adapter binding | JaegerAnimation `adapters/mscript_adapter.py` |
+| Conductor (`FACE`/`SAY`/`LISTEN`/`ASK`) | Mochi [`core/scenes.py`](../../core/scenes.py) |
+| Track compiler (`[Track_*]` → Timeline) | Mochi [`core/staging.py`](../../core/staging.py) |
 | Editor (text + nodes) | Mochi [`interfaces/mscript_editor.py`](../../interfaces/mscript_editor.py) |
-| Scripts | `assets/mscripts/*.mscript` |
+| Character scripts | `characters/<id>/mscripts/*.mscript` |
+| Engine demo scripts | `assets/mscripts/*.mscript` |
+
+## Two readers, and it matters
+
+The engine renders — it reads `[Main]` and plays asset commands, and its
+job ends at frames on a topic. An app that owns a voice and a bus
+**conducts**: it reads the same file and also runs `FACE`, `SAY`,
+`LISTEN`, `ASK`, and schedules `[Track_*]` channels on a clock.
+
+Both recognise every section, so one document means the same thing to
+both. An unknown section is an error in each — the vocabulary is
+declared and closed, and always was.
 
 The older tree this page used to point at — `nodes/animation/plugin_core/`
 and `tools/mscript_editor_gui.py` — was v3/v4 and no longer exists.
