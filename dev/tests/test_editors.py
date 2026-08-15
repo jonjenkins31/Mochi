@@ -1003,7 +1003,7 @@ def test_the_persona_boundary_ships_with_the_voice():
     assert persona.PERSONA_BOUNDARY in composed
     assert "tool argument" in composed
     # spoken, because the replies go through a synthesiser
-    assert "never use emoji" in composed
+    assert "no emoji" in composed
 
 
 def test_a_pack_with_no_persona_keeps_the_manifest_prompt(tmp_path):
@@ -1039,7 +1039,12 @@ def test_a_half_written_character_costs_nothing():
     assert bare.startswith("You are Rex, a test.")
     assert "Speech habits" not in bare
     assert persona.PERSONA_BOUNDARY in bare
-    assert persona.compose({}) .count("\n\n") == 1   # style + boundary only
+    # A sheet with nothing in it contributes nothing: what is left is
+    # only the app's own guards, and no invented character.
+    empty = persona.compose({}, spoken=False)
+    assert empty == "\n\n".join(
+        (persona.PLAIN_TEXT, persona.PERSONA_BOUNDARY, persona.NO_LIMIT))
+    assert "You are" not in empty
 
 
 def test_the_camera_is_a_factory_not_a_slot():
@@ -1213,14 +1218,54 @@ def test_nothing_a_listener_cannot_hear_reaches_the_synthesiser():
 
 
 def test_the_model_is_told_not_to_write_for_a_reader():
-    """Stripping emoji is a repair. A prompt that asks for spoken
-    English means the repair has nothing left to do."""
-    import tomllib
+    """Stripping emoji is a repair; asking for plain text means the
+    repair has nothing to do. It applies whether or not a voice is
+    running, because the transcript is plain text too.
 
-    prompt = tomllib.loads((ROOT / "jaeger.toml").read_text())["config"]["mind"][
-        "system_prompt"].lower()
-    assert "emoji" in prompt and "markdown" in prompt
-    assert "spoken" in prompt or "out loud" in prompt
+    It is NOT in the manifest any more. Every word of a character
+    belongs in that character's folder, so the manifest's prompt is the
+    floor — empty, meaning the model behind the character arrives
+    unfiltered.
+    """
+    import tomllib
+    from core import persona
+
+    for spoken in (True, False):
+        composed = persona.compose({"name": "X"}, spoken=spoken).lower()
+        assert "emoji" in composed and "markdown" in composed
+
+    house = tomllib.loads((ROOT / "jaeger.toml").read_text())["config"][
+        "mind"]["system_prompt"]
+    assert house == "", "the manifest must not carry a character"
+
+
+def test_a_persona_never_narrows_what_the_model_will_do():
+    """The rule, in the prompt and in the shape of it.
+
+    "Answer in one or two short sentences" was read as a capability, and
+    `tell me a story` came back as `I cannot tell a story`. Brevity is
+    now a pacing note that only exists while something is SPEAKING, and
+    the last thing every prompt says is that character is never a limit.
+    """
+    from core import persona
+
+    sheet = persona.read(ROOT / "characters/Orbs")
+    typing = persona.compose(sheet, spoken=False)
+    speaking = persona.compose(sheet, spoken=True)
+
+    # Typed replies carry no brevity instruction at all.
+    assert persona.SPOKEN_STYLE not in typing
+    assert persona.SPOKEN_STYLE in speaking
+    for text in (typing, speaking):
+        # Last word, so it is the instruction weighed hardest.
+        assert text.rstrip().endswith(persona.NO_LIMIT)
+        assert "never decides what you are willing to do" in text
+    # Even when brief, it says why — pacing, not permission.
+    assert "not permission" in persona.SPOKEN_STYLE
+
+    # And the pack itself must not read as a boundary.
+    assert "not a limit on what you do" in sheet["prompt"][
+        "custom_instructions"]
 
 
 def test_the_ears_and_the_voice_switch_independently():

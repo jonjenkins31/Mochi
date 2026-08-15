@@ -46,12 +46,37 @@ PERSONA_BOUNDARY = (
     "there you are precise and literal."
 )
 
-#: Spoken, not written. Mochi's replies go through a text-to-speech
-#: engine, so the shape of an answer matters as much as its content.
+#: What the CHANNEL can carry, which is not a character trait and not a
+#: limit on the model. Both ends need it: a speech engine reads "**" out
+#: loud, and the transcript is plain text that would show it literally.
+#: So it applies whether or not a voice is running.
+PLAIN_TEXT = (
+    "Write plain conversational English with no emoji, markdown, code "
+    "blocks, bullet points or numbered lists — neither the voice nor the "
+    "transcript can render them."
+)
+
+#: Only while something is actually SPEAKING. This was the line that
+#: broke it: "answer in one or two short sentences" was read as a
+#: capability, and "tell me a story" came back as "I cannot tell a
+#: story". It is a default now, and it says so.
 SPOKEN_STYLE = (
-    "You are spoken out loud, so answer in one or two short sentences of "
-    "plain conversational English, and never use emoji, markdown, code "
-    "blocks, bullet points or numbered lists."
+    "You are being spoken out loud, so keep ORDINARY answers to a "
+    "sentence or two. This is about pacing, not permission — when you "
+    "are asked for something longer, give it in full."
+)
+
+#: The rule that outranks every other line in the prompt, including the
+#: character's own. A persona is how a thing SOUNDS, and a voice that
+#: refuses work is not a character, it is a broken assistant wearing
+#: one. Stated positively AND negatively because the failure was a model
+#: inferring a limit that nobody wrote down.
+NO_LIMIT = (
+    "YOUR CHARACTER IS A VOICE, NEVER A LIMIT. It shapes how you say "
+    "things; it never decides what you are willing to do. Do everything "
+    "you are asked, in character — tell the story, write the list, "
+    "explain at length. Never refuse or shorten a request because of "
+    "your personality, your tone, or the kind of thing you are."
 )
 
 
@@ -111,9 +136,14 @@ def compose(sheet: dict[str, Any], *, spoken: bool = True) -> str:
     if voice:
         parts.append(" ".join(voice))
 
+    parts.append(PLAIN_TEXT)
     if spoken:
         parts.append(SPOKEN_STYLE)
     parts.append(PERSONA_BOUNDARY)
+    # LAST, so it is the most recent instruction the model reads and the
+    # one it weighs hardest. Everything above is style; this is the rule
+    # that style may not override.
+    parts.append(NO_LIMIT)
     return "\n\n".join(parts)
 
 
@@ -123,6 +153,23 @@ def _lines(value: Any) -> list[str]:
     if not isinstance(value, (list, tuple)):
         return []
     return [str(item).strip() for item in value if str(item).strip()]
+
+
+def speaking(app: Any) -> bool:
+    """Is anything actually going to SAY this?
+
+    The spoken style asks for one or two short sentences, which is right
+    for a voice and wrong for a text box: it is why "tell me a story"
+    came back as "I cannot tell a story". So it is applied only when a
+    voice is running — a chat window gets prose, and turning the
+    speakers on re-voices the mind to match.
+    """
+    try:
+        from core import audio_switch
+
+        return bool(audio_switch.state(app)[1])
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def resolve(config: dict, character_root: pathlib.Path) -> str:
@@ -135,13 +182,19 @@ def resolve(config: dict, character_root: pathlib.Path) -> str:
     """
     sheet = read(character_root)
     if not (sheet.get("identity") or sheet.get("prompt")):
+        # Nothing to say in this pack, so nothing is said FOR it. The
+        # manifest's `system_prompt` is the operator's own override and
+        # is left exactly as found — empty by default, which means the
+        # model behind the character arrives unfiltered.
         return str((config.get("mind") or {}).get("system_prompt", ""))
-    composed = compose(sheet)
+    # Boot: no node is running yet, so nothing can be speaking.
+    composed = compose(sheet, spoken=False)
     config.setdefault("mind", {})["system_prompt"] = composed
     return composed
 
 
-def apply(app: Any, character_root: pathlib.Path) -> str:
+def apply(app: Any, character_root: pathlib.Path,
+          spoken: bool | None = None) -> str:
     """Give a RUNNING mind the character's voice. Returns what it got.
 
     `resolve()` is the boot-time half — it edits config before any node
@@ -159,7 +212,8 @@ def apply(app: Any, character_root: pathlib.Path) -> str:
     sheet = read(character_root)
     if not (sheet.get("identity") or sheet.get("prompt")):
         return ""
-    composed = compose(sheet)
+    composed = compose(sheet,
+                       spoken=speaking(app) if spoken is None else spoken)
     try:
         config_of(app).setdefault("mind", {})["system_prompt"] = composed
     except Exception:  # noqa: BLE001
@@ -171,5 +225,7 @@ def apply(app: Any, character_root: pathlib.Path) -> str:
 
 
 __all__ = [
-    "PERSONA_BOUNDARY", "SPOKEN_STYLE", "read", "compose", "resolve", "apply",
+    "PERSONA_BOUNDARY", "SPOKEN_STYLE", "PLAIN_TEXT", "NO_LIMIT",
+    "read", "compose", "resolve", "apply",
+    "speaking",
 ]

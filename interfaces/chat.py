@@ -69,6 +69,7 @@ installed or not: with one it answers, without it says so.
 
 from __future__ import annotations
 
+import pathlib
 import time
 from typing import Any
 
@@ -382,6 +383,19 @@ class ChatTab:
             return
         if checked and not audio_switch.state(self.app)[1]:
             self._switch(voice=True, what="voice")
+        # Brevity depends on whether anything is SPEAKING, so flipping
+        # this changes the prompt. Re-voiced here rather than read per
+        # turn because the mind holds one system prompt at a time.
+        self._revoice(bool(checked))
+
+    def _revoice(self, spoken: bool) -> None:
+        from core import persona
+
+        try:
+            root = pathlib.Path(self.character_of().root)
+        except Exception:  # noqa: BLE001
+            return
+        persona.apply(self.app, root, spoken=spoken)
 
     def _mode_chosen(self, name: str) -> None:
         """Swap the whole pipeline.

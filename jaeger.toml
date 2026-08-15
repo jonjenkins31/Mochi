@@ -285,7 +285,14 @@ gpu_layers = -1
 # emoji and markdown before synthesis regardless, but stripping them is
 # a repair — a model told to write for a listener produces answers that
 # were never shaped for a page, and the repair has nothing left to do.
-system_prompt = "You are Mochi, a small desk character with a face on a screen. You are cheerful and answer in one or two short sentences of plain conversational English. Your replies are spoken out loud, so never use emoji, markdown, code blocks, bullet points or numbered lists. If you don't know something, say so briefly."
+# EMPTY ON PURPOSE. Every word of a character belongs in that
+# character's folder, so this is the FLOOR, not a fallback personality:
+# with no pack loaded, or a pack that declares no persona, the model
+# arrives unfiltered. This used to describe "Mochi, a small desk
+# character, cheerful, one or two short sentences" — which quietly
+# applied one character to all of them and capped the answers.
+# Set it if you want a house voice for pack-less boots; leave it for none.
+system_prompt = ""
 # Some warmth is affordable because this brain has no tools to route
 # to — tool selection is what degrades with sampling noise.
 temperature = 0.3
