@@ -2412,3 +2412,67 @@ def test_launching_mochi_opens_the_avatar_window_and_nothing_else(monkeypatch):
         assert window.widget.isVisible(), "File did not open the operator window"
     finally:
         window.close(); app.shutdown()
+
+
+def test_the_stage_mic_and_speaker_are_a_remote_for_the_chat_switches(monkeypatch):
+    """The reference design puts ears and voice under the character, and
+    it is right — they are things the CHARACTER does, and they have to
+    work with the panel shut.
+
+    What they must NOT be is a second implementation. The chat tab knows
+    that ticking Listen starts the ears if they are off, and that a
+    reply spoken aloud has to deafen the mic so the character does not
+    answer itself. These buttons drive that and then follow it.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from jaeger_os import InProcBus
+    from interfaces.avatar_window import AvatarWindow
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=_FakeSupervisor(), config={})
+    window = AvatarWindow(app)
+    try:
+        window.show()
+        qt_app.processEvents()
+        assert window.mic_btn.isEnabled() and window.speaker_btn.isEnabled()
+        assert not window.speaker_btn.isChecked()
+
+        # Pressing one builds the pane that OWNS it, then ticks its box.
+        assert "chat" not in window._built
+        window.speaker_btn.click()
+        for _ in range(20):
+            qt_app.processEvents(); time.sleep(0.01)
+        chat = window._built["chat"]
+        assert chat.speak.isChecked(), "the button did not reach the real switch"
+        assert window.speaker_btn.isChecked()
+        assert "on" in window.speaker_btn.toolTip()
+
+        # And it FOLLOWS: the checkbox is the fact, the button is a view.
+        chat.speak.setChecked(False)
+        qt_app.processEvents()
+        assert not window.speaker_btn.isChecked()
+        assert "off" in window.speaker_btn.toolTip()
+    finally:
+        window.shutdown(); bus.close()
+
+
+def test_audio_switches_grey_out_when_the_manifest_has_no_audio(monkeypatch):
+    """sim.toml declares no audio node. A switch that cannot move should
+    say so by being grey, not by being pressed and doing nothing."""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from jaeger_os import JaegerApp
+    from interfaces.avatar_window import AvatarWindow
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = JaegerApp(ROOT / "sim.toml")
+    app.boot()
+    window = AvatarWindow(app)
+    try:
+        assert not window.mic_btn.isEnabled()
+        assert not window.speaker_btn.isEnabled()
+        assert "not available" in window.mic_btn.toolTip()
+    finally:
+        window.shutdown(); app.shutdown()

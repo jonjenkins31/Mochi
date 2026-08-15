@@ -46,6 +46,42 @@ from .character_view import CharacterView
 #: wraps and below this lies about which switches are available.
 PANEL_W = 660
 
+#: Icon colours: lit when the switch is on, dim when it is off.
+ON, OFF = "#43E08A", "#7C8A81"
+
+
+def _icon(kind: str, colour: str, *, crossed: bool) -> QtGui.QIcon:
+    """A mic or a speaker, drawn rather than shipped.
+
+    Twenty lines of QPainter instead of an SVG file and a QtSvg import,
+    and the slash for OFF is the same stroke on either glyph — which is
+    the whole reason both states read as one control.
+    """
+    pixmap = QtGui.QPixmap(22, 22)
+    pixmap.fill(QtCore.Qt.transparent)
+    painter = QtGui.QPainter(pixmap)
+    painter.setRenderHint(QtGui.QPainter.Antialiasing)
+    pen = QtGui.QPen(QtGui.QColor(colour), 1.7)
+    pen.setCapStyle(QtCore.Qt.RoundCap)
+    pen.setJoinStyle(QtCore.Qt.RoundJoin)
+    painter.setPen(pen)
+    if kind == "mic":
+        painter.drawRoundedRect(QtCore.QRectF(8, 2, 6, 11), 3, 3)
+        painter.drawArc(QtCore.QRectF(4.5, 5, 13, 12), 180 * 16, 180 * 16)
+        painter.drawLine(11, 17, 11, 20)
+    else:
+        path = QtGui.QPainterPath()
+        path.moveTo(10, 5); path.lineTo(6, 8.5); path.lineTo(3, 8.5)
+        path.lineTo(3, 14); path.lineTo(6, 14); path.lineTo(10, 17.5)
+        path.closeSubpath()
+        painter.drawPath(path)
+        painter.drawArc(QtCore.QRectF(11, 7.5, 5, 7), -80 * 16, 160 * 16)
+        painter.drawArc(QtCore.QRectF(13, 4.5, 7, 13), -80 * 16, 160 * 16)
+    if crossed:
+        painter.drawLine(3, 3, 19, 19)
+    painter.end()
+    return QtGui.QIcon(pixmap)
+
 
 def _panes() -> dict[str, Any]:
     """name -> factory(app, qt, character_of).
@@ -98,7 +134,11 @@ class AvatarWindow(QtWidgets.QWidget):
             "color:#8A85A6;font-size:12px;}"
             "QPushButton#Tab:checked{color:#e8e6f0;border-bottom:2px solid #6C5CE7;}"
             "QPushButton#Handle{background:rgba(255,255,255,0.06);border:none;"
-            "border-radius:14px;color:#8A85A6;font-size:15px;}")
+            "border-radius:14px;color:#8A85A6;font-size:15px;}"
+            "QPushButton#Switch{background:rgba(255,255,255,0.05);border:none;"
+            "border-radius:19px;}"
+            "QPushButton#Switch:checked{background:rgba(67,224,138,0.18);}"
+            "QPushButton#Switch:disabled{background:rgba(255,255,255,0.02);}")
         self.resize(520, 620)
 
         root = QtWidgets.QVBoxLayout(self)
@@ -164,10 +204,29 @@ class AvatarWindow(QtWidgets.QWidget):
         self.view = CharacterView(app, character_of=character_of)
         column.addWidget(self.view, 1)
 
-        # The handle sits UNDER the character rather than floating over
-        # it. A button on top of a face is a button in the way of the
-        # thing the window is for.
+        # Ears and voice, under the character — the reference design put
+        # them here and it is right: they are things the CHARACTER does,
+        # not settings of a chat pane, and they have to be reachable
+        # with the panel shut.
         footer = QtWidgets.QHBoxLayout()
+        footer.addStretch(1)
+        self.mic_btn = self._switch("mic", "listen")
+        self.speaker_btn = self._switch("speaker", "speak replies")
+        # Grey them at BUILD time, not after the first click. A switch
+        # with no module installed or no node declared cannot move, and
+        # finding that out by pressing it is finding out too late.
+        # Reading `available()` is not owning the switch — the chat tab
+        # reads the same answer.
+        from core import audio_switch
+        can_hear, can_speak = audio_switch.available(app)
+        for button, allowed in ((self.mic_btn, can_hear),
+                                (self.speaker_btn, can_speak)):
+            button.setEnabled(allowed)
+            if not allowed:
+                button.setToolTip(f"{button.toolTip().split(' —')[0]} — "
+                                  "not available in this manifest")
+        footer.addWidget(self.mic_btn)
+        footer.addWidget(self.speaker_btn)
         footer.addStretch(1)
         self.handle = QtWidgets.QPushButton("›")
         self.handle.setObjectName("Handle")
@@ -177,6 +236,55 @@ class AvatarWindow(QtWidgets.QWidget):
         footer.addWidget(self.handle)
         column.addLayout(footer)
         return stage
+
+    def _switch(self, kind: str, what: str) -> QtWidgets.QPushButton:
+        button = QtWidgets.QPushButton()
+        button.setObjectName("Switch")
+        button.setCheckable(True)
+        button.setFixedSize(38, 38)
+        button.setIconSize(QtCore.QSize(22, 22))
+        button.setCursor(QtCore.Qt.PointingHandCursor)
+        button.setToolTip(f"{what} — off")
+        button.setIcon(_icon(kind, OFF, crossed=True))
+        button.clicked.connect(lambda on, k=kind: self._audio_clicked(k, on))
+        return button
+
+    def _audio_clicked(self, kind: str, on: bool) -> None:
+        """Drive the CHAT TAB's switch, never the audio node directly.
+
+        That tab already knows the whole story — that ticking Listen has
+        to start the ears if they are off, that a reply spoken aloud has
+        to deafen the microphone so the character does not answer
+        itself. A second control that skips all of it would be a second
+        control that gets it wrong, so this one is a remote for the
+        first. It is also why using a switch builds the chat pane: the
+        thing that owns the switch has to exist to be told.
+        """
+        chat = self._built.get("chat") or self.show_pane("chat")
+        (chat.mic if kind == "mic" else chat.speak).setChecked(on)
+
+    def _follow_audio(self, chat: Any) -> None:
+        """Both views of one fact. The tab's checkbox is the fact — it
+        can refuse a switch that has no module or no node behind it —
+        so the round button follows it rather than the click."""
+        chat.mic.toggled.connect(
+            lambda on: self._paint_switch(self.mic_btn, "mic", "listen", on))
+        chat.speak.toggled.connect(
+            lambda on: self._paint_switch(
+                self.speaker_btn, "speaker", "speak replies", on))
+        for button, kind, what, box in (
+                (self.mic_btn, "mic", "listen", chat.mic),
+                (self.speaker_btn, "speaker", "speak replies", chat.speak)):
+            button.setEnabled(box.isEnabled())
+            if not box.isEnabled():
+                button.setToolTip(box.toolTip())
+            self._paint_switch(button, kind, what, box.isChecked())
+
+    def _paint_switch(self, button: Any, kind: str, what: str,
+                      on: bool) -> None:
+        button.setChecked(on)
+        button.setIcon(_icon(kind, ON if on else OFF, crossed=not on))
+        button.setToolTip(f"{what} — {'on' if on else 'off'}")
 
     def _panel(self) -> QtWidgets.QWidget:
         panel = QtWidgets.QWidget()
@@ -254,6 +362,8 @@ class AvatarWindow(QtWidgets.QWidget):
                 self.app, (QtCore, QtGui, QtWidgets), self.character_of)
             self._built[name] = pane
             self.stack.addWidget(pane.widget)
+            if name == "chat":
+                self._follow_audio(pane)
         self.stack.setCurrentWidget(pane.widget)
         button = self.tabs.button(list(self._classes).index(name))
         if button is not None:
