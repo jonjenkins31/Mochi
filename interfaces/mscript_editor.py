@@ -26,9 +26,26 @@ from jaeger_os import topics
 from modules import jaeger_animation as animation
 
 
+#: The section vocabulary, and it is DECLARED, not open. MochiScript has
+#: had a fixed set since v2.0 and that rigidity is deliberate: a name
+#: outside it is a typo, and a parser that quietly accepts one drops a
+#: whole block of somebody's script in silence.
+#:
+#: This editor used to match `[A-Za-z_][\w-]*` — anything at all — which
+#: diverged from the engine's `Header|Resources|Main` and meant a file
+#: could look fine here and lose sections when played. Extending the
+#: language means adding to this set on purpose, in BOTH readers.
+KNOWN_SECTIONS = ("Header", "Resources", "Main", "Keyframes")
+
+#: Channels, added deliberately for multi-track shows. `Track_<channel>`
+#: is the one open-ended name and its shape is still fixed.
 _SECTION = re.compile(
-    r"^\[\s*([A-Za-z_][\w-]*)\s+(start|end)\s*\]$", re.IGNORECASE,
+    r"^\[\s*(" + "|".join(KNOWN_SECTIONS) + r"|Track_[A-Za-z][A-Za-z0-9_]*)"
+    r"\s+(start|end)\s*\]$", re.IGNORECASE,
 )
+
+#: Anything section-SHAPED, for telling a typo apart from a command.
+_SECTION_SHAPED = re.compile(r"^\[[^\]]+\s+(start|end)\s*\]$", re.IGNORECASE)
 _RESOURCE = re.compile(r"^\s*(K\[\d+\])\s*:\s*(['\"])(.*?)\2\s*$")
 #: One `KEY[value]` pair. The same rule the engine's parser uses, which
 #: is why `LBL[1]` and `JMP LBL[1]` both read correctly.
@@ -37,19 +54,42 @@ _FRAME = topics.ACT_DISPLAY_FRAME
 _STATE = topics.ACT_DISPLAY_STATE
 
 
-def parse_mscript(text: str) -> dict[str, list[str]]:
-    """Split an MScript document into named sections without losing lines."""
+def parse_mscript(text: str, *, strict: bool = False) -> dict[str, list[str]]:
+    """Split an MScript document into named sections without losing lines.
+
+    `strict` refuses an unknown section rather than treating its header
+    as ordinary content. Off by default because the EDITOR has to open a
+    broken file in order to fix it — refusing to display a typo is how a
+    typo becomes unrecoverable. The engine, which has to PLAY the thing,
+    is strict always.
+    """
     sections: dict[str, list[str]] = {"_header": []}
     current = "_header"
     for line in text.splitlines():
-        match = _SECTION.match(line.strip())
+        stripped = line.strip()
+        match = _SECTION.match(stripped)
         if match:
             name, boundary = match.groups()
             current = name.lower() if boundary.lower() == "start" else "_footer"
             sections.setdefault(current, [])
-        else:
-            sections.setdefault(current, []).append(line)
+            continue
+        if strict and _SECTION_SHAPED.match(stripped):
+            raise ValueError(
+                f"unknown section {stripped!r}; known: "
+                f"{', '.join(KNOWN_SECTIONS)}, or Track_<channel>")
+        sections.setdefault(current, []).append(line)
     return sections
+
+
+def unknown_sections(text: str) -> list[str]:
+    """Section-shaped lines the vocabulary does not include.
+
+    What the editor SHOWS instead of refusing to open the file — a typo
+    should be visible and fixable, not a locked door.
+    """
+    return [line.strip() for line in text.splitlines()
+            if _SECTION_SHAPED.match(line.strip())
+            and not _SECTION.match(line.strip())]
 
 
 def parse_resources(lines: list[str]) -> list[tuple[str, str]]:

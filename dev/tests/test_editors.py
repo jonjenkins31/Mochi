@@ -1965,3 +1965,58 @@ def test_an_unknown_channel_still_keeps_time():
         ROOT / "characters/bitmap man/mscripts/show.mscript",
         target="bitmap_man")
     assert timeline.computed_duration_ms() >= 6600
+
+
+def test_the_section_vocabulary_is_declared_not_open():
+    """MochiScript has had a fixed set of sections since v2.0 and that
+    rigidity is deliberate. A permissive parser is not a feature: it
+    diverged from the engine, so a file could look fine in the editor
+    and lose whole blocks when played."""
+    from interfaces.mscript_editor import (KNOWN_SECTIONS, parse_mscript,
+                                           unknown_sections)
+    import pytest
+
+    assert KNOWN_SECTIONS == ("Header", "Resources", "Main", "Keyframes")
+
+    valid = ("[Main start]\nWAIT D[1]\n[Main end]\n"
+             "[Track_eyes start]\nFACE EXPR[a] T[0]\n[Track_eyes end]\n")
+    assert {"main", "track_eyes"} <= set(parse_mscript(valid, strict=True))
+    assert unknown_sections(valid) == []
+
+    typo = "[Maim start]\nWAIT D[1]\n[Maim end]\n"
+    with pytest.raises(ValueError):
+        parse_mscript(typo, strict=True)
+    # but the editor can still OPEN it, because refusing to display a
+    # typo is how a typo becomes unrecoverable
+    assert parse_mscript(typo) is not None
+    assert unknown_sections(typo) == ["[Maim start]", "[Maim end]"]
+
+
+def test_both_readers_agree_on_the_vocabulary():
+    """The bug this closes: Mochi's editor accepted any section name
+    while the engine accepted three, so a show file was valid here and
+    lost every track there."""
+    from jaeger_animation.procedural.mscript_engine import KNOWN_SECTIONS as ENGINE
+    from interfaces.mscript_editor import KNOWN_SECTIONS as EDITOR
+
+    assert set(EDITOR) == set(ENGINE)
+
+
+def test_the_engine_accepts_a_show_file_without_losing_it(tmp_path):
+    """A file with tracks has to be VALID to the engine even though the
+    engine does not schedule them — otherwise the same document means
+    two different things depending on who opened it."""
+    from jaeger_animation.procedural.mscript_engine import MscriptScript
+
+    show = tmp_path / "show.mscript"
+    show.write_text(
+        "[Main start]\nWAIT D[1.0]\n[Main end]\n"
+        "[Track_voice start]\nSAY TXT['hi'] T[0.4]\n[Track_voice end]\n")
+    script = MscriptScript(str(show))          # must not raise
+    assert script._instructions                # [Main] survived
+
+    broken = tmp_path / "broken.mscript"
+    broken.write_text("[Mian start]\nWAIT D[1]\n[Mian end]\n")
+    import pytest
+    with pytest.raises(ValueError):
+        MscriptScript(str(broken))
