@@ -2645,3 +2645,87 @@ def test_the_orbs_pack_renders_all_nine_states_procedurally():
     orb.render_into(0.5, a)
     orb.render_into(3.7, b)
     assert not np.array_equal(a, b), "the animation is frozen"
+
+
+def test_the_face_follows_what_the_agent_is_doing(monkeypatch):
+    """Shape is the verb, colour is the mood, and they move separately.
+
+    A pack opts in by HAVING the words — nothing is imposed on a pack
+    whose vocabulary is faces, which is every other pack in the tree.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from jaeger_os import InProcBus, topics
+    from jaeger_agent.messages import AgentState, ChatReply
+    from core.agent_face import AgentFace, speaks_function
+    from modules import jaeger_animation as animation
+
+    orbs = animation.load("orbs")
+    assert speaks_function(orbs), "orbs should follow function"
+    assert not speaks_function(animation.load("bitmap_man")), \
+        "a pack of faces must be left alone"
+
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=_FakeSupervisor(), config={})
+    played: list = []
+    bus.subscribe(topics.ACT_DISPLAY_PLAY,
+                  lambda m: played.append((m.params.get("state"),
+                                           m.params.get("color"))))
+    face = AgentFace(app, lambda: orbs)
+    try:
+        # Nothing happening is the pack's OWN idle, not an invented one.
+        assert face.look(orbs)[0] == orbs.default_expression == "breathing"
+
+        bus.publish(AgentState(state="thinking", session="s"))
+        deadline = time.time() + 2.0
+        while not played and time.time() < deadline:
+            time.sleep(0.01)
+        assert played[-1] == ("working", "#6C5CE7"), played
+
+        # A mood marker recolours WITHOUT changing the shape — the whole
+        # reason the two are separate.
+        bus.publish(ChatReply(text="[trouble] I could not reach it.",
+                              session="s"))
+        deadline = time.time() + 2.0
+        while played[-1][1] == "#6C5CE7" and time.time() < deadline:
+            time.sleep(0.01)
+        assert played[-1] == ("working", "#E06C75"), played
+        before = len(played)
+
+        # The same look twice must not replay: that restarts the clip's
+        # clock and reads as a stutter.
+        face.refresh()
+        assert len(played) == before
+
+        # Going idle keeps the mood the model named, and returns to rest.
+        bus.publish(AgentState(state="idle", session="s"))
+        deadline = time.time() + 2.0
+        while len(played) == before and time.time() < deadline:
+            time.sleep(0.01)
+        assert played[-1] == ("breathing", "#E06C75"), played
+    finally:
+        face.close(); bus.close()
+
+
+def test_a_verb_pack_does_not_get_its_expressions_walked(monkeypatch):
+    """The Face tab cycles a pack's vocabulary to show it off. For verbs
+    that is a lie — it says the agent is working when it is not — and it
+    fought agent_face for the display."""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    monkeypatch.delenv("MOCHI_NO_CYCLE", raising=False)
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from jaeger_os import InProcBus
+    from interfaces.player import FaceTab
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=_FakeSupervisor(), config={},
+                          root=ROOT)
+    tab = FaceTab(app, (QtCore, QtGui, QtWidgets), {"character": "orbs"})
+    try:
+        assert not tab.cycle_btn.isChecked(), "orbs should hold still"
+        assert not tab._cycle.isActive()
+        # A pack of faces still gets its demo.
+        tab.pack_box.setCurrentText("emotes")
+        assert tab._may_cycle()
+    finally:
+        tab.close(); bus.close()

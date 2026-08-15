@@ -492,10 +492,17 @@ class ChatTab:
         reply that legitimately starts with "[note]" is not an
         instruction to pull a face nobody has.
         """
+        from core import agent_face
+
         try:
-            return tuple(self.character_of().expressions)
+            character = self.character_of()
         except Exception:  # noqa: BLE001
             return ()
+        # Moods count too. `[curious]` is an instruction to change
+        # colour, and an instruction read out loud is the same bug
+        # `[neutral]` was.
+        return tuple(character.expressions) + tuple(
+            agent_face.moods(getattr(character, "root", "")))
 
     def _on_spoken(self, msg: Any) -> None:
         """Say so when a reply was asked for out loud and did not arrive.

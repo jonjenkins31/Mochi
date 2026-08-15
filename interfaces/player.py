@@ -109,7 +109,7 @@ class FaceTab:
 
         self._cycle = QtCore.QTimer(self.widget)
         self._cycle.timeout.connect(self.next_expression)
-        if not os.environ.get("MOCHI_NO_CYCLE"):
+        if not os.environ.get("MOCHI_NO_CYCLE") and self._may_cycle():
             self._cycle.start(self.dwell_ms)
 
     # ── the window ───────────────────────────────────────────────
@@ -144,7 +144,8 @@ class FaceTab:
 
         self.cycle_btn = QtWidgets.QPushButton("cycle")
         self.cycle_btn.setCheckable(True)
-        self.cycle_btn.setChecked(not os.environ.get("MOCHI_NO_CYCLE"))
+        self.cycle_btn.setChecked(
+            not os.environ.get("MOCHI_NO_CYCLE") and self._may_cycle())
         self.cycle_btn.toggled.connect(self._on_cycle_toggled)
 
         open_btn = QtWidgets.QPushButton("Open file…")
@@ -261,6 +262,8 @@ class FaceTab:
         self.expr_box.setCurrentText(self.character.default_expression)
         self.expr_box.blockSignals(False)
         self.mouth_btn.setChecked(False)
+        if not self._may_cycle():
+            self.cycle_btn.setChecked(False)
         self.cards.select(name)
         # A character is a face AND a voice, so switching one switches
         # both. Costs no model reload — the agent reads its system
@@ -277,6 +280,18 @@ class FaceTab:
         self._mouth = states[1] if (checked and len(states) > 1) else states[0]
         if self._playing_asset is None:
             self.show_expression(self.expr_box.currentText())
+
+    def _may_cycle(self) -> bool:
+        """Walking the vocabulary is a DEMO of what a pack can look like.
+
+        For a pack whose words are verbs — `working`, `listening` — it is
+        worse than useless: it says the agent is doing something it is
+        not, and it fights core/agent_face.py for the display. Those
+        packs hold still unless someone asks.
+        """
+        from core import agent_face
+
+        return not agent_face.speaks_function(self.character)
 
     def _on_cycle_toggled(self, checked: bool) -> None:
         if checked and self._playing_asset is None:

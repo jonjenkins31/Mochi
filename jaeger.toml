@@ -166,7 +166,7 @@ height = 256
 [config.player]
 # Which pack to load at boot. A character is a folder in
 # characters/ — drop one in and it is playable.
-character = "emotes"
+character = "orbs"
 # Seconds each expression holds while cycling. v5.0 has no mind to
 # choose expressions, so it walks them.
 dwell_s = 1.5

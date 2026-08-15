@@ -67,6 +67,23 @@ TAU = math.pi * 2
 # ── the maths, straight across ───────────────────────────────────
 
 
+def _rgb(value: Any, fallback: tuple) -> tuple:
+    """A colour from anything an operator might reasonably write: three
+    numbers, or "#RRGGBB". Anything else keeps what we had — a bad
+    colour should not stop the orb drawing."""
+    if isinstance(value, (list, tuple)) and len(value) == 3:
+        try:
+            return tuple(max(0, min(255, int(c))) for c in value)
+        except Exception:  # noqa: BLE001
+            return fallback
+    if isinstance(value, str) and value.startswith("#") and len(value) == 7:
+        try:
+            return tuple(int(value[i:i + 2], 16) for i in (1, 3, 5))
+        except ValueError:
+            return fallback
+    return fallback
+
+
 def _fract(x: float) -> float:
     return x - math.floor(x)
 
@@ -637,6 +654,10 @@ class Orb(Animation):
         self.speed = 1.0
         self.density = 1.0
         self.background = (11, 9, 16)
+        #: What the dots are made of. White is the original's monochrome
+        #: and stays the default, because a mood colour means nothing if
+        #: the resting state already has one.
+        self.color = (255, 255, 255)
 
     def on_enter(self, **kwargs: Any) -> None:
         state = str(kwargs.get("state", self.state)).lower()
@@ -646,12 +667,16 @@ class Orb(Animation):
         bg = kwargs.get("background")
         if isinstance(bg, (list, tuple)) and len(bg) == 3:
             self.background = tuple(int(c) for c in bg)
+        self.color = _rgb(kwargs.get("color"), self.color)
 
     def on_event(self, event: str, **kwargs: Any) -> None:
         """A scene can switch the orb mid-clip — `working` while it
-        thinks, `listening` the moment you start talking."""
+        thinks, `listening` the moment you start talking. An event may
+        also just be a colour, which is how a mood changes without the
+        shape changing under it."""
         if event in STATES:
             self.state = event
+        self.color = _rgb(kwargs.get("color"), self.color)
 
     # ── drawing ──────────────────────────────────────────────────
 
@@ -682,9 +707,10 @@ class Orb(Animation):
 
         np.clip(canvas, 0.0, 1.0, out=canvas)
         base = np.asarray(self.background, dtype=np.float32)
-        # Monochrome: every dot is white, its `white` field having
-        # already become brightness in _ink().
-        frame_rgb[:, :] = (base + (255.0 - base) * canvas[:, :, None]
+        ink = np.asarray(self.color, dtype=np.float32)
+        # `canvas` is coverage x brightness in one number, so the fade
+        # from background to ink IS the shading — no second pass.
+        frame_rgb[:, :] = (base + (ink - base) * canvas[:, :, None]
                            ).astype(np.uint8)
 
     @staticmethod

@@ -103,6 +103,11 @@ class MochiWindow:
         # tab's own slot, so `face.character` is already the new one.
         self.face.pack_box.currentTextChanged.connect(self.cast.set_active)
         self.face.avatar_btn.clicked.connect(self.open_avatar)
+        # The face follows what the agent is DOING, for packs that have
+        # words for it. Lives here rather than in a tab because it must
+        # keep working with this window shut, which is the normal case.
+        from core.agent_face import AgentFace
+        self.agent_face = AgentFace(app, lambda: self.face.character)
         manager = self.window_manager
         self.window_manager.menu = (
             ("Operator window", "Ctrl+1", self.open_operator),
@@ -199,6 +204,7 @@ class MochiWindow:
                 tab.close()
             except Exception:  # noqa: BLE001
                 pass
+        self.agent_face.close()
         self.window_manager.close()
         self.widget.close()
 
