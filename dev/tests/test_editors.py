@@ -594,7 +594,9 @@ def test_chat_tab_publishes_a_turn_and_renders_the_reply(monkeypatch):
         # punctuation that repeats what the colour already says is
         # noise in a transcript meant to be skimmed.
         assert "you  hello" in tab.log.toPlainText()
-        assert "mochi  hi there" in tab.log.toPlainText()
+        # The CHARACTER's name, not the app's — Mochi is the shell.
+        assert "hi there" in tab.log.toPlainText()
+        assert "mochi  hi there" not in tab.log.toPlainText()
 
         # A new conversation is a new session id, not a cleared widget —
         # otherwise the model still remembers what the log stopped showing.
@@ -2497,7 +2499,7 @@ def test_the_chat_transcript_colours_who_is_speaking(monkeypatch):
     tab = ChatTab(app, (QtCore, QtGui, QtWidgets))
     try:
         tab._append("you", "hello")
-        tab._append("mochi", "hi")
+        tab._append(tab._speaker(), "hi")
         tab._append("!", "something broke")
 
         colours = set()
@@ -2518,3 +2520,64 @@ def test_the_chat_transcript_colours_who_is_speaking(monkeypatch):
         assert "hello" not in tab.log.toPlainText()
     finally:
         tab.close(); bus.close()
+
+
+def test_one_reply_is_spoken_once_and_the_face_marker_never_is(monkeypatch):
+    """Two views of one conversation must not both act on it.
+
+    The operator window's Chat tab and the avatar window's chat pane are
+    the same session, and both used to publish a SpeechCommand for every
+    reply — two playbacks a few milliseconds apart, which is a comb
+    filter, not a stutter. It sounded like the character was in a
+    stairwell.
+
+    The other half: a reply may OPEN WITH AN EXPRESSION, `[neutral] Test
+    complete.`, because a tool-less model acts by naming a face. That
+    marker is an instruction and was being read out loud.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from jaeger_os import InProcBus, topics
+    from jaeger_agent.messages import ChatReply
+    from interfaces.chat import ChatTab
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=_FakeSupervisor(), config={})
+    faces = SimpleNamespace(expressions=("neutral", "happy"), name="x")
+    first = ChatTab(app, (QtCore, QtGui, QtWidgets), lambda: faces)
+    second = ChatTab(app, (QtCore, QtGui, QtWidgets), lambda: faces)
+    said: list[str] = []
+    bus.subscribe(topics.ACT_SPEECH_SAY, lambda m: said.append(m.text))
+    try:
+        assert first._performs and not second._performs
+
+        # Both want to speak; only one may.
+        first._speak_replies = second._speak_replies = True
+        bus.publish(ChatReply(text="[neutral] Test complete.",
+                              session=first.session))
+        deadline = time.time() + 2.0
+        while not said and time.time() < deadline:
+            qt_app.processEvents(); time.sleep(0.01)
+        for _ in range(20):
+            qt_app.processEvents(); time.sleep(0.01)
+
+        assert len(said) == 1, f"spoken {len(said)} times, not once"
+        assert said[0] == "Test complete.", "the face marker was read out"
+
+        # And it is out of the transcript too, in BOTH views.
+        first._drain(); second._drain()
+        for tab in (first, second):
+            assert "Test complete." in tab.log.toPlainText()
+            assert "[neutral]" not in tab.log.toPlainText()
+
+        # The display tab's switch still works — it sets the performer's,
+        # so ticking the box on the pane that only DISPLAYS replies is
+        # not a switch that quietly does nothing.
+        first._speak_replies = second._speak_replies = False
+        second.speak.setChecked(True)
+        qt_app.processEvents()
+        assert first._speak_replies, "the switch did not reach the performer"
+        assert first.speak.isChecked(), "the performer's own box did not follow"
+    finally:
+        second.close(); first.close(); bus.close()

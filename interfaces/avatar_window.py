@@ -86,17 +86,15 @@ def _icon(kind: str, colour: str, *, crossed: bool) -> QtGui.QIcon:
 def _panes() -> dict[str, Any]:
     """name -> factory(app, qt, character_of).
 
-    Factories rather than classes so a pane that does not care which
-    character is loaded — chat does not — simply ignores the argument,
-    instead of every pane growing a parameter to satisfy the registry.
-    Imported here and not at module scope: a pane that fails to import
-    should break that pane, not the window.
+    Both take the same three arguments, which is what a registry is
+    for. Imported here and not at module scope: a pane that fails to
+    import should break that pane, not the window.
     """
     from .chat import ChatTab
     from .game_pane import GamePane
 
     return {
-        "chat": lambda app, qt, _character_of: ChatTab(app, qt),
+        "chat": ChatTab,
         "game": GamePane,
     }
 

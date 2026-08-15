@@ -53,6 +53,10 @@ def load_scenes(character: Any) -> tuple:
 class StageTab:
     """Drive a character: scenes, expressions, and a line to the mind."""
 
+    #: Its own conversation. A reply is only this tab's to perform if it
+    #: answered one of ITS asks — the chat window owns the rest.
+    SESSION = "stage"
+
     def __init__(self, app: Any, qt: tuple) -> None:
         QtCore, QtGui, QtWidgets = qt
         self._QtCore, self._QtGui, self._QtWidgets = QtCore, QtGui, QtWidgets
@@ -329,7 +333,7 @@ class StageTab:
             pass
         mind.ask(self.bus, (
             f"You are playing tic-tac-toe. The game is: {state}. "
-            f"Say ONE short line about it, in character."), session="stage")
+            f"Say ONE short line about it, in character."), session=self.SESSION)
 
     def _refresh_board(self) -> None:
         board = self.game.board if self.game else " " * 9
@@ -386,7 +390,7 @@ class StageTab:
             self.runner.heard(text)
         else:
             self._pending.append(f"you   {text!r}  → the mind")
-            mind.ask(self.bus, text, session="stage")
+            mind.ask(self.bus, text, session=self.SESSION)
 
     # ── bus thread ───────────────────────────────────────────────
 
@@ -410,7 +414,13 @@ class StageTab:
                 animation.play(self.bus, self.character, expression)
             except Exception:  # noqa: BLE001
                 pass
-        self._pending.append(f"mochi {line!r}")
+        name = getattr(self.character, "display_name", "") or "character"
+        self._pending.append(f"{name} {line!r}")
+        # ITS OWN asks only. This used to speak every reply on the bus,
+        # so a line typed into the chat window came out of the speakers
+        # twice — once from chat, once from here.
+        if getattr(msg, "session", "") != self.SESSION:
+            return
         if line and tts.audible(self.app):
             tts.say(self.bus, line, voice=tts.voice(self.app))
 

@@ -122,7 +122,7 @@ class MochiWindow:
             app, qt, self.window_manager.performance.show_window)
         self.stage = StageTab(app, qt)
         self.windows = LegacyWindowsTab(app, qt, self.window_manager)
-        self.chat = ChatTab(app, qt)
+        self.chat = ChatTab(app, qt, lambda: self.face.character)
         self.voice = VoiceTab(app, qt)
         self.hearing = HearingTab(app, qt)
         self.vision = VisionTab(app, qt)

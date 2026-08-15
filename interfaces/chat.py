@@ -72,9 +72,10 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from core import audio_switch, voice_modes
+from core import audio_switch, expressive, voice_modes
 from core.module_support import background
 from modules import jaeger_agent as mind
+from modules import jaeger_animation as animation
 from modules import jaeger_kokoro_tts as tts
 from modules import jaeger_whisper_stt as stt
 
@@ -131,10 +132,24 @@ QPushButton {{ background: {PANEL}; border: 1px solid {RULE};
 """
 
 
+#: One app, ONE voice. Both the operator window's Chat tab and the
+#: avatar window's chat pane are the same conversation, and both used to
+#: act on every reply — two SpeechCommands for one answer, played a few
+#: milliseconds apart. That is not a stutter, it is a comb filter, and
+#: it is why the character sounded like it was in a stairwell.
+#:
+#: So the FIRST tab built for an app performs replies; the rest display
+#: them. The role is stored ON THE APP under this name, which is the
+#: only scoping that cannot be wrong: a module dict keyed by id(app)
+#: hands a stale performer to whatever reuses that id, and a
+#: WeakKeyDictionary cannot key on the SimpleNamespace the tests build.
+_ROLE = "_mochi_chat_performer"
+
+
 class ChatTab:
     """Drive one conversation and show what the mind is doing."""
 
-    def __init__(self, app: Any, qt: tuple) -> None:
+    def __init__(self, app: Any, qt: tuple, character_of: Any = None) -> None:
         QtCore, QtGui, QtWidgets = qt
         self._QtCore, self._QtGui = QtCore, QtGui
         self.app = app
@@ -158,6 +173,16 @@ class ChatTab:
         # start and the box says so by staying grey.
         self._can_hear, self._can_speak = audio_switch.available(app)
         self.session = "mochi-1"
+        #: Which pack's expression words a reply may open with.
+        self.character_of = character_of
+        #: True for the one instance that turns a reply into a face and
+        #: a voice. Every instance still shows it.
+        if getattr(app, _ROLE, None) is None:
+            try:
+                setattr(app, _ROLE, self)
+            except Exception:  # noqa: BLE001 — an app that forbids it
+                pass          # leaves every tab performing, as before
+        self._performs = getattr(app, _ROLE, self) is self
 
         self.widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(self.widget)
@@ -302,8 +327,8 @@ class ChatTab:
 
     def _banner(self) -> None:
         self._emit(BANNER, ACCENT, bold=True)
-        self._emit(f"  {self.session} · say something, or turn the ears on\n",
-                   INK_DIM)
+        self._emit(f"  {self._speaker()} · {self.session} · say something, "
+                   f"or turn the ears on\n", INK_DIM)
         self._emit("  " + "\u2500" * 58 + "\n\n", RULE)
 
     # ── driving it ───────────────────────────────────────────────
@@ -316,6 +341,17 @@ class ChatTab:
             self.entry.clear()
 
     def _mic_toggled(self, checked: bool) -> None:
+        # Same rule as the voice: one conversation, one routing decision.
+        performer = self._performer()
+        if performer is not self:
+            self._mic_on = bool(checked)
+            performer._mic_on = bool(checked)
+            if performer.mic.isChecked() != bool(checked):
+                performer.mic.setChecked(bool(checked))
+            return
+        return self._mic_toggled_own(checked)
+
+    def _mic_toggled_own(self, checked: bool) -> None:
         """Route what the ears hear to the mind — and start them if off.
 
         One click for "I want to talk to it". Unticking stops the
@@ -327,8 +363,23 @@ class ChatTab:
         if checked and not audio_switch.state(self.app)[0]:
             self._switch(ears=True, what="ears")
 
+    def _performer(self) -> Any:
+        """Whoever actually speaks for this app — this tab, or the one
+        built before it."""
+        return getattr(self.app, _ROLE, None) or self
+
     def _speak_toggled(self, checked: bool) -> None:
+        """The switch belongs to the conversation, not to this view of
+        it, so it is set on whoever performs — otherwise ticking the box
+        on the pane that is only DISPLAYING replies turns nothing on and
+        looks broken."""
         self._speak_replies = bool(checked)
+        performer = self._performer()
+        if performer is not self:
+            performer._speak_replies = bool(checked)
+            if performer.speak.isChecked() != bool(checked):
+                performer.speak.setChecked(bool(checked))
+            return
         if checked and not audio_switch.state(self.app)[1]:
             self._switch(voice=True, what="voice")
 
@@ -389,9 +440,21 @@ class ChatTab:
         self._pending.append(("you", str(getattr(msg, "text", ""))))
 
     def _on_reply(self, msg: Any) -> None:
-        text = str(getattr(msg, "text", ""))
-        self._pending.append(("mochi", text))
-        if self._speak_replies:
+        """A reply may OPEN WITH AN EXPRESSION — `[happy] hello there` —
+        because a tool-less model can still act by naming a face. That
+        marker is an instruction, not words: it belongs on the display,
+        never in the transcript and never read out loud, which is
+        exactly what "[neutral] Test complete." sounded like.
+        """
+        expression, text = expressive.split(
+            str(getattr(msg, "text", "")), self._vocabulary())
+        if expression and self._performs:
+            try:
+                animation.play(self.bus, self.character_of(), expression)
+            except Exception:  # noqa: BLE001 — a face is never worth raising
+                pass
+        self._pending.append((self._speaker(), text))
+        if self._speak_replies and self._performs:
             # Shut the ears BEFORE asking for audio, not when the device
             # reports playing — synthesis and playback are two events and
             # the first syllable lands between them.
@@ -407,6 +470,32 @@ class ChatTab:
             # hand-off, not a widget.
             self._awaiting_speech = True
             tts.say(self.bus, text, voice=tts.voice(self.app))
+
+    def _speaker(self) -> str:
+        """Whose line this is — the CHARACTER's name, off its card.
+
+        Mochi is the app. It is not who is talking, and a transcript
+        that labels every reply "mochi" says the shell answered you.
+        `character.yaml` carries the name and the card shows it; this
+        reads the same field.
+        """
+        try:
+            character = self.character_of()
+            return (getattr(character, "display_name", "")
+                    or getattr(character, "name", "") or "character")
+        except Exception:  # noqa: BLE001
+            return "character"
+
+    def _vocabulary(self) -> tuple:
+        """The live pack's expression words, or () when nothing is
+        loaded. Empty means `split()` strips nothing, which is right: a
+        reply that legitimately starts with "[note]" is not an
+        instruction to pull a face nobody has.
+        """
+        try:
+            return tuple(self.character_of().expressions)
+        except Exception:  # noqa: BLE001
+            return ()
 
     def _on_spoken(self, msg: Any) -> None:
         """Say so when a reply was asked for out loud and did not arrive.
@@ -547,6 +636,13 @@ class ChatTab:
 
     def close(self) -> None:
         self._timer.stop()
+        # Hand the role back. A closed tab that still holds it is an app
+        # whose replies nobody speaks.
+        if self._performs and getattr(self.app, _ROLE, None) is self:
+            try:
+                setattr(self.app, _ROLE, None)
+            except Exception:  # noqa: BLE001
+                pass
         for topic, handler in self._watching:
             try:
                 self.bus.unsubscribe(topic, handler)
@@ -554,4 +650,4 @@ class ChatTab:
                 pass
 
 
-__all__ = ["ChatTab"]
+__all__ = ["ChatTab", "ACCENT", "VOICE", "BANNER"]
