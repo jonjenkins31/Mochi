@@ -1,11 +1,24 @@
 [Header start]
-! Crazy Eyes idle
+! Crazy Eyes at rest — awake, looking about, never quite still.
+! One asset all the way down; what changes is the tokens.
 [Header end]
 
 [Resources start]
-K[1]: 'characters/crazy eyes/assets/crazy-eyes.webp'
+K[1]: 'characters/crazy eyes/eyes.py'
 [Resources end]
 
 [Main start]
-IMAGE K[1] D[5.0]
+LBL[1]
+MATH K[1] STATE[idle] D[2.6]
+MATH K[1] STATE[idle] LOOK[left] D[1.4]
+MATH K[1] STATE[idle] D[1.2]
+MATH K[1] STATE[idle] LOOK[right] D[1.4]
+MATH K[1] STATE[idle] D[1.0]
+MATH K[1] STATE[closed] D[0.12]
+MATH K[1] STATE[idle] LOOK[upright] D[1.3]
+MATH K[1] STATE[idle] D[1.6]
+MATH K[1] STATE[idle] LOOK[down] D[1.1]
+MATH K[1] STATE[closed] D[0.12]
+MATH K[1] STATE[idle] D[2.0]
+JMP LBL[1]
 [Main end]

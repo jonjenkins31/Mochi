@@ -2848,3 +2848,141 @@ def test_the_tour_demonstrates_every_orb_state_and_every_knob():
     for step in clips:
         assert step.params.get("STATE"), (
             f"{step.params} has no STATE — it would reset the shape")
+
+
+def _eyes_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_crazy_eyes", ROOT / "characters/crazy eyes/eyes.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _render(module, frame=(240, 160), t=1.3, **tokens):
+    """`frame`, not `size` — SIZE is one of the rig's own tokens and a
+    helper that shadows it cannot test it."""
+    import numpy as np
+
+    scene = module.Eyes(frame[0], frame[1])
+    scene.on_enter(**tokens)
+    buffer = np.zeros((frame[1], frame[0], 3), dtype=np.uint8)
+    scene.render_into(t, buffer)
+    return buffer
+
+
+def test_the_eyes_rig_still_looks_like_the_artwork_it_replaced():
+    """A rebuild that does not resemble the original is a new character.
+
+    The layer radii were MEASURED off crazy-eyes.webp, so the check is
+    the same measurement: sample the reference and the rig around the
+    left eye and compare the radial profiles. What matters most is that
+    the brightest ring lands in the same place.
+    """
+    import numpy as np
+    from PIL import Image
+
+    module = _eyes_module()
+    art = ROOT / "characters/crazy eyes/assets/crazy-eyes.webp"
+    assert art.is_file(), "the reference must stay in the pack"
+    reference = np.asarray(Image.open(art).convert("RGB")).astype(float)
+    mine = _render(module, frame=(480, 268)).astype(float)
+
+    def profile(image, cx=169, cy=134):
+        height, width, _ = image.shape
+        out = []
+        for radius in range(0, 44, 4):
+            ring = [image[int(cy + radius * np.sin(a)),
+                          int(cx + radius * np.cos(a))].mean()
+                    for a in np.linspace(0, 6.28, 64)
+                    if 0 <= int(cy + radius * np.sin(a)) < height
+                    and 0 <= int(cx + radius * np.cos(a)) < width]
+            out.append(np.mean(ring))
+        return np.array(out)
+
+    want, got = profile(reference), profile(mine)
+    assert np.argmax(want) == np.argmax(got), (
+        "the brightest ring moved — this no longer reads as the same eye")
+    assert np.mean(np.abs(want - got)) < 30, "the eye drifted from the artwork"
+
+
+def test_every_eye_rig_control_actually_moves_something():
+    """The rig is the deliverable, so each control gets asserted on its
+    OWN evidence rather than "the picture changed" — a token that only
+    jiggles pixels is a token that does not work."""
+    import numpy as np
+
+    module = _eyes_module()
+    idle = _render(module)
+
+    def lit(frame):
+        return int((frame.sum(axis=2) > 60).sum())
+
+    def centre(frame):
+        rows, cols = np.nonzero(frame.sum(axis=2) > 60)
+        return (cols.mean(), rows.mean()) if len(cols) else (0.0, 0.0)
+
+    base_x, base_y = centre(idle)
+
+    # Head position moves the whole face; gaze does not.
+    assert centre(_render(module, pan="0.3,0"))[0] - base_x > 20
+    # Gaze aims INSIDE the socket — the lit area stays put.
+    assert abs(centre(_render(module, look="left"))[0] - base_x) < 5
+
+    # Parallax: the layers must not move together, or it is a sticker.
+    follows = {name: module.LAYERS[i].get("follow", 0.0)
+               for i, name in enumerate(l["name"] for l in module.LAYERS)}
+    assert follows["pupil"] > follows["iris"] > follows["bezel"], follows
+
+    # Size and layer selection change how much is drawn.
+    assert lit(_render(module, size="0.6")) < lit(idle) * 0.6
+    assert lit(_render(module, layers="pupil")) < lit(idle) * 0.1
+    assert lit(_render(module, bloom="0.9")) > lit(idle)
+
+    # One eye at a time — the reason an Eye is an object.
+    winked = _render(module, wink="left")
+    assert lit(winked) < lit(idle) * 0.7
+    assert abs(centre(winked)[0] - base_x) > 20, "both eyes shut"
+
+    # Reaching a single ring, without a token per ring.
+    tuned = module.Eyes(240, 160)
+    tuned.on_enter(tune="iris.rate=0.9;teeth.count=48")
+    assert tuned.left.layer({"name": "iris", "rate": 0.14})["rate"] == 0.9
+    assert tuned.left.layer({"name": "teeth", "count": 24})["count"] == 48
+
+    # Roll and tilt turn things. 45 degrees is exactly three tick
+    # periods and aliases to no change, which is why this uses 7.
+    assert np.abs(_render(module, roll="7").astype(int)
+                  - idle.astype(int)).mean() > 0.5
+    assert np.abs(_render(module, tilt="25").astype(int)
+                  - idle.astype(int)).mean() > 2
+
+    # And it animates without anyone asking.
+    assert not np.array_equal(_render(module, t=0.2), _render(module, t=3.9))
+
+
+def test_the_eyes_pack_and_its_tour_agree_with_the_rig():
+    """Same rule as the Orbs tour: a walkthrough that misses a control
+    is how nobody finds out the control exists."""
+    from core import scenes
+    from modules import jaeger_animation as animation
+
+    module = _eyes_module()
+    character = animation.load("crazy_eyes")
+    assert character.kind == "procedural" and character.adapter == "math"
+    # Every named state is reachable as an expression.
+    for state in module.STATES:
+        assert state in character.expressions, state
+
+    scene = scenes.load(ROOT / "characters/crazy eyes/mscripts/tour.mscript")
+    clips = [step for step in scene.steps if step.kind == "clip"]
+    assert clips and all(step.params.get("STATE") for step in clips), (
+        "a clip line without STATE would reset the rig")
+
+    tokens = set()
+    for step in clips:
+        tokens |= set(step.params)
+    for control in ("LOOK", "GAZE", "TILT", "PAN", "SPACING", "SIZE",
+                    "ROLL", "COLOR", "BLOOM", "LAYERS", "TUNE", "WINK"):
+        assert control in tokens, f"the tour never demonstrates {control}"

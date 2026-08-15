@@ -1,0 +1,94 @@
+[Header start]
+! Crazy Eyes gives the tour — the whole rig, one control at a time.
+! Was a still image. Everything below is computed, which is the only
+! reason any of it can be scripted.
+!
+! Every clip line carries its FULL state: the engine opens a new clip
+! per command, so a line with only GAZE would quietly lose the rest.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[idle] D[1.2]
+SAY TXT['Right! Eyes! Two of them! I used to be a picture, which was fine, except I could only ever look at exactly one thing forever.']
+
+SAY TXT['Now I am maths. Rings and circles in a stack, and every single one of them is a control you can write down.']
+
+MATH K[1] STATE[idle] LAYERS[pupil,iris_in,halo_in] D[1.6]
+SAY TXT['That is the pupil layer on its own. A donut, not a dot — the middle is darker than the ring around it.']
+
+MATH K[1] STATE[idle] LAYERS[pupil,iris_in,halo_in,limbus,iris] D[1.6]
+SAY TXT['Add the iris. Twelve segments, and it turns faster than anything else I have.']
+
+MATH K[1] STATE[idle] LAYERS[pupil,iris_in,halo_in,limbus,iris,bezel,teeth,rim] D[1.6]
+SAY TXT['Now the bezel. Twenty four teeth. The teeth are the point — a smooth ring spinning just looks like a ring.']
+
+MATH K[1] STATE[idle] D[1.8]
+SAY TXT['And the reticle over the top, turning the other way. Twelve layers. None of them agree about anything, which is why I never repeat.']
+
+MATH K[1] STATE[idle] LOOK[left] D[1.0]
+SAY TXT['Now the good part. I can look at things. Left!']
+
+MATH K[1] STATE[idle] LOOK[right] D[1.0]
+SAY TXT['Right!']
+
+MATH K[1] STATE[idle] LOOK[up] D[0.9]
+SAY TXT['Up!']
+
+MATH K[1] STATE[idle] LOOK[down] D[0.9]
+SAY TXT['Down. Watch the layers when I do it — the pupil goes furthest, the iris less, the bezel barely moves at all. That is what makes a stack of flat circles look like a ball turning.']
+
+MATH K[1] STATE[idle] GAZE[0.45,-0.35] D[1.4]
+SAY TXT['Or anywhere in between, as two numbers. Nobody has to pick from a list.']
+
+MATH K[1] STATE[alert] D[1.5]
+SAY TXT['Alert! Pupil shrinks, everything speeds up, and I get brighter. That is three controls at once with one word.']
+
+MATH K[1] STATE[scan] D[2.4]
+SAY TXT['Scanning. There is a bar of light going across the iris and I have no idea what I am looking for.']
+
+MATH K[1] STATE[squint] D[1.4]
+SAY TXT['Squinting. The lids come in from both edges, because that is what a lid does.']
+
+MATH K[1] STATE[idle] WINK[left] D[1.4]
+SAY TXT['And I can do them separately! Each eye is its own object, so one can be shut while the other is not.']
+
+MATH K[1] STATE[cross] D[1.6]
+SAY TXT['Crossed. The eyes converge toward each other — that moves the sockets, not the gaze.']
+
+MATH K[1] STATE[dizzy] D[2.2]
+SAY TXT['Dizzy! Everything spinning and the sockets drifting on their own. I love this one.']
+
+MATH K[1] STATE[idle] TILT[22] D[1.6]
+SAY TXT['The head tilts too. Notice the pair swings around the middle AND each eye rolls with it. Tilting only the eyeballs would look like a malfunction.']
+
+MATH K[1] STATE[idle] TILT[-18] PAN[-0.22,0.1] D[1.8]
+SAY TXT['And the whole head moves. Position, rotation — the eyes are mounted in a frame and the frame is rigged as well.']
+
+MATH K[1] STATE[idle] SPACING[1.6] SIZE[0.7] D[1.8]
+SAY TXT['Spacing and size. Wide set and small.']
+
+MATH K[1] STATE[idle] SPACING[0.55] SIZE[1.25] D[1.8]
+SAY TXT['Close set and large. Same rig, different creature.']
+
+MATH K[1] STATE[idle] ROLL[40] D[1.5]
+SAY TXT['Each eye can roll on its own axis without the head moving at all.']
+
+MATH K[1] STATE[idle] COLOR[#FF6B4A] D[1.4]
+SAY TXT['Colour is just a token. Here I am, but angry.']
+
+MATH K[1] STATE[idle] COLOR[#7BE3B8] BLOOM[0.9] D[1.6]
+SAY TXT['And bloom — how much light spills between the rings. Turn it up and I go soft and dreamy.']
+
+MATH K[1] STATE[idle] COLOR[#51DAF8] BLOOM[0.0] D[1.6]
+SAY TXT['Turn it off and you can see the bare geometry. That is what I actually am underneath.']
+
+MATH K[1] STATE[idle] TUNE[iris.rate=0.9;bezel.at=0.55;teeth.count=48] D[2.2]
+SAY TXT['And if none of that is enough, you can reach in and change one ring. Iris spinning nine times faster, bezel pulled in, forty eight teeth instead of twenty four.']
+
+MATH K[1] STATE[idle] BLOOM[0.3] D[1.4]
+SAY TXT['Back to normal. Gaze, blink, dilate, spin, roll, tilt, pan, spacing, size, colour, bloom, and every ring individually — all of it is a token, so anything I can do, you can write down.']
+[Main end]

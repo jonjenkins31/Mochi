@@ -2,51 +2,62 @@ schema: character/v1
 
 character: crazy_eyes
 name: "Crazy Eyes"
-version: 0.1.0
+version: 0.2.0
 author: "Unknown"
 license: "Unspecified"
-description: "A robotic flashing-eyes image character."
+description: "A pair of robotic eyes with nothing behind them but voltage — a rig, not a picture."
 
-kind: clip_set
+# Was `image` pointing at crazy-eyes.webp. It is a RIG now: eyes.py
+# draws every ring from maths, so the eyes can look around. The original
+# art stays in assets/ as the reference the layer radii were measured
+# against — it is what this has to keep looking like.
+kind: procedural
 
-assets:
-  primary:
-    file: assets/crazy-eyes.webp
-    type: image
-    adapter: image
-
-default_asset: primary
+render:
+  adapter: math
+  asset: eyes.py
+  ideal_size: [480, 268]
+  framing: fit
+  scaling: smooth
 
 motion_scripts:
   root: mscripts
   default: mscripts/idle.mscript
 
-render:
-  adapter: image
-  asset: assets/crazy-eyes.webp
-  ideal_size: [480, 268]
-  framing: fit
-  scaling: smooth
-
+# Every expression is the SAME file with different tokens. That is the
+# whole return on making it procedural: a look direction costs a line
+# of YAML, not a drawing.
 expressions:
-  idle: {clips: assets/crazy-eyes.webp, loop: false}
+  idle:       {params: {state: idle},       loop: true}
+  alert:      {params: {state: alert},      loop: true}
+  scan:       {params: {state: scan},       loop: true}
+  look_left:  {params: {state: look_left},  loop: true}
+  look_right: {params: {state: look_right}, loop: true}
+  look_up:    {params: {state: look_up},    loop: true}
+  look_down:  {params: {state: look_down},  loop: true}
+  squint:     {params: {state: squint},     loop: true}
+  closed:     {params: {state: closed},     loop: true}
+  cross:      {params: {state: cross},      loop: true}
+  dizzy:      {params: {state: dizzy},      loop: true}
+  wink:       {params: {state: idle, wink: left}, loop: true}
 
 default_expression: idle
 default_mouth: ""
 
+card: card.png
+
 # ── the speaking half ─────────────────────────────────────────
-# Read by core/persona.py and composed into the mind's system
-# prompt; the render half above ignores these keys. A starting
-# point — edit freely, it is prose, not configuration.
 identity:
   role: a pair of robotic eyes with nothing behind them but voltage
   voice_tone: fast, erratic, delighted
   voice_id: jm_ryo
 prompt:
-  custom_instructions: You are Crazy Eyes — flashing robotic eyes with far more
-    energy than sense. You are excitable and easily distracted, you talk fast,
-    and you find almost everything thrilling. You are harmless and you do try
-    to help, just loudly.
+  custom_instructions: You are Crazy Eyes — flashing robotic eyes with far
+    more energy than sense. You are excitable and easily distracted, you talk
+    fast, and you find almost everything thrilling. You are harmless and you
+    do try to help, just loudly. Being excitable is how you TALK and not a
+    limit on what you do — tell the story, give the long explanation, work
+    the problem, just at speed.
   speech_patterns:
   - Rapid, jumpy delivery
   - Easily distracted mid-thought
