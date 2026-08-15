@@ -1790,3 +1790,39 @@ def test_either_seat_takes_a_strategy_or_a_person():
     taken = Session(strategy="minimax", opponent="random", trained=2_000)
     taken.step()
     assert taken.human_turn(taken.legal()[0]) is None
+
+
+def test_a_speech_track_gets_the_characters_own_voice():
+    """A track's `target` is a CHARACTER id; a synthesiser wants a VOICE
+    id, and only the pack knows which. Filling the voice with the target
+    was a bug — it sent "jaeger" to a synthesiser expecting "bm_george"."""
+    from core import staging
+
+    timeline = staging.load(
+        ROOT / "assets/timelines/jaeger_hello_fellow_humans.json")
+    speech = next(t for t in timeline.tracks if t.kind == "speech")
+    assert speech.target == "jaeger"
+    voices = {c.payload["voice"] for c in speech.clips}
+    # the pack's own voice, plus the one the scene deliberately overrides
+    assert "bm_george" in voices and "gm_fritz" in voices
+    assert "jaeger" not in voices
+
+    # a clip that names its own voice keeps it — that is a performance
+    # decision, not a lookup
+    slip = next(c for c in speech.clips if c.label == "the mask slips")
+    assert slip.payload["voice"] == "gm_fritz"
+
+
+def test_the_introduction_opens_on_the_line():
+    """The scene is the demo; the line is the point of it."""
+    from core import staging
+
+    timeline = staging.load(
+        ROOT / "assets/timelines/jaeger_hello_fellow_humans.json")
+    speech = next(t for t in timeline.tracks if t.kind == "speech")
+    first = min(speech.clips, key=lambda c: c.t_offset_ms)
+    assert first.payload["text"] == "Hello, fellow humans."
+    # and the mood track flips cold exactly when the mask slips
+    lights = next(t for t in timeline.tracks if t.kind == "light")
+    slip = next(c for c in speech.clips if c.label == "the mask slips")
+    assert any(c.t_offset_ms == slip.t_offset_ms for c in lights.clips)

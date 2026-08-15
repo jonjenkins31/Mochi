@@ -83,7 +83,45 @@ def resolve(timeline: Timeline, project_root: pathlib.Path) -> Timeline:
             payload["asset"] = _asset_for(cache[name], expression)
             payload.setdefault("adapter", "auto")
             clip.payload = payload
+    _resolve_voices(timeline, cache)
     return timeline
+
+
+def _resolve_voices(timeline: Timeline, cache: dict) -> None:
+    """Give every speech clip the target character's own voice.
+
+    A track's `target` is a CHARACTER id; a synthesiser wants a VOICE
+    id, and only the pack knows which one. Same reason expressions
+    resolve here: JaegerOS schedules, Mochi knows what a character is.
+
+    A clip that names its own voice keeps it — that is how a scene makes
+    a character audibly slip out of its own register, which is a
+    performance decision and not a lookup.
+    """
+    import yaml
+
+    for track in timeline.tracks:
+        if track.kind != "speech" or not track.target:
+            continue
+        name = track.target
+        if name not in cache:
+            try:
+                cache[name] = animation.load(name)
+            except Exception:  # noqa: BLE001 — a light track targets a lamp
+                continue
+        try:
+            sheet = yaml.safe_load(
+                (pathlib.Path(cache[name].root) / "character.yaml")
+                .read_text(encoding="utf-8")) or {}
+        except Exception:  # noqa: BLE001
+            continue
+        voice = str((sheet.get("identity") or {}).get("voice_id", "")).strip()
+        if not voice:
+            continue
+        for clip in track.clips:
+            payload = clip.payload or {}
+            payload.setdefault("voice", voice)
+            clip.payload = payload
 
 
 def load(path: Any, project_root: pathlib.Path | None = None) -> Timeline:

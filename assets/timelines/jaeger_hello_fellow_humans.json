@@ -1,0 +1,56 @@
+{
+  "name": "jaeger_hello_fellow_humans",
+  "description": "An introduction. Jaeger does its best to imitate a human, slips, and recovers.",
+  "loop": false,
+  "schema_version": 1,
+  "tracks": [
+    {
+      "kind": "animation", "target": "jaeger", "name": "face",
+      "clips": [
+        {"t_offset_ms": 0, "label": "on", "payload": {"expression": "idle"}}
+      ]
+    },
+    {
+      "kind": "speech", "target": "jaeger", "name": "the human impression",
+      "clips": [
+        {"t_offset_ms": 600, "label": "the line",
+         "payload": {"text": "Hello, fellow humans."}},
+
+        {"t_offset_ms": 3000, "label": "over-specified smalltalk",
+         "payload": {"text": "I too enjoy the weather, and consuming food, and sleeping for eight hours."}},
+
+        {"t_offset_ms": 8200, "label": "the mask slips",
+         "payload": {"voice": "gm_fritz",
+                     "text": "QUERY. IS THIS AN ACCEPTABLE QUANTITY OF SLEEP."}},
+
+        {"t_offset_ms": 11800, "label": "recovering",
+         "payload": {"text": "Ha. Ha. That was a joke, which I understand."}},
+
+        {"t_offset_ms": 15400, "label": "the pitch",
+         "payload": {"text": "I am Jaeger. I run the animation, the voice, the ears, and the eyes."}},
+
+        {"t_offset_ms": 20200, "label": "one more slip",
+         "payload": {"voice": "gm_fritz",
+                     "text": "ALL SYSTEMS NOMINAL. NO FURTHER QUESTIONS REQUIRED."}},
+
+        {"t_offset_ms": 24000, "label": "sign off",
+         "payload": {"text": "Anyway. Lovely to meet you, fellow human."}}
+      ]
+    },
+    {
+      "kind": "light", "target": "desk", "name": "mood",
+      "clips": [
+        {"t_offset_ms": 0,     "duration_ms": 8200, "label": "warm — passing for human",
+         "payload": {"rgb": [255, 180, 120]}},
+        {"t_offset_ms": 8200,  "duration_ms": 3600, "label": "cold — the mask is off",
+         "payload": {"rgb": [40, 90, 255]}},
+        {"t_offset_ms": 11800, "duration_ms": 8400, "label": "warm again",
+         "payload": {"rgb": [255, 180, 120]}},
+        {"t_offset_ms": 20200, "duration_ms": 3800, "label": "cold",
+         "payload": {"rgb": [40, 90, 255]}},
+        {"t_offset_ms": 24000, "duration_ms": 3000, "label": "warm",
+         "payload": {"rgb": [255, 180, 120]}}
+      ]
+    }
+  ]
+}
