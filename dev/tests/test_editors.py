@@ -590,8 +590,11 @@ def test_chat_tab_publishes_a_turn_and_renders_the_reply(monkeypatch):
         while "hi there" not in tab.log.toPlainText() and time.time() < deadline:
             tab._drain()
             qt_app.processEvents()
-        assert "you: hello" in tab.log.toPlainText()
-        assert "mochi: hi there" in tab.log.toPlainText()
+        # The colon is gone: the speaker is a coloured run now, and
+        # punctuation that repeats what the colour already says is
+        # noise in a transcript meant to be skimmed.
+        assert "you  hello" in tab.log.toPlainText()
+        assert "mochi  hi there" in tab.log.toPlainText()
 
         # A new conversation is a new session id, not a cleared widget —
         # otherwise the model still remembers what the log stopped showing.
@@ -2476,3 +2479,42 @@ def test_audio_switches_grey_out_when_the_manifest_has_no_audio(monkeypatch):
         assert "not available" in window.mic_btn.toolTip()
     finally:
         window.shutdown(); app.shutdown()
+
+
+def test_the_chat_transcript_colours_who_is_speaking(monkeypatch):
+    """The TUI design's point is a transcript you can skim rather than
+    read. That only works if the speaker is a colour, not a prefix — so
+    this checks the runs really carry different foregrounds, which a
+    plain-text assertion cannot see."""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from jaeger_os import InProcBus
+    from interfaces.chat import ACCENT, ChatTab, VOICE
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=_FakeSupervisor(), config={})
+    tab = ChatTab(app, (QtCore, QtGui, QtWidgets))
+    try:
+        tab._append("you", "hello")
+        tab._append("mochi", "hi")
+        tab._append("!", "something broke")
+
+        colours = set()
+        cursor = QtGui.QTextCursor(tab.log.document())
+        while not cursor.atEnd():
+            cursor.movePosition(QtGui.QTextCursor.NextCharacter,
+                                QtGui.QTextCursor.KeepAnchor)
+            colours.add(cursor.charFormat().foreground().color().name())
+            cursor.clearSelection()
+        for expected in (VOICE["you"], VOICE["!"], ACCENT):
+            assert expected.lower() in colours, f"{expected} never drawn"
+
+        # A new conversation redraws the banner rather than leaving an
+        # empty box that looks like a broken pane.
+        tab.new_conversation()
+        assert "MOCHI" not in tab.log.toPlainText()      # it is block art
+        assert tab.session in tab.log.toPlainText()
+        assert "hello" not in tab.log.toPlainText()
+    finally:
+        tab.close(); bus.close()

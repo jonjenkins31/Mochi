@@ -79,12 +79,64 @@ from modules import jaeger_kokoro_tts as tts
 from modules import jaeger_whisper_stt as stt
 
 
+#: Terminal palette. The layout below is JaegerAI's rich-TUI chat —
+#: header rule, coloured monospace transcript, status line, `❯`
+#: composer — because it reads well and Mochi's chat was a grey text box.
+#: The ACCENT is Mochi's own purple rather than that project's blue: this
+#: pane sits inside the avatar window's purple frame, and two accents in
+#: one window is not a design, it is two designs.
+CANVAS, PANEL = "#0B0910", "#141021"
+INK, INK_DIM, RULE = "#DDE2EA", "#888F9C", "#2A2340"
+ACCENT = "#6C5CE7"
+MONO = "SF Mono, Menlo, Consolas, monospace"
+
+#: Who said it decides the colour. A transcript you can skim without
+#: reading is the entire reason for colouring it at all.
+VOICE = {"you": "#8aaad0", "heard": "#43E08A", "!": "#e06c75"}
+
+#: The transcript opens on a banner for the same reason a terminal
+#: does: it says which thing you are talking to before you type.
+#: Half-width blocks, not double. At the panel's real width a `██` per
+#: pixel wordmark eats a third of the transcript before anyone has said
+#: anything, which is a banner that costs more than it says.
+BANNER = "\n".join((
+    "  █▀▄▀█ █▀▀█ █▀▀ █  █ █",
+    "  █ ▀ █ █  █ █   █▀▀█ █",
+    "  █   █ ▀▀▀▀ ▀▀▀ ▀  ▀ ▀",
+    "",
+))
+
+
+_TUI_STYLE = f"""
+QWidget {{ background: {CANVAS}; color: {INK}; }}
+QWidget#HeaderBar {{ background: {PANEL}; border-bottom: 1px solid {RULE}; }}
+QWidget#HeaderBar QLabel, QWidget#HeaderBar QCheckBox {{
+    font-family: {MONO}; font-size: 11px; color: {INK_DIM}; }}
+QTextEdit#Transcript {{ background: {CANVAS}; border: none; padding: 6px 12px; }}
+QLabel#StatusLine {{ font-family: {MONO}; font-size: 11px; color: {INK_DIM};
+    background: {PANEL}; border-top: 1px solid {RULE}; padding: 4px 12px; }}
+QLabel#Prompt {{ color: {ACCENT}; font-family: {MONO}; font-size: 15px;
+    font-weight: bold; padding-left: 4px; }}
+QLineEdit#Composer {{ background: {PANEL}; border: 1px solid {RULE};
+    border-radius: 8px; padding: 8px 11px; font-family: {MONO};
+    font-size: 12px; color: {INK}; }}
+QLineEdit#Composer:focus {{ border: 1px solid {ACCENT}; }}
+QPushButton#SendBtn {{ background: {ACCENT}; color: #ffffff; border: none;
+    border-radius: 8px; font-size: 12px; font-weight: 600; padding: 8px 15px; }}
+QPushButton#SendBtn:disabled {{ background: #2f2a4a; color: {INK_DIM}; }}
+QComboBox {{ background: {PANEL}; border: 1px solid {RULE}; border-radius: 6px;
+    padding: 3px 7px; font-family: {MONO}; font-size: 11px; color: {INK}; }}
+QPushButton {{ background: {PANEL}; border: 1px solid {RULE};
+    border-radius: 6px; padding: 4px 10px; font-size: 11px; color: {INK}; }}
+"""
+
+
 class ChatTab:
     """Drive one conversation and show what the mind is doing."""
 
     def __init__(self, app: Any, qt: tuple) -> None:
-        QtCore, _QtGui, QtWidgets = qt
-        self._QtCore = QtCore
+        QtCore, QtGui, QtWidgets = qt
+        self._QtCore, self._QtGui = QtCore, QtGui
         self.app = app
         self.bus = app.bus
 
@@ -109,9 +161,13 @@ class ChatTab:
 
         self.widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(self.widget)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        header = QtWidgets.QHBoxLayout()
+        header_bar = QtWidgets.QWidget()
+        header_bar.setObjectName("HeaderBar")
+        header = QtWidgets.QHBoxLayout(header_bar)
+        header.setContentsMargins(12, 6, 10, 6)
         self.state = QtWidgets.QLabel()
         self.state.setStyleSheet("color:#8aaad0;")
         header.addWidget(self.state)
@@ -147,27 +203,44 @@ class ChatTab:
         self.speak.toggled.connect(self._speak_toggled)
         header.addWidget(self.speak)
         # What is actually RUNNING, which the boxes above no longer say.
-        self.power = QtWidgets.QLabel()
-        self.power.setStyleSheet("color:#6a6a78;")
-        header.addWidget(self.power)
         clear = QtWidgets.QPushButton("New conversation")
         clear.clicked.connect(self.new_conversation)
         header.addWidget(clear)
-        layout.addLayout(header)
+        layout.addWidget(header_bar)
 
-        self.log = QtWidgets.QPlainTextEdit()
+        self.log = QtWidgets.QTextEdit()
+        self.log.setObjectName("Transcript")
         self.log.setReadOnly(True)
-        self.log.setMaximumBlockCount(1000)
+        self.log.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.log.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        font = QtGui.QFont("SF Mono", 12)
+        font.setStyleHint(QtGui.QFont.Monospace)
+        self.log.setFont(font)
         layout.addWidget(self.log, 1)
 
+        # The power line is STATUS, so it sits on a status bar under the
+        # transcript rather than competing with the controls up top.
+        self.power = QtWidgets.QLabel()
+        self.power.setObjectName("StatusLine")
+        layout.addWidget(self.power)
+
         row = QtWidgets.QHBoxLayout()
+        row.setContentsMargins(10, 8, 10, 10)
+        row.setSpacing(8)
+        prompt = QtWidgets.QLabel("\u276f")
+        prompt.setObjectName("Prompt")
+        row.addWidget(prompt)
         self.entry = QtWidgets.QLineEdit()
+        self.entry.setObjectName("Composer")
         self.entry.returnPressed.connect(self.send)
         self.send_button = QtWidgets.QPushButton("Send")
+        self.send_button.setObjectName("SendBtn")
         self.send_button.clicked.connect(self.send)
         row.addWidget(self.entry, 1)
         row.addWidget(self.send_button)
         layout.addLayout(row)
+        self.widget.setStyleSheet(_TUI_STYLE)
+        self._banner()
 
         self._no_module = not mind.available()
         if self._no_module:
@@ -175,12 +248,13 @@ class ChatTab:
             self.entry.setEnabled(False)
             self.send_button.setEnabled(False)
             self.entry.setPlaceholderText("no mind module installed")
-            self.log.setPlainText(
+            self.log.clear()
+            self._emit(
                 f"No mind module is installed ({mind.PACKAGE}).\n\n"
                 f"    pip install jaeger-agent\n\n"
                 f"or re-run ./setup.sh, which prefers a sibling checkout. "
                 f"`python3 main.py --nodes` says which modules the app "
-                f"actually found.")
+                f"actually found.", INK_DIM)
         else:
             self.entry.setPlaceholderText(
                 "say something and press enter — publishes /act/chat")
@@ -209,6 +283,28 @@ class ChatTab:
         self._timer.timeout.connect(self._drain)
         self._timer.start(100)
         self._refresh_state()
+
+    # ── the transcript ───────────────────────────────────────────
+
+    def _emit(self, text: str, colour: str, *, bold: bool = False) -> None:
+        """One run of coloured monospace at the end of the transcript."""
+        cursor = self.log.textCursor()
+        QtGui = self._QtGui
+        cursor.movePosition(QtGui.QTextCursor.End)
+        fmt = QtGui.QTextCharFormat()
+        fmt.setForeground(QtGui.QColor(colour))
+        fmt.setFontFamilies(["SF Mono", "Menlo", "monospace"])
+        if bold:
+            fmt.setFontWeight(QtGui.QFont.Bold)
+        cursor.insertText(text, fmt)
+        self.log.setTextCursor(cursor)
+        self.log.ensureCursorVisible()
+
+    def _banner(self) -> None:
+        self._emit(BANNER, ACCENT, bold=True)
+        self._emit(f"  {self.session} · say something, or turn the ears on\n",
+                   INK_DIM)
+        self._emit("  " + "\u2500" * 58 + "\n\n", RULE)
 
     # ── driving it ───────────────────────────────────────────────
 
@@ -278,6 +374,7 @@ class ChatTab:
         self._turn += 1
         self.session = f"mochi-{self._turn + 1}"
         self.log.clear()
+        self._banner()
         if not self._no_module:
             self._append("·", f"new conversation ({self.session})")
 
@@ -379,7 +476,19 @@ class ChatTab:
     # ── GUI thread ───────────────────────────────────────────────
 
     def _append(self, speaker: str, text: str) -> None:
-        self.log.appendPlainText(f"{time.strftime('%H:%M:%S')}  {speaker}: {text}")
+        # Hanging indent, so a wrapped reply lines up under itself
+        # instead of running back to the timestamp column.
+        QtGui = self._QtGui
+        cursor = self.log.textCursor()
+        cursor.movePosition(QtGui.QTextCursor.End)
+        block = QtGui.QTextBlockFormat()
+        block.setLeftMargin(96)
+        block.setTextIndent(-96)
+        cursor.setBlockFormat(block)
+        self.log.setTextCursor(cursor)
+        self._emit(f"{time.strftime('%H:%M:%S')}  ", RULE)
+        self._emit(f"{speaker}", VOICE.get(speaker, ACCENT), bold=True)
+        self._emit(f"  {text}\n", INK if speaker != "!" else VOICE["!"])
 
     def _drain(self) -> None:
         while self._pending:
