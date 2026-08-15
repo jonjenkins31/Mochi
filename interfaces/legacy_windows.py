@@ -107,6 +107,24 @@ def legacy_window_specs(root: pathlib.Path) -> tuple[LegacyWindowSpec, ...]:
             v4 / "mochi/interfaces/media_player/__main__.py",
             ("-m", "mochi.interfaces.media_player")),
     ))
+    # JaegerAI's avatar surfaces. Not an archive and not a Mochi module —
+    # a sibling product whose UI is under review before anything is kept.
+    # Launched through dev/tools/jaeger_ai_windows.py, which puts that
+    # source on the path rather than installing it, so looking at a
+    # design costs nothing and commits to nothing.
+    launcher = root / "dev" / "tools" / "jaeger_ai_windows.py"
+    if launcher.is_file() and (pathlib.Path.home() / "GITHUB" / "JaegerAI").is_dir():
+        for window_id, name in (
+            ("orb", "VoiceOrb — reactive voice ring"),
+            ("player", "Floating avatar player"),
+            ("avatar", "Avatar view (the panel alone)"),
+            ("chat", "Avatar + chat — the composed surface"),
+        ):
+            specs.append(LegacyWindowSpec(
+                "JaegerAI", f"jai-{window_id}", name, launcher,
+                (str(launcher), window_id),
+                note="sibling product; under review"))
+
     v3_files = {
         "control": ("Control panel", "gui/mochi_gui.py"),
         "display": ("Virtual LED display", "gui/mochi_vdisplay.py"),
@@ -209,7 +227,8 @@ class LegacyWindowsTab:
 
         specs = legacy_window_specs(self.root)
         note = QtWidgets_.QLabel(
-            "Original windows are intentionally kept separate for comparison. "
+            "Archived Mochi windows and JaegerAI's avatar surfaces, side by "
+            "side with what replaced them. "
             "They open in isolated processes and still use their historical "
             "transport/configuration; use them as visual references until each "
             "is consolidated into the current bus."
@@ -249,9 +268,10 @@ class LegacyWindowsTab:
         self._timer.start(500)
 
     def _launch(self, spec: LegacyWindowSpec, row: int) -> None:
-        cwd = (self.root / "archive" / "mochi-v4"
-               if spec.generation == "Mochi v4"
-               else self.root / "archive" / "mochi-3.0")
+        cwd = {
+            "Mochi v4": self.root / "archive" / "mochi-v4",
+            "Mochi 3.0": self.root / "archive" / "mochi-3.0",
+        }.get(spec.generation, self.root)
         # Keep the child's output. These die on a missing asset or an
         # import the archive no longer contains, and "exited(1)" sends
         # the reader to a terminal they were not watching — the reason

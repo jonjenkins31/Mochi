@@ -442,7 +442,11 @@ def test_window_gallery_only_offers_archives_that_are_still_on_disk():
 
     specs = legacy_window_specs(ROOT)
     assert all(spec.source.is_file() for spec in specs)
-    assert {spec.generation for spec in specs} <= {"Mochi 3.0", "Mochi v4"}
+    # JaegerAI joined the gallery: a sibling product's UI, offered for
+    # review beside what replaced it. Same rule — a row only exists if
+    # the thing it launches is on disk.
+    assert {spec.generation for spec in specs} <= {
+        "Mochi 3.0", "Mochi v4", "JaegerAI"}
 
 
 def test_every_archived_editor_has_a_live_replacement_tab(monkeypatch):
@@ -2146,3 +2150,24 @@ def test_only_the_visible_tab_drives_the_display(monkeypatch):
         assert window.face.cycle_btn.isChecked(), "cycling was not restored"
     finally:
         window.close()
+
+
+def test_the_jaeger_ai_avatar_surfaces_are_offered_for_review():
+    """Under review, not integrated. JaegerAI is a sibling product, not
+    a Mochi module — the launcher puts its source on the path rather
+    than installing it, so looking at a design costs nothing and commits
+    to nothing."""
+    from interfaces.legacy_windows import legacy_window_specs
+
+    specs = {s.id: s for s in legacy_window_specs(ROOT)
+             if s.generation == "JaegerAI"}
+    assert {"jai-orb", "jai-player", "jai-avatar", "jai-chat"} <= set(specs)
+    for spec in specs.values():
+        assert spec.source.is_file()
+        assert spec.source.name == "jaeger_ai_windows.py"
+        assert "review" in spec.note
+
+    # the launcher knows the same set, so a row cannot point at nothing
+    from dev.tools.jaeger_ai_windows import WINDOWS
+
+    assert {s.command[-1] for s in specs.values()} == set(WINDOWS)
