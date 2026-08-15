@@ -178,7 +178,11 @@ def test_every_character_owns_valid_motion_scripts():
         for script in scripts:
             sections = parse_mscript(script.read_text(encoding="utf-8"))
             resources = parse_resources(sections.get("resources", []))
-            assert sections.get("main"), script
+            # A script has a [Main] program, or [Track_*] channels, or
+            # both. Track-only is a scene authored as a listing — see
+            # core/scenes.compile_timeline.
+            tracks = [k for k in sections if k.startswith("track_")]
+            assert sections.get("main") or tracks, script
             assert resources, script
             for _resource_id, resource in resources:
                 assert (ROOT / resource).is_file(), (script, resource)
@@ -610,9 +614,14 @@ def test_every_script_survives_a_trip_through_the_nodes():
                + sorted((ROOT / "characters").rglob("*.mscript")))
     assert scripts, "no motion scripts to check"
     for path in scripts:
-        main = parse_mscript(path.read_text())["main"]
-        assert build_steps(parse_steps(main)) == "\n".join(main), \
-            f"{path.name} changed just by being looked at"
+        sections = parse_mscript(path.read_text())
+        # every section that holds steps, not just [Main] — a track is
+        # steps too, and must survive the node view identically
+        for name, body in sections.items():
+            if name != "main" and not name.startswith("track_"):
+                continue
+            assert build_steps(parse_steps(body)) == "\n".join(body), \
+                f"{path.name} [{name}] changed just by being looked at"
 
 
 def test_a_comment_is_a_step_and_not_a_command():
@@ -1864,3 +1873,54 @@ def test_every_scene_resolves_against_its_own_pack():
                     asset = (clip.payload or {}).get("asset")
                     if asset:
                         assert pathlib.Path(asset).is_file(), (scene, asset)
+
+
+def test_one_mscript_can_hold_both_shapes():
+    """FANUC's split: the listing is the source, the compiled form is
+    what runs. `[Main]` is the sequential program; `[Track_*]` sections
+    are channels on a clock. They were never rigidly different — the
+    section mechanism has accepted arbitrary names since Mochi 3.0 and
+    was simply unused."""
+    from core import scenes
+    from interfaces.mscript_editor import parse_mscript
+
+    path = ROOT / "characters/bitmap man/mscripts/secret.mscript"
+    assert scenes.has_tracks(path)
+
+    timeline = scenes.compile_timeline(path, target="bitmap_man")
+    assert {t.kind for t in timeline.tracks} == {"animation", "speech", "light"}
+    assert {t.name for t in timeline.tracks} == {"eyes", "voice", "light"}
+    assert timeline.computed_duration_ms() == 8200
+
+    # T[seconds] is absolute — a track says WHEN, not what-comes-next
+    voice = next(t for t in timeline.tracks if t.kind == "speech")
+    assert [c.t_offset_ms for c in voice.clips] == [600, 3000, 5400]
+
+    # and the eyes move DURING a line, which is the whole point
+    eyes = next(t for t in timeline.tracks if t.kind == "animation")
+    during = [c for c in eyes.clips if 600 < c.t_offset_ms < 3000]
+    assert len(during) >= 2
+
+    # a plain performance has no tracks and belongs to the runner
+    plain = ROOT / "characters/bitmap man/mscripts/knock_knock.mscript"
+    assert not scenes.has_tracks(plain)
+    assert scenes.compile_timeline(plain) is None
+
+    # the section mechanism itself needed no change
+    sections = parse_mscript(path.read_text(encoding="utf-8"))
+    assert {"track_eyes", "track_voice", "track_light"} <= set(sections)
+
+
+def test_a_compiled_scene_resolves_like_an_authored_one():
+    """Whichever form it was written in, the pack fills in the same
+    things — expressions become assets, the character's voice fills in."""
+    from core import scenes, staging
+
+    timeline = scenes.compile_timeline(
+        ROOT / "characters/bitmap man/mscripts/secret.mscript",
+        target="bitmap_man")
+    staging.resolve(timeline, ROOT)
+    eyes = next(t for t in timeline.tracks if t.kind == "animation")
+    assert eyes.clips[1].payload["asset"].endswith("look_up.json")
+    voice = next(t for t in timeline.tracks if t.kind == "speech")
+    assert voice.clips[0].payload["voice"] == "gm_fritz"   # bitmap man's own

@@ -391,4 +391,114 @@ class SceneRunner:
             self._on_event("heard nothing")
 
 
-__all__ = ["Scene", "Step", "SceneRunner", "load", "available"]
+__all__ = ["Scene", "Step", "SceneRunner", "load", "available",
+           "compile_timeline", "has_tracks", "track_kind", "TRACK_PREFIX"]
+
+
+# ── one file, many channels ──────────────────────────────────────
+#
+# FANUC's split, and the reason this works: a TP program is STORED in
+# one form and READ as a listing. Nobody authors the binary. Here the
+# listing is the source and a `Timeline` is the compiled artifact the
+# scheduler consumes — so a scene and a performance stop being two
+# kinds of file and become two things one file can contain.
+#
+#     [Main start]        the sequential program. Can LISTEN, can loop,
+#     [Main end]          can ASK. A program counter, as it always was.
+#
+#     [Track_eyes start]  a channel on the clock. Every line carries
+#     [Track_eyes end]    T[seconds] — when, not what-comes-next.
+#
+# The section mechanism needed no change: `parse_mscript` has accepted
+# arbitrary section names since Mochi 3.0. The capability was already
+# in the format and simply unused.
+
+#: A section whose name starts with this is a timeline track. Everything
+#: else — Header, Resources, Main, Keyframes — keeps its meaning.
+TRACK_PREFIX = "track_"
+
+#: Which bus channel a track feeds, from its name. `Track_eyes` and
+#: `Track_face` both mean animation; the suffix is a LABEL for a human
+#: reading the listing, not a routing decision, so unknown names fall
+#: back to animation rather than refusing to load.
+_TRACK_KINDS = {
+    "voice": "speech", "speech": "speech", "say": "speech",
+    "eyes": "animation", "face": "animation", "anim": "animation",
+    "light": "light", "lights": "light",
+    "motion": "motion", "servo": "motion", "sound": "sound",
+    "cue": "script", "script": "script",
+}
+
+
+def track_kind(section: str) -> str:
+    return _TRACK_KINDS.get(section[len(TRACK_PREFIX):].lower(), "animation")
+
+
+def compile_timeline(path: Any, target: str = "") -> Any:
+    """Compile a `.mscript`'s `[Track_*]` sections into a `Timeline`.
+
+    Returns None when the file has no tracks — that is a plain
+    performance and belongs to the SceneRunner, not the scheduler.
+
+    Timing comes from `T[seconds]`, absolute from the track's start. A
+    track is a clock, so a line says WHEN rather than what-comes-next —
+    that is the whole difference from `[Main]`, and it is why both can
+    live in one file without either changing meaning.
+    """
+    from jaeger_os.timeline import Timeline, TimelineClip, TimelineTrack
+
+    from interfaces.mscript_editor import parse_mscript, parse_steps
+
+    path = pathlib.Path(path)
+    sections = parse_mscript(path.read_text(encoding="utf-8"))
+    tracks = []
+    for name, lines in sections.items():
+        if not name.startswith(TRACK_PREFIX):
+            continue
+        clips = []
+        for parsed in parse_steps(lines):
+            if not parsed.command:
+                continue
+            args = parsed.args
+            at = int(float(args.get("T", 0) or 0) * 1000)
+            hold = int(float(args.get("D", 0) or 0) * 1000)
+            payload: dict[str, Any] = {}
+            if parsed.command == "FACE":
+                payload["expression"] = str(args.get("EXPR", ""))
+            elif parsed.command == "SAY":
+                payload["text"] = _quoted(args.get("TXT", ""))
+                if args.get("VOICE"):
+                    payload["voice"] = str(args["VOICE"])
+            elif parsed.command == "CUE":
+                payload["script"] = _quoted(args.get("SRC", ""))
+            elif parsed.command == "LIGHT":
+                payload["rgb"] = [int(v) for v in
+                                  str(args.get("CLR", "0,0,0")).split(",")]
+            else:
+                payload = {k.lower(): v for k, v in args.items()
+                           if k not in ("T", "D")}
+            clips.append(TimelineClip(t_offset_ms=at, duration_ms=hold,
+                                      payload=payload,
+                                      label=str(args.get("LBL", "")) or ""))
+        if clips:
+            tracks.append(TimelineTrack(
+                kind=track_kind(name), target=target,
+                name=name[len(TRACK_PREFIX):], clips=clips))
+    if not tracks:
+        return None
+    description = " ".join(
+        line.lstrip("! ").strip() for line in sections.get("_header", [])
+        if line.strip().startswith("!"))
+    return Timeline(name=path.stem.replace("_", " "),
+                    description=description, tracks=tracks)
+
+
+def has_tracks(path: Any) -> bool:
+    """Cheap check: does this file want the scheduler or the runner?"""
+    from interfaces.mscript_editor import parse_mscript
+
+    try:
+        sections = parse_mscript(pathlib.Path(path).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return False
+    return any(name.startswith(TRACK_PREFIX) for name in sections)
