@@ -1,0 +1,13 @@
+[Header start]
+! HAL 9000 idle — the lens, held. It does not blink.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/HAL 9000/assets/hal.png'
+[Resources end]
+
+[Main start]
+LBL[1]
+IMAGE K[1] D[5.0]
+JMP LBL[1]
+[Main end]
