@@ -1924,3 +1924,44 @@ def test_a_compiled_scene_resolves_like_an_authored_one():
     assert eyes.clips[1].payload["asset"].endswith("look_up.json")
     voice = next(t for t in timeline.tracks if t.kind == "speech")
     assert voice.clips[0].payload["voice"] == "gm_fritz"   # bitmap man's own
+
+
+def test_a_show_file_runs_channels_and_a_program_at_once():
+    """The animatronic shape. A figure moves, speaks and reacts on the
+    same beat, so a show file is not a sequence OR a timeline — it is
+    both, from one file, starting at the same t=0.
+
+    A clock cannot wait for a person; a program counter cannot overlap.
+    Neither alone is a show."""
+    from core import scenes
+
+    path = ROOT / "characters/bitmap man/mscripts/show.mscript"
+
+    channels = scenes.compile_timeline(path, target="bitmap_man")
+    assert {t.kind for t in channels.tracks} == {
+        "animation", "speech", "light", "motion"}
+
+    # motion has no node yet and still keeps time — authoring ahead of
+    # the hardware is the normal case for an animatronic
+    motion = next(t for t in channels.tracks if t.kind == "motion")
+    assert [c.payload["joint"] for c in motion.clips][:2] == [
+        "neck_pan", "neck_pan"]
+    assert motion.clips[0].t_offset_ms == 1200
+
+    # and the same file carries the part a clock cannot express
+    program = scenes.load(path)
+    assert program.interactive
+    assert [s.kind for s in program.steps] == [
+        "wait", "say", "listen", "face", "ask", "face"]
+
+
+def test_an_unknown_channel_still_keeps_time():
+    """A track kind with no consumer is scheduled and not dispatched, so
+    a scene authored for hardware nobody has yet plays correctly on the
+    channels that do exist."""
+    from core import scenes
+
+    timeline = scenes.compile_timeline(
+        ROOT / "characters/bitmap man/mscripts/show.mscript",
+        target="bitmap_man")
+    assert timeline.computed_duration_ms() >= 6600

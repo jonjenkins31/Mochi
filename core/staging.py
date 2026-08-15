@@ -203,6 +203,50 @@ class Conductor:
     def running(self) -> bool:
         return bool(self._timeline and not self._timeline.finished)
 
+    def perform(self, path: Any, target: str = "",
+                on_event: Any = None) -> bool:
+        """Play ONE mscript as a whole show: channels and program together.
+
+        This is the animatronic shape. A show file is not a sequence OR
+        a timeline — it is both at once, because a figure moves, speaks
+        and reacts on the same beat:
+
+            [Track_*]   channels on the clock. Move and speak together,
+                        each on its own line, timed absolutely.
+            [Main]      the show-control program. Can branch, can loop,
+                        and can STOP for a person — the part a clock
+                        cannot express.
+
+        Both start from the same t=0 and run concurrently, so a figure
+        can be mid-gesture when someone answers it.
+
+        Returns False if the file has neither, which is not an error —
+        an empty script is a script.
+        """
+        from core import scenes as scene_lib
+
+        path = pathlib.Path(path)
+        self.stop()
+        started = False
+
+        timeline = scene_lib.compile_timeline(path, target=target)
+        if timeline is not None:
+            from jaeger_os.timeline import TimelineRunner
+
+            resolve(timeline, pathlib.Path(__file__).resolve().parent.parent)
+            self._timeline = TimelineRunner(self.app.bus, timeline)
+            self._timeline.start()
+            started = True
+
+        program = scene_lib.load(path)
+        if program.steps:
+            runner = scene_lib.SceneRunner(
+                self.app, self.character, on_event=on_event)
+            self._runners.append(runner)
+            runner.start(program)
+            started = True
+        return started
+
     def start(self, timeline: Timeline,
               on_event: Any = None) -> None:
         """Start every track. Events go to the scheduler, cues to their

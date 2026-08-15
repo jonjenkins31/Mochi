@@ -1,0 +1,51 @@
+[Header start]
+! Bitmap Man — a show file. Channels AND a program, from one file.
+!
+! This is the animatronic shape: the figure moves and speaks on the
+! clock while a show-control program runs beside it and can STOP for
+! a person. A clock cannot wait; a program counter cannot overlap.
+! Both start from the same t=0.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/bitmap man/assets/faces/neutral_blink.json'
+[Resources end]
+
+! ── channels: everything that happens ON THE CLOCK ──────────────
+
+[Track_eyes start]
+FACE EXPR[neutral]   T[0.0]
+FACE EXPR[look_up]   T[1.2]
+FACE EXPR[look_down] T[2.4]
+FACE EXPR[neutral]   T[3.6]
+FACE EXPR[happy]     T[6.0]
+[Track_eyes end]
+
+[Track_voice start]
+SAY TXT['Welcome. Let me show you what I can do at once.'] T[0.4]
+SAY TXT['Eyes, voice and lights, all on the same clock.']  T[3.8]
+[Track_voice end]
+
+[Track_light start]
+LIGHT CLR[255,180,120] T[0.0] D[3.6]
+LIGHT CLR[40,90,255]   T[3.6] D[2.4]
+LIGHT CLR[255,180,120] T[6.0] D[2.0]
+[Track_light end]
+
+[Track_motion start]
+SERVO JOINT[neck_pan]  POS[-20] T[1.2] D[1.0]
+SERVO JOINT[neck_pan]  POS[20]  T[2.4] D[1.0]
+SERVO JOINT[neck_pan]  POS[0]   T[3.6] D[0.8]
+SERVO JOINT[neck_tilt] POS[10]  T[6.0] D[0.6]
+[Track_motion end]
+
+! ── the program: the part a clock cannot express ────────────────
+
+[Main start]
+WAIT D[8.5]
+SAY TXT['Now the clock is done. Say something and I will wait.']
+LISTEN D[12]
+FACE EXPR[happy]
+ASK D[25]
+FACE EXPR[neutral]
+[Main end]
