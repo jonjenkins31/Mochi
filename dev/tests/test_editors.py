@@ -202,10 +202,21 @@ def test_every_character_folder_is_a_complete_pack():
     folders = sorted(path for path in (ROOT / "characters").iterdir()
                      if path.is_dir())
     assert folders
+    import yaml as _yaml
     for folder in folders:
-        assert (folder / "character.yaml").is_file(), folder
-        assert (folder / "assets").is_dir(), folder
+        sheet_path = folder / "character.yaml"
+        assert sheet_path.is_file(), folder
         assert (folder / "mscripts").is_dir(), folder
+        # A pack needs the art it DECLARES, not an assets folder. `Orbs`
+        # is procedural — every dot is computed, so it ships one .py and
+        # no artwork at all, and demanding an empty assets/ from it
+        # would be the test describing a convention rather than a rule.
+        sheet = _yaml.safe_load(sheet_path.read_text(encoding="utf-8")) or {}
+        asset = str((sheet.get("render") or {}).get("asset") or "")
+        assert asset, f"{folder}: render.asset is not declared"
+        assert (folder / asset).is_file(), f"{folder}: missing {asset}"
+        if sheet.get("kind") != "procedural":
+            assert (folder / "assets").is_dir(), folder
 
 
 def test_character_motion_playback_uses_the_project_as_asset_root():
@@ -2581,3 +2592,56 @@ def test_one_reply_is_spoken_once_and_the_face_marker_never_is(monkeypatch):
         assert first.speak.isChecked(), "the performer's own box did not follow"
     finally:
         second.close(); first.close(); bus.close()
+
+
+def test_the_orbs_pack_renders_all_nine_states_procedurally():
+    """The first pack with no artwork in it at all — every dot is
+    computed from the clock, so the check is that each named state
+    actually draws something and that they are DIFFERENT.
+
+    Nine expressions off one file is the whole point of `kind:
+    procedural`: the state rides in `params`, not in a clip.
+    """
+    import importlib.util
+    import numpy as np
+    from modules import jaeger_animation as animation
+
+    character = animation.load("orbs")
+    assert character.kind == "procedural"
+    assert character.adapter == "math"
+    assert len(character.expressions) == 9
+
+    spec = importlib.util.spec_from_file_location(
+        "_orbs_under_test", ROOT / "characters/Orbs/orbs.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert set(module.STATES) == set(character.expressions)
+
+    seen = {}
+    for state in module.STATES:
+        orb = module.Orb(96, 96)
+        orb.on_enter(state=state)
+        frame = np.zeros((96, 96, 3), dtype=np.uint8)
+        orb.render_into(2.4, frame)
+        lit = int((frame.sum(axis=2) > 60).sum())
+        assert lit > 40, f"{state} drew almost nothing ({lit} px)"
+        seen[state] = frame.copy()
+
+    # Nine states that render the same picture would be one state with
+    # nine names.
+    for state, frame in seen.items():
+        others = [s for s in seen if s != state]
+        assert any(not np.array_equal(frame, seen[o]) for o in others), state
+
+    # An unknown state falls back rather than raising: a scene naming a
+    # verb this pack does not have should not stop the display.
+    orb = module.Orb(96, 96)
+    orb.on_enter(state="brooding")
+    assert orb.state == "working"
+
+    # And it moves. A still orb is a broken orb.
+    a = np.zeros((96, 96, 3), dtype=np.uint8)
+    b = np.zeros((96, 96, 3), dtype=np.uint8)
+    orb.render_into(0.5, a)
+    orb.render_into(3.7, b)
+    assert not np.array_equal(a, b), "the animation is frozen"

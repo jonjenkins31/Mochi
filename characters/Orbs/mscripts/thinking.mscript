@@ -1,0 +1,19 @@
+[Header start]
+! Orbs — a thought, start to finish.
+! Every step is the SAME asset with a different state param, which is
+! what a procedural character buys you: no clips to author.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Orbs/orbs.py'
+[Resources end]
+
+[Main start]
+LBL[1]
+MATH K[1] D[3.0] P['{"state": "listening"}']
+MATH K[1] D[4.0] P['{"state": "searching"}']
+MATH K[1] D[4.0] P['{"state": "connecting"}']
+MATH K[1] D[4.0] P['{"state": "solving"}']
+MATH K[1] D[3.0] P['{"state": "breathing"}']
+JMP LBL[1]
+[Main end]
