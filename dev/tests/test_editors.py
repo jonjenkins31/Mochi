@@ -1536,7 +1536,7 @@ def test_a_scene_can_do_two_things_at_once():
     talk" cannot be written in one. Here the eyes move during a line."""
     from core import staging
 
-    timeline = staging.load(ROOT / "assets/timelines/bitmap_secret.json")
+    timeline = staging.load(ROOT / "characters/bitmap man/scenes/secret.json")
     speech = next(t for t in timeline.tracks if t.kind == "speech")
     faces = next(t for t in timeline.tracks if t.kind == "animation")
 
@@ -1555,7 +1555,7 @@ def test_expressions_resolve_against_the_character_at_load():
     from core import staging
     from jaeger_os.timeline import Timeline, TimelineClip, TimelineTrack
 
-    timeline = staging.load(ROOT / "assets/timelines/bitmap_secret.json")
+    timeline = staging.load(ROOT / "characters/bitmap man/scenes/secret.json")
     glance = next(c for c in timeline.tracks[0].clips if c.label == "glance up")
     assert glance.payload["asset"].endswith("look_up.json")
     assert pathlib.Path(glance.payload["asset"]).is_file()
@@ -1574,7 +1574,7 @@ def test_a_track_says_who_as_well_as_what():
     servos."""
     from core import staging
 
-    timeline = staging.load(ROOT / "assets/timelines/bitmap_secret.json")
+    timeline = staging.load(ROOT / "characters/bitmap man/scenes/secret.json")
     targets = {t.kind: t.target for t in timeline.tracks}
     assert targets["animation"] == "bitmap_man"
     assert targets["light"] == "desk"      # not the character — the room
@@ -1592,7 +1592,7 @@ def test_a_timeline_runs_mscripts_concurrently():
     from jaeger_os.timeline import TRACK_SCRIPT
     from core import staging
 
-    timeline = staging.load(ROOT / "assets/timelines/bitmap_two_cues.json")
+    timeline = staging.load(ROOT / "characters/bitmap man/scenes/two_cues.json")
     cues = [t for t in timeline.tracks if t.kind == TRACK_SCRIPT]
     assert len(cues) == 2, "the point is more than one cue at once"
     for track in cues:
@@ -1799,7 +1799,7 @@ def test_a_speech_track_gets_the_characters_own_voice():
     from core import staging
 
     timeline = staging.load(
-        ROOT / "assets/timelines/jaeger_hello_fellow_humans.json")
+        ROOT / "characters/Jaeger/scenes/hello_fellow_humans.json")
     speech = next(t for t in timeline.tracks if t.kind == "speech")
     assert speech.target == "jaeger"
     voices = {c.payload["voice"] for c in speech.clips}
@@ -1818,7 +1818,7 @@ def test_the_introduction_opens_on_the_line():
     from core import staging
 
     timeline = staging.load(
-        ROOT / "assets/timelines/jaeger_hello_fellow_humans.json")
+        ROOT / "characters/Jaeger/scenes/hello_fellow_humans.json")
     speech = next(t for t in timeline.tracks if t.kind == "speech")
     first = min(speech.clips, key=lambda c: c.t_offset_ms)
     assert first.payload["text"] == "Hello, fellow humans."
@@ -1826,3 +1826,41 @@ def test_the_introduction_opens_on_the_line():
     lights = next(t for t in timeline.tracks if t.kind == "light")
     slip = next(c for c in speech.clips if c.label == "the mask slips")
     assert any(c.t_offset_ms == slip.t_offset_ms for c in lights.clips)
+
+
+def test_a_scene_lives_with_the_character_it_needs():
+    """A timeline is not an asset — it references assets the way a score
+    references instruments. And it names one character's expressions, so
+    it will not play without that pack: it belongs in the pack, beside
+    the mscripts it performs."""
+    from core import staging
+
+    for name, expected in (("bitmap_man", {"secret", "two cues"}),
+                           ("jaeger", {"hello fellow humans"}),
+                           ("mochi", {"greeting"})):
+        character = animation.load(name)
+        found = {label for label, _path in staging.available(character)}
+        assert expected <= found, name
+        for _label, path in staging.available(character):
+            assert path.parent.name == "scenes"
+            assert path.parent.parent == pathlib.Path(character.root)
+
+    # a pack with no scenes is normal, not an error
+    assert staging.available(animation.load("cat")) == ()
+    # and nothing is left in assets/
+    assert not (ROOT / "assets/timelines").exists()
+
+
+def test_every_scene_resolves_against_its_own_pack():
+    """The test that catches a scene filed under the wrong character:
+    every expression it names has to exist in the pack it sits in."""
+    from core import staging
+
+    for character_dir in sorted((ROOT / "characters").iterdir()):
+        for scene in sorted((character_dir / "scenes").glob("*.json")):
+            timeline = staging.load(scene)      # raises StagingError if not
+            for track in timeline.tracks:
+                for clip in track.clips:
+                    asset = (clip.payload or {}).get("asset")
+                    if asset:
+                        assert pathlib.Path(asset).is_file(), (scene, asset)

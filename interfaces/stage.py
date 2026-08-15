@@ -87,7 +87,7 @@ class StageTab:
         # Timelines are the other shape and the split is the point: a
         # performance is sequential and can WAIT for you; a scene is
         # tracks on one clock and can do things AT THE SAME TIME.
-        self.scenes_box = QtWidgets.QGroupBox("Scenes  (timeline)")
+        self.scenes_box = QtWidgets.QGroupBox("Scenes  (timeline, from the pack)")
         self.scene_layout = QtWidgets.QVBoxLayout(self.scenes_box)
         left.addWidget(self.scenes_box)
 
@@ -210,7 +210,7 @@ class StageTab:
             item = self.scene_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-        for name, path in staging.available():
+        for name, path in staging.available(self.character):
             button = QtWidgets.QPushButton(f"▶ {name}")
             button.setToolTip(
                 f"{path.name} — tracks on one clock, so things happen at "

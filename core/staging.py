@@ -131,16 +131,31 @@ def load(path: Any, project_root: pathlib.Path | None = None) -> Timeline:
     return resolve(load_timeline(path), root)
 
 
-def available(project_root: pathlib.Path | None = None) -> tuple:
-    """(name, path) for every scene in assets/timelines/.
+def available(character: Any = None,
+              project_root: pathlib.Path | None = None) -> tuple:
+    """(name, path) for the scenes a character owns, plus shared ones.
 
-    Scenes live at the project level rather than in a character pack
-    because a scene may have more than one character in it — that is the
-    whole reason a track has a target.
+    A scene lives WITH its character, in `characters/<id>/scenes/`,
+    beside the `mscripts/` it performs. It is not an asset — it
+    references assets the way a score references instruments — and it is
+    not project-level, because it names one character's expressions and
+    will not play without that pack.
+
+    The exception is real and has a home: `scenes/` at the project root
+    is for a scene with MORE THAN ONE character in it. A two-hander is
+    owned by neither of them, which is the whole reason a track carries
+    a target. That directory does not exist yet and is not created
+    speculatively — the first two-hander makes it.
     """
     root = pathlib.Path(project_root or pathlib.Path(__file__).resolve().parent.parent)
-    return tuple((path.stem.replace("_", " "), path)
-                 for path in sorted((root / "assets" / "timelines").glob("*.json")))
+    found = []
+    if character is not None:
+        own = pathlib.Path(getattr(character, "root", "") or "") / "scenes"
+        found += [(p.stem.replace("_", " "), p) for p in sorted(own.glob("*.json"))]
+    shared = root / "scenes"
+    found += [(f"{p.stem.replace('_', ' ')}  (shared)", p)
+              for p in sorted(shared.glob("*.json"))]
+    return tuple(found)
 
 
 __all__ = ["StagingError", "Conductor", "load", "resolve", "available"]

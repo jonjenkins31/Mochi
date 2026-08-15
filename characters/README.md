@@ -11,14 +11,28 @@ Every character folder containing renderable assets follows the same shape:
 ```
 characters/
   <character>/
-    character.yaml         required identity + render contract
+    character.yaml         required identity + render contract,
+                           plus the speaking half — see core/persona.py
+    card.png               optional; the Face tab's roster uses it
     README.md              optional attribution and authoring notes
-    mscripts/              character-owned motion sequences
-      <motion>.mscript
+    mscripts/              PERFORMANCES — sequential, can wait for a
+      <motion>.mscript     person. FACE / SAY / WAIT / LISTEN / ASK
+    scenes/                SCENES — tracks on one clock, so things
+      <scene>.json         happen at the same time
     assets/
       <asset>              images, sheets, clips, scripts, or rigs
       <asset>.props.yaml   optional layout/playback metadata
 ```
+
+`mscripts/` and `scenes/` are both compositions, and neither is an
+asset: they reference assets the way a score references instruments.
+They live with the character because they name ITS expressions and will
+not play without its pack.
+
+A scene with MORE THAN ONE character in it belongs to neither, and has
+a home at the project root — `scenes/`. That directory does not exist
+yet; the first two-hander creates it. It is the reason a track carries
+a `target` at all.
 
 A directory without `character.yaml` is not a character and is ignored. This
 is intentional for empty staging directories: a manifest must never point at
