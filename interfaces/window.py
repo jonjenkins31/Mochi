@@ -102,6 +102,15 @@ class MochiWindow:
         # Whoever changed it, the cards follow. Connected after the Face
         # tab's own slot, so `face.character` is already the new one.
         self.face.pack_box.currentTextChanged.connect(self.cast.set_active)
+        self.face.avatar_btn.clicked.connect(self.open_avatar)
+        manager = self.window_manager
+        self.window_manager.menu = (
+            ("Operator window", "Ctrl+1", self.open_operator),
+            ("-", "", None),
+            ("Skinnable popup player", "", manager.popup.show),
+            ("Virtual LED display", "", manager.virtual_display.show_window),
+            ("Performance monitor", "", manager.performance.show_window),
+        )
         self.face.popup_btn.clicked.connect(self.window_manager.popup.show)
         self.mscript_editor = MscriptEditorTab(app, qt)
         self.character_editor = CharacterEditorTab(
@@ -164,19 +173,25 @@ class MochiWindow:
             self.face.cycle_btn.setChecked(True)
 
     def open_avatar(self) -> None:
-        """The agent's window. `main.py --avatar` brings it up at boot;
-        this operator window stays behind it, which is the split: one
-        surface is what the character IS, the other is how it is run."""
+        """The primary window — what launching Mochi opens."""
         self.window_manager.show_avatar()
 
-    def start(self) -> None:
+    def open_operator(self) -> None:
+        """This tabbed window: settings, editors, switches, everything
+        that runs the character rather than being it. Reached from the
+        avatar window's File menu, because that is the front door now."""
         self.widget.show()
+        self.widget.raise_()
+        self.widget.activateWindow()
+
+    def start(self) -> None:
+        # The AVATAR window is what launching Mochi opens. This tabbed
+        # one is the operator's and comes up on request — from its File
+        # menu, or `main.py --operator` for a session spent in here.
         self.face.start()
-        # `main.py --avatar`. Opened AFTER the operator window so the
-        # agent's window is the one in front — it is the one being
-        # talked to.
-        if os.environ.get("MOCHI_AVATAR"):
-            self.open_avatar()
+        if os.environ.get("MOCHI_OPERATOR"):
+            self.open_operator()
+        self.open_avatar()
 
     def close(self) -> None:
         for tab in self._tabs:

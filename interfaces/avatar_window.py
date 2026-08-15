@@ -68,7 +68,14 @@ def _panes() -> dict[str, Any]:
 class AvatarWindow(QtWidgets.QWidget):
     """The character, with an interactive panel that slides out beside it."""
 
-    def __init__(self, app: Any, *, character_of: Any = None) -> None:
+    def __init__(self, app: Any, *, character_of: Any = None,
+                 windows: Any = ()) -> None:
+        """`windows` is (label, shortcut, callback) per File-menu entry.
+
+        Passed in rather than looked up: this window is the front door
+        and must not import the operator window to name it, or the
+        primary surface depends on the secondary one.
+        """
         super().__init__()
         self.app = app
         self.character_of = character_of
@@ -94,8 +101,14 @@ class AvatarWindow(QtWidgets.QWidget):
             "border-radius:14px;color:#8A85A6;font-size:15px;}")
         self.resize(520, 620)
 
-        outer = QtWidgets.QHBoxLayout(self)
+        root = QtWidgets.QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+        root.setMenuBar(self._menus(windows))
+        self.body = body = QtWidgets.QWidget()
+        outer = QtWidgets.QHBoxLayout(body)
         outer.setContentsMargins(14, 14, 14, 14)
+        root.addWidget(body, 1)
         self.split = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.split.setHandleWidth(12)
         self.split.setChildrenCollapsible(False)
@@ -107,6 +120,29 @@ class AvatarWindow(QtWidgets.QWidget):
         self.split.addWidget(self.panel)
         self.split.setStretchFactor(0, 4)
         self.split.setStretchFactor(1, 5)
+
+    def _menus(self, windows: Any) -> QtWidgets.QMenuBar:
+        """File → every other window. On macOS this lands in the system
+        menu bar, which is where someone looks for it."""
+        # Both held on self. A QMenu whose only reference is a local
+        # gets collected, and the menu bar is left with an entry that
+        # opens a deleted object.
+        self.menubar = bar = QtWidgets.QMenuBar(self)
+        self.file_menu = menu = bar.addMenu("File")
+        for label, shortcut, callback in windows:
+            if label == "-":
+                menu.addSeparator()
+                continue
+            action = menu.addAction(label)
+            if shortcut:
+                action.setShortcut(shortcut)
+            action.triggered.connect(callback)
+        menu.addSeparator()
+        quit_ = menu.addAction("Quit Mochi")
+        quit_.setShortcut("Ctrl+Q")
+        quit_.setMenuRole(QtGui.QAction.QuitRole)
+        quit_.triggered.connect(QtWidgets.QApplication.quit)
+        return bar
 
     # ── the two halves ───────────────────────────────────────────
 
@@ -202,7 +238,10 @@ class AvatarWindow(QtWidgets.QWidget):
             self.panel.setVisible(False)
             # The window cannot shrink below a minimum that still counts
             # the panel. Hiding a widget only invalidates that on the
-            # next layout pass, and the resize happens before it.
+            # next layout pass, and the resize happens before it. Both
+            # layouts: the splitter is in the body, the body is in the
+            # window, and only the outer one clamps resize().
+            self.body.layout().activate()
             self.layout().activate()
             if self._narrow:
                 self.resize(self._narrow, self.height())
@@ -227,8 +266,11 @@ class AvatarWindow(QtWidgets.QWidget):
         self.show(); self.raise_(); self.activateWindow()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:  # noqa: N802
-        event.ignore()
-        self.hide()
+        """Closing the front door closes the app. Every other window
+        here hides and is reopened from the File menu; this one has no
+        menu to be reopened from."""
+        event.accept()
+        QtWidgets.QApplication.quit()
 
     def shutdown(self) -> None:
         for pane in self._built.values():

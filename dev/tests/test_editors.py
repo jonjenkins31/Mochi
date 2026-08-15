@@ -2369,3 +2369,46 @@ def test_picking_a_cast_card_switches_the_character_everywhere(monkeypatch):
         assert before is None or manager.avatar.view._frame != before
     finally:
         window.close(); app.shutdown()
+
+
+def test_launching_mochi_opens_the_avatar_window_and_nothing_else(monkeypatch):
+    """The avatar window is the app. The tabbed window is a tool it can
+    open — reached from File, not the thing that greets you.
+
+    Booting used to show the operator window and leave the agent's
+    window buried behind a button on a tab full of archive launchers,
+    which is how it came to be missing.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    monkeypatch.delenv("MOCHI_OPERATOR", raising=False)
+    from PySide6 import QtWidgets
+    from jaeger_os import JaegerApp
+    from interfaces.window import MochiWindow
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = JaegerApp(ROOT / "sim.toml")
+    app.boot()
+    window = MochiWindow(app)
+    try:
+        window.start()
+        for _ in range(30):
+            qt_app.processEvents(); time.sleep(0.01)
+
+        avatar = window.window_manager.avatar
+        assert avatar is not None and avatar.isVisible()
+        assert avatar.parent() is None, "the front door must be its own window"
+        assert not window.widget.isVisible(), "the operator window greeted us"
+
+        # Every other window is reachable from File, including the one
+        # that was hidden behind a tab.
+        labels = [a.text() for a in avatar.file_menu.actions() if a.text()]
+        assert "Operator window" in labels
+        assert "Quit Mochi" in labels
+
+        next(a for a in avatar.file_menu.actions()
+             if a.text() == "Operator window").trigger()
+        for _ in range(20):
+            qt_app.processEvents(); time.sleep(0.01)
+        assert window.widget.isVisible(), "File did not open the operator window"
+    finally:
+        window.close(); app.shutdown()

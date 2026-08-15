@@ -43,11 +43,10 @@ def _parse(argv: list[str]) -> argparse.Namespace:
                         "mp4, or mscript. The adapter is chosen by extension.")
     p.add_argument("--scale", type=int, metavar="N",
                    help="window zoom (default: from the manifest)")
-    p.add_argument("--avatar", action="store_true",
-                   help="open the agent's window at start — the character, "
-                        "with the interactive panel a click away. The "
-                        "operator window (settings, editors, switches) "
-                        "still comes up behind it.")
+    p.add_argument("--operator", action="store_true",
+                   help="also open the operator window — settings, "
+                        "editors and node switches. It is otherwise "
+                        "reached from the avatar window's File menu.")
     p.add_argument("--no-cycle", action="store_true",
                    help="hold the default expression instead of walking them")
     p.add_argument("--nodes", action="store_true",
@@ -197,8 +196,8 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["MOCHI_SCALE"] = str(args.scale)
     if args.no_cycle:
         os.environ["MOCHI_NO_CYCLE"] = "1"
-    if args.avatar:
-        os.environ["MOCHI_AVATAR"] = "1"
+    if args.operator:
+        os.environ["MOCHI_OPERATOR"] = "1"
 
     from jaeger_os.app import JaegerApp
 

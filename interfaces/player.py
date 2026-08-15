@@ -150,6 +150,13 @@ class FaceTab:
         open_btn = QtWidgets.QPushButton("Open file…")
         open_btn.clicked.connect(self.open_asset)
 
+        # The agent's own window. It is the primary surface, so it gets
+        # a button on the first tab rather than only a row on the
+        # Windows tab, which reads as the archive shelf it mostly is.
+        self.avatar_btn = QtWidgets.QPushButton("◧  Avatar window")
+        self.avatar_btn.setToolTip(
+            "the character with its interactive panel — what a person "
+            "talks to. This window is the operator's.")
         self.popup_btn = QtWidgets.QPushButton("Pop-out player")
 
         back_btn = QtWidgets.QPushButton("← character")
@@ -164,6 +171,7 @@ class FaceTab:
                   self.cycle_btn):
             row.addWidget(w)
         row.addStretch(1)
+        row.addWidget(self.avatar_btn)
         row.addWidget(self.popup_btn)
         row.addWidget(open_btn)
         row.addWidget(back_btn)

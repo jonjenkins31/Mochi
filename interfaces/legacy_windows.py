@@ -161,6 +161,9 @@ class WindowManager:
         # a conversation nobody asked to see should not be subscribed to
         # anything.
         self.avatar: Any = None
+        #: File-menu entries the avatar window offers, set by the app
+        #: once every window it can open exists.
+        self.menu: Any = ()
         self.popup = PopupPlayerController(app)
         self.media = FloatingMediaPlayer(self.root)
         self.virtual_display = VirtualDisplayWindow(app.bus)
@@ -173,7 +176,7 @@ class WindowManager:
         from .avatar_window import AvatarWindow
         if self.avatar is None:
             self.avatar = AvatarWindow(
-                self.app, character_of=self.character_of)
+                self.app, character_of=self.character_of, windows=self.menu)
         self.avatar.show_window()
 
     def close(self) -> None:
