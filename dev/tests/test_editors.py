@@ -2225,3 +2225,53 @@ def test_the_manual_node_strip_switches_a_node_and_reads_it_back(monkeypatch):
         assert tab._rows["mind"]["toggle"].text() == "Turn on"
     finally:
         tab.close(); bus.close()
+
+
+def test_the_two_kept_avatar_surfaces_render_and_share_one_bus(monkeypatch):
+    """Of the many windows that show the same frames, these two stay.
+
+    The character view is a frame subscriber and nothing else; the
+    companion window is that view beside a REAL ChatTab, not a re-drawn
+    one — which is the whole reason its mic and speaker switches work
+    where JaegerAI's original could only write a config file.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from jaeger_os import InProcBus, topics
+    from interfaces.avatar_chat import AvatarChatWindow
+    from interfaces.character_view import CharacterView
+    from interfaces.chat import ChatTab
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=_FakeSupervisor(), config={})
+    view = CharacterView(app)
+    window = AvatarChatWindow(app)
+    try:
+        view.show(); window.show()
+        # One 8×8 RGBA frame, the shape the engine publishes.
+        frame = topics.DisplayFrame(
+            width=8, height=8, data=bytes([90, 160, 220, 255] * 64))
+        bus.publish(frame)
+        deadline = time.time() + 2.0
+        while view._frame is None and time.time() < deadline:
+            qt_app.processEvents(); time.sleep(0.01)
+        view._repaint(); window.view._repaint()
+
+        # Both drew it: one publish, two windows, no forwarding between.
+        assert not view.screen.pixmap().isNull()
+        assert not window.view.screen.pixmap().isNull()
+
+        # The chat pane is the real tab, with the switches that move nodes.
+        assert isinstance(window.chat, ChatTab)
+        assert window.chat.bus is bus
+        assert hasattr(window.chat, "mic") and hasattr(window.chat, "speak")
+
+        # Closing hides; the manager reopens the same window rather than
+        # rebuilding a subscription each time.
+        view.close()
+        assert not view.isVisible()
+        view.show_window()
+        assert view.isVisible()
+    finally:
+        window.shutdown(); view.shutdown(); bus.close()

@@ -88,8 +88,9 @@ class MochiWindow:
         self.widget = QtWidgets.QTabWidget()
         self.widget.setStyleSheet(_STYLE)
 
-        self.window_manager = WindowManager(app)
         self.face = FaceTab(app, qt, config.get("player", {}) or {})
+        self.window_manager = WindowManager(
+            app, character_of=lambda: self.face.character)
         self.face.popup_btn.clicked.connect(self.window_manager.popup.show)
         self.mscript_editor = MscriptEditorTab(app, qt)
         self.character_editor = CharacterEditorTab(
