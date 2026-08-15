@@ -50,9 +50,19 @@ class _FakeSupervisor:
     state back rather than remembering the click.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, declared: tuple[str, ...] = ("audio_io", "vision")) -> None:
         self.running: set[str] = set()
+        self.declared = declared
         self.session = _FakeSession()
+
+    def ls(self) -> list[dict]:
+        """What the manual node strip enumerates — the manifest's nodes
+        and what the supervisor is doing with each."""
+        return [{"id": node_id, "tier": "app", "backend": "inproc",
+                 "state": "running" if node_id in self.running else "stopped",
+                 "uptime_s": 1.0 if node_id in self.running else 0.0,
+                 "restarts": 0}
+                for node_id in self.declared]
 
     def node(self, node_id: str):
         """The live node object, as `Supervisor.node()` hands it over —
@@ -2171,3 +2181,47 @@ def test_the_jaeger_ai_avatar_surfaces_are_offered_for_review():
     from dev.tools.jaeger_ai_windows import WINDOWS
 
     assert {s.command[-1] for s in specs.values()} == set(WINDOWS)
+
+
+def test_the_manual_node_strip_switches_a_node_and_reads_it_back(monkeypatch):
+    """Mochi 3.0's panel had Turn On / Turn Off per node and v5 lost it.
+
+    The point of the rebuild is that the button does not remember its own
+    click: it starts a node through the supervisor and then reports what
+    the supervisor says, so a node that fails to start reads "stopped".
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from jaeger_os import InProcBus
+    from interfaces.runtime import RuntimeTab
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    bus = InProcBus()
+    supervisor = _FakeSupervisor(declared=("audio_io", "vision", "mind"))
+    app = SimpleNamespace(bus=bus, supervisor=supervisor, config={})
+    tab = RuntimeTab(app, (QtCore, QtGui, QtWidgets))
+    try:
+        # Every declared node gets a row, including ones no tab owns.
+        assert set(tab._rows) == {"audio_io", "vision", "mind"}
+        tab._refresh_nodes()
+        assert tab._rows["mind"]["toggle"].text() == "Turn on"
+
+        tab._toggle("mind")
+        deadline = time.time() + 2.0
+        while not tab._switches and time.time() < deadline:
+            time.sleep(0.01)
+        tab._refresh_nodes()
+        assert "mind" in supervisor.running, "the button did not start the node"
+        assert tab._rows["mind"]["state"].text() == "running"
+        assert tab._rows["mind"]["toggle"].text() == "Turn off"
+
+        # And back off, with the label following the supervisor again.
+        tab._toggle("mind")
+        deadline = time.time() + 2.0
+        while not tab._switches and time.time() < deadline:
+            time.sleep(0.01)
+        tab._refresh_nodes()
+        assert "mind" not in supervisor.running
+        assert tab._rows["mind"]["toggle"].text() == "Turn on"
+    finally:
+        tab.close(); bus.close()

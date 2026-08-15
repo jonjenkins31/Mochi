@@ -97,7 +97,8 @@ class MochiWindow:
             on_character_changed=self.mscript_editor.set_character)
         self.assets = AssetsTab(app, qt)
         self.modules = ModulesTab(app, qt)
-        self.runtime = RuntimeTab(app, qt)
+        self.runtime = RuntimeTab(
+            app, qt, self.window_manager.performance.show_window)
         self.stage = StageTab(app, qt)
         self.windows = LegacyWindowsTab(app, qt, self.window_manager)
         self.chat = ChatTab(app, qt)
