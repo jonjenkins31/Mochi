@@ -150,9 +150,20 @@ class MochiWindow:
             self._cycle_was_on = False
             self.face.cycle_btn.setChecked(True)
 
+    def open_avatar(self) -> None:
+        """The agent's window. `main.py --avatar` brings it up at boot;
+        this operator window stays behind it, which is the split: one
+        surface is what the character IS, the other is how it is run."""
+        self.window_manager.show_avatar()
+
     def start(self) -> None:
         self.widget.show()
         self.face.start()
+        # `main.py --avatar`. Opened AFTER the operator window so the
+        # agent's window is the one in front — it is the one being
+        # talked to.
+        if os.environ.get("MOCHI_AVATAR"):
+            self.open_avatar()
 
     def close(self) -> None:
         for tab in self._tabs:

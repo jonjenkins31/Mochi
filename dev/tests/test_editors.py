@@ -2227,18 +2227,19 @@ def test_the_manual_node_strip_switches_a_node_and_reads_it_back(monkeypatch):
         tab.close(); bus.close()
 
 
-def test_the_two_kept_avatar_surfaces_render_and_share_one_bus(monkeypatch):
-    """Of the many windows that show the same frames, these two stay.
+def test_the_avatar_window_is_a_character_with_a_panel_that_pulls_out(monkeypatch):
+    """The agent's primary window: the character alone until you ask for
+    more, then a panel of ways to interact with it.
 
-    The character view is a frame subscriber and nothing else; the
-    companion window is that view beside a REAL ChatTab, not a re-drawn
-    one — which is the whole reason its mic and speaker switches work
-    where JaegerAI's original could only write a config file.
+    Panes are lazy on purpose — a chat nobody opened must not be
+    subscribed to anything — so this checks the window starts with none
+    built, and that both the chat and the game are real objects on the
+    same bus once selected.
     """
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     from PySide6 import QtCore, QtGui, QtWidgets
     from jaeger_os import InProcBus, topics
-    from interfaces.avatar_chat import AvatarChatWindow
+    from interfaces.avatar_window import AvatarWindow
     from interfaces.character_view import CharacterView
     from interfaces.chat import ChatTab
 
@@ -2246,32 +2247,53 @@ def test_the_two_kept_avatar_surfaces_render_and_share_one_bus(monkeypatch):
     bus = InProcBus()
     app = SimpleNamespace(bus=bus, supervisor=_FakeSupervisor(), config={})
     view = CharacterView(app)
-    window = AvatarChatWindow(app)
+    window = AvatarWindow(app)
     try:
         view.show(); window.show()
-        # One 8×8 RGBA frame, the shape the engine publishes.
-        frame = topics.DisplayFrame(
-            width=8, height=8, data=bytes([90, 160, 220, 255] * 64))
-        bus.publish(frame)
+
+        # Closed, and nothing built. The character is the whole window.
+        assert not window.panel.isVisible()
+        assert window._built == {}
+        assert window.handle.text() == "\u203a"
+
+        # One publish, two independent subscribers, no forwarding.
+        bus.publish(topics.DisplayFrame(
+            width=8, height=8, data=bytes([90, 160, 220, 255] * 64)))
         deadline = time.time() + 2.0
         while view._frame is None and time.time() < deadline:
             qt_app.processEvents(); time.sleep(0.01)
         view._repaint(); window.view._repaint()
-
-        # Both drew it: one publish, two windows, no forwarding between.
         assert not view.screen.pixmap().isNull()
         assert not window.view.screen.pixmap().isNull()
 
-        # The chat pane is the real tab, with the switches that move nodes.
-        assert isinstance(window.chat, ChatTab)
-        assert window.chat.bus is bus
-        assert hasattr(window.chat, "mic") and hasattr(window.chat, "speak")
+        # Pulling the panel out builds the first pane and widens the
+        # window rather than squeezing the character.
+        narrow = window.width()
+        window.toggle_panel()
+        qt_app.processEvents()
+        assert window.panel.isVisible()
+        assert window.width() > narrow
+        assert window.handle.text() == "\u2039"
 
-        # Closing hides; the manager reopens the same window rather than
-        # rebuilding a subscription each time.
-        view.close()
-        assert not view.isVisible()
-        view.show_window()
-        assert view.isVisible()
+        # The chat pane is the REAL tab, with the switches that move
+        # nodes — not a re-drawn one that can only write settings.
+        chat = window._built["chat"]
+        assert isinstance(chat, ChatTab)
+        assert chat.bus is bus
+        assert hasattr(chat, "mic") and hasattr(chat, "speak")
+
+        # A second pane, which is what makes the panel a panel. It is
+        # built only when picked, and it plays a real game.
+        assert "game" not in window._built
+        game = window.show_pane("game")
+        assert window.stack.currentWidget() is game.widget
+        game.start()
+        assert game.game is not None
+        assert sum(c != " " for c in game.game.board) == 1, "it did not open"
+
+        # And it folds back to just the character.
+        window.toggle_panel()
+        assert not window.panel.isVisible()
+        assert window.width() == narrow
     finally:
         window.shutdown(); view.shutdown(); bus.close()

@@ -157,35 +157,28 @@ class WindowManager:
         #: How every avatar surface asks which pack is loaded, so a
         #: window opened before a character swap still scales right.
         self.character_of = character_of
-        # The two keepers, built on first open. A CharacterView is one
-        # subscription and cheap; AvatarChatWindow builds a whole second
-        # ChatTab, and a conversation nobody asked to see should not be
-        # subscribing to anything.
-        self.character_view: Any = None
-        self.avatar_chat: Any = None
+        # Built on first open: it constructs a whole second ChatTab, and
+        # a conversation nobody asked to see should not be subscribed to
+        # anything.
+        self.avatar: Any = None
         self.popup = PopupPlayerController(app)
         self.media = FloatingMediaPlayer(self.root)
         self.virtual_display = VirtualDisplayWindow(app.bus)
         self.performance = PerformanceWindow(app)
 
-    def show_character_view(self) -> None:
-        from .character_view import CharacterView
-        if self.character_view is None:
-            self.character_view = CharacterView(
+    def show_avatar(self) -> None:
+        """The agent's own window. This tab opens it; it is not a tool
+        of this tab, and once it can be booted directly this button is
+        a convenience rather than the way in."""
+        from .avatar_window import AvatarWindow
+        if self.avatar is None:
+            self.avatar = AvatarWindow(
                 self.app, character_of=self.character_of)
-        self.character_view.show_window()
-
-    def show_avatar_chat(self) -> None:
-        from .avatar_chat import AvatarChatWindow
-        if self.avatar_chat is None:
-            self.avatar_chat = AvatarChatWindow(
-                self.app, character_of=self.character_of)
-        self.avatar_chat.show_window()
+        self.avatar.show_window()
 
     def close(self) -> None:
-        for window in (self.character_view, self.avatar_chat):
-            if window is not None:
-                window.shutdown()
+        if self.avatar is not None:
+            self.avatar.shutdown()
         self.popup.close()
         self.media.shutdown()
         self.virtual_display.shutdown()
@@ -240,10 +233,9 @@ class LegacyWindowsTab:
         current = QtWidgets_.QGroupBox("Windows")
         current_layout = QtWidgets_.QGridLayout(current)
         buttons: tuple[tuple[str, Callable[[], None]], ...] = (
-            # The two chosen surfaces first — everything below them is a
+            # The agent's own window first. Everything below it is a
             # variation on the same frames that has not been cut yet.
-            ("Open character view", manager.show_character_view),
-            ("Open character + chat", manager.show_avatar_chat),
+            ("Open the avatar window", manager.show_avatar),
             ("Open skinnable popup player", manager.popup.show),
             ("Popup player settings…", lambda: manager.popup.open_settings(self.widget)),
             ("Open floating media player", lambda: manager.media.show_player()),
