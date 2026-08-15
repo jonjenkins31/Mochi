@@ -1,0 +1,17 @@
+[Header start]
+! Deborahbot 5000 — idle. Blinks and looks about.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Deborahbot 5000/assets/faces/neutral.json'
+[Resources end]
+
+[Main start]
+LBL[1:loop]
+FACE EXPR[neutral]  D[2.0]
+FACE EXPR[closed]   D[0.2]
+FACE EXPR[neutral]  D[1.4]
+FACE EXPR[look_up]  D[1.0]
+FACE EXPR[neutral]  D[1.8]
+JMP LBL[1]
+[Main end]

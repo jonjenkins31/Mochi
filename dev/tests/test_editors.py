@@ -1850,12 +1850,18 @@ def test_a_scene_lives_with_the_character_it_needs():
         character = animation.load(name)
         found = {label for label, _path in staging.available(character)}
         assert expected <= found, name
-        for _label, path in staging.available(character):
+        for label, path in staging.available(character):
             assert path.parent.name == "scenes"
-            assert path.parent.parent == pathlib.Path(character.root)
+            if "(shared)" in label:
+                # a two-hander belongs to neither character and lives at
+                # the project root — offered to both, owned by neither
+                assert path.parent.parent == ROOT
+            else:
+                assert path.parent.parent == pathlib.Path(character.root)
 
-    # a pack with no scenes is normal, not an error
-    assert staging.available(animation.load("cat")) == ()
+    # a pack with no scenes of its own still sees the shared ones
+    solo = [label for label, _p in staging.available(animation.load("cat"))]
+    assert all("(shared)" in label for label in solo)
     # and nothing is left in assets/
     assert not (ROOT / "assets/timelines").exists()
 
@@ -2020,3 +2026,73 @@ def test_the_engine_accepts_a_show_file_without_losing_it(tmp_path):
     import pytest
     with pytest.raises(ValueError):
         MscriptScript(str(broken))
+
+
+# ── two characters, one scene ────────────────────────────────────
+
+def test_the_twins_are_a_matched_pair():
+    """Eric and Deborahbot share a vocabulary so a two-hander can
+    address either with the same commands, and differ in the only
+    things a scene should have to care about: voice and manner."""
+    import yaml
+
+    eric, deb = animation.load("eric"), animation.load("deborahbot")
+    assert list(eric.expressions) == list(deb.expressions)
+    assert eric.kind == deb.kind == "clip_set"
+
+    sheets = {name: yaml.safe_load(
+        (pathlib.Path(animation.load(name).root) / "character.yaml")
+        .read_text(encoding="utf-8"))
+        for name in ("eric", "deborahbot")}
+    voices = {s["identity"]["voice_id"] for s in sheets.values()}
+    assert len(voices) == 2, "twins that sound the same are one character"
+    for sheet in sheets.values():
+        assert sheet["prompt"]["custom_instructions"]
+
+
+def test_a_track_name_carries_who_as_well_as_what():
+    """`Track_<target>_<channel>`. Matching the whole suffix was the bug:
+    `Track_eric_voice` fell through to animation, so a two-hander's
+    dialogue was silently scheduled on the wrong channel."""
+    from core import scenes
+
+    assert scenes.track_parts("track_eric_voice") == ("eric", "speech", "eric_voice")
+    assert scenes.track_parts("track_deborahbot_face") == (
+        "deborahbot", "animation", "deborahbot_face")
+    # a solo names no target — the app supplies one
+    assert scenes.track_parts("track_voice") == ("", "speech", "voice")
+    assert scenes.track_parts("track_light") == ("", "light", "light")
+
+
+def test_a_two_hander_lives_at_the_project_root():
+    """It belongs to NEITHER character, which is the whole reason a
+    track carries a target."""
+    from core import scenes, staging
+
+    path = ROOT / "scenes/hello_fellow_humans.mscript"
+    assert path.is_file()
+
+    timeline = scenes.compile_timeline(path)
+    staging.resolve(timeline, ROOT)
+    by_target = {}
+    for track in timeline.tracks:
+        by_target.setdefault(track.target, set()).add(track.kind)
+    assert by_target["eric"] == {"animation", "speech"}
+    assert by_target["deborahbot"] == {"animation", "speech"}
+
+    # each speaks in its OWN voice, resolved from its own pack
+    voices = {t.target: t.clips[0].payload["voice"]
+              for t in timeline.tracks if t.kind == "speech"}
+    assert voices["eric"] != voices["deborahbot"]
+
+    # and each shows its OWN faces
+    faces = {t.target: t.clips[1].payload["asset"]
+             for t in timeline.tracks if t.kind == "animation"}
+    assert "Eric/" in faces["eric"]
+    assert "Deborahbot 5000/" in faces["deborahbot"]
+    for asset in faces.values():
+        assert pathlib.Path(asset).is_file()
+
+    # the shared directory is discoverable from any character
+    labels = {name for name, _p in staging.available(animation.load("eric"))}
+    assert any("shared" in label for label in labels)

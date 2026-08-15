@@ -151,10 +151,12 @@ def available(character: Any = None,
     found = []
     if character is not None:
         own = pathlib.Path(getattr(character, "root", "") or "") / "scenes"
-        found += [(p.stem.replace("_", " "), p) for p in sorted(own.glob("*.json"))]
+        for pattern in ("*.json", "*.mscript"):
+            found += [(p.stem.replace("_", " "), p) for p in sorted(own.glob(pattern))]
     shared = root / "scenes"
-    found += [(f"{p.stem.replace('_', ' ')}  (shared)", p)
-              for p in sorted(shared.glob("*.json"))]
+    for pattern in ("*.json", "*.mscript"):
+        found += [(f"{p.stem.replace('_', ' ')}  (shared)", p)
+                  for p in sorted(shared.glob(pattern))]
     return tuple(found)
 
 

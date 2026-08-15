@@ -392,7 +392,8 @@ class SceneRunner:
 
 
 __all__ = ["Scene", "Step", "SceneRunner", "load", "available",
-           "compile_timeline", "has_tracks", "track_kind", "TRACK_PREFIX"]
+           "compile_timeline", "has_tracks", "track_kind", "track_parts",
+           "TRACK_PREFIX"]
 
 
 # ── one file, many channels ──────────────────────────────────────
@@ -430,8 +431,28 @@ _TRACK_KINDS = {
 }
 
 
+def track_parts(section: str) -> tuple[str, str, str]:
+    """`Track_<target>_<channel>` -> (target, kind, label).
+
+    The LAST underscored word is the channel; anything before it is who
+    performs it. `Track_voice` is a solo — no target, the app supplies
+    one. `Track_eric_voice` is a two-hander, and the target has to be
+    the character's real id because that is what resolves its faces and
+    its voice.
+
+    Matching the whole suffix was the bug: `Track_eric_voice` fell
+    through to "animation" and a two-hander's dialogue was silently
+    scheduled on the wrong channel.
+    """
+    suffix = section[len(TRACK_PREFIX):]
+    words = suffix.split("_")
+    if len(words) > 1 and words[-1].lower() in _TRACK_KINDS:
+        return "_".join(words[:-1]), _TRACK_KINDS[words[-1].lower()], suffix
+    return "", _TRACK_KINDS.get(suffix.lower(), "animation"), suffix
+
+
 def track_kind(section: str) -> str:
-    return _TRACK_KINDS.get(section[len(TRACK_PREFIX):].lower(), "animation")
+    return track_parts(section)[1]
 
 
 def compile_timeline(path: Any, target: str = "") -> Any:
@@ -481,9 +502,9 @@ def compile_timeline(path: Any, target: str = "") -> Any:
                                       payload=payload,
                                       label=str(args.get("LBL", "")) or ""))
         if clips:
+            own, kind, label = track_parts(name)
             tracks.append(TimelineTrack(
-                kind=track_kind(name), target=target,
-                name=name[len(TRACK_PREFIX):], clips=clips))
+                kind=kind, target=own or target, name=label, clips=clips))
     if not tracks:
         return None
     description = " ".join(

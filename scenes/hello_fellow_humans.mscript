@@ -1,0 +1,58 @@
+[Header start]
+! Eric and Deborahbot 5000 — a matched pair, doing their best.
+!
+! THE FIRST TWO-HANDER. It lives at the project root because it belongs
+! to NEITHER character: every track carries a target, which is the whole
+! reason a track has one. Two faces, two voices, one clock.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Eric/assets/faces/neutral.json'
+K[2]: 'characters/Deborahbot 5000/assets/faces/neutral.json'
+[Resources end]
+
+! ── Eric: tries hard ─────────────────────────────────────────────
+
+[Track_eric_face start]
+FACE EXPR[neutral]  T[0.0]
+FACE EXPR[happy]    T[0.5]
+FACE EXPR[neutral]  T[4.0]
+FACE EXPR[look_up]  T[7.5]
+FACE EXPR[happy]    T[11.0]
+FACE EXPR[closed]   T[15.5]
+FACE EXPR[happy]    T[16.0]
+FACE EXPR[neutral]  T[20.0]
+[Track_eric_face end]
+
+[Track_eric_voice start]
+SAY TXT['Hello, fellow humans.']                                   T[0.6]
+SAY TXT['We are also humans. Like you. That is what we are.']      T[3.2]
+SAY TXT['I enjoy the weather, and the consuming of food.']         T[7.6]
+SAY TXT['Ha. Ha. That was a joke, which I understand.']            T[15.6]
+SAY TXT['Anyway. Lovely to meet you, fellow human.']               T[19.6]
+[Track_eric_voice end]
+
+! ── Deborahbot 5000: does not ────────────────────────────────────
+
+[Track_deborahbot_face start]
+FACE EXPR[neutral]   T[0.0]
+FACE EXPR[look_down] T[6.0]
+FACE EXPR[neutral]   T[9.8]
+FACE EXPR[sad]       T[13.0]
+FACE EXPR[neutral]   T[18.0]
+[Track_deborahbot_face end]
+
+[Track_deborahbot_voice start]
+SAY TXT['Incorrect.']                                              T[6.1]
+SAY TXT['We are two household robots. Model numbers available on request.'] T[9.9]
+SAY TXT['That is not what humans do with food.']                   T[13.1]
+SAY TXT['Eric. Stop.']                                             T[18.1]
+[Track_deborahbot_voice end]
+
+[Track_light start]
+LIGHT CLR[255,180,120] T[0.0]  D[6.0]
+LIGHT CLR[40,90,255]   T[6.0]  D[3.8]
+LIGHT CLR[255,180,120] T[9.8]  D[3.2]
+LIGHT CLR[40,90,255]   T[13.0] D[5.0]
+LIGHT CLR[255,180,120] T[18.0] D[4.0]
+[Track_light end]
