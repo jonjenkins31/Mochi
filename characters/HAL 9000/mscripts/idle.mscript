@@ -1,13 +1,17 @@
 [Header start]
-! HAL 9000 idle — the lens, held. It does not blink.
+! HAL, on watch. He does almost nothing, slowly, forever.
+! The restraint IS the character — a lens that fidgets is not HAL.
 [Header end]
 
 [Resources start]
-K[1]: 'characters/HAL 9000/assets/hal.png'
+K[1]: 'characters/HAL 9000/hal.py'
 [Resources end]
 
 [Main start]
 LBL[1]
-IMAGE K[1] D[5.0]
+MATH K[1] STATE[watching] D[8.0]
+MATH K[1] STATE[idle] D[6.0]
+MATH K[1] STATE[reading] D[5.0]
+MATH K[1] STATE[watching] D[7.0]
 JMP LBL[1]
 [Main end]

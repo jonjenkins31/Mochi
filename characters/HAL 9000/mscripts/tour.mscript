@@ -1,0 +1,69 @@
+[Header start]
+! HAL explains himself. Slowly, because that is the only speed he has.
+! Second math character, and the one that proved a stack needs a
+! COLOUR per layer rather than one ink at many brightnesses.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/HAL 9000/hal.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle]     SIZE[1.00] GLOW[1.00] PULSE[0.16] RATE[1.1] DIM[1.0] COLOR[#FF1A08]
+P[2]: STATE[idle]     SIZE[1.90] GLOW[1.70] PULSE[0.30] RATE[2.0] DIM[1.0] COLOR[#FF3018]
+P[3]: STATE[idle]     SIZE[0.45] GLOW[0.60] PULSE[0.06] RATE[0.4] DIM[1.0] COLOR[#C81400]
+P[4]: STATE[idle]     SIZE[1.00] GLOW[1.00] PULSE[0.16] RATE[1.1] DIM[1.0] COLOR[#FF1A08]
+P[5]: STATE[dying]    SIZE[0.55] GLOW[0.40] PULSE[0.25] RATE[0.5] DIM[0.15] COLOR[#B41000]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[idle] D[1.4]
+SAY TXT['Good afternoon. I am a lens, a housing, and a great deal of black.']
+
+MATH K[1] STATE[idle] LAYERS[core] D[1.8]
+SAY TXT['That is the core. It is very small. People remember me as a large red eye, and I am mostly not.']
+
+MATH K[1] STATE[idle] LAYERS[core,iris,ring] D[1.8]
+SAY TXT['The red field around it. Still small. Fifteen pixels of me, in the photograph everyone knows.']
+
+MATH K[1] STATE[idle] LAYERS[core,iris,ring,bloom,well] D[1.8]
+SAY TXT['The well I sit in. Three times my width, and entirely dark. The darkness is doing most of the work.']
+
+MATH K[1] STATE[idle] D[2.0]
+SAY TXT['And the housing. Five times my width. I am a small hot thing in a lot of nothing, which is a design decision and not an accident.']
+
+MATH K[1] STATE[watching] D[2.4]
+SAY TXT['Watching. Slower pulse, a little larger. I do this most of the time.']
+
+MATH K[1] STATE[thinking] D[2.6]
+SAY TXT['Thinking. Faster, and there is a line moving across me while I do it.']
+
+MATH K[1] STATE[reading] D[2.4]
+SAY TXT['Reading. The line is the whole point. I am going through something and you can see me doing it.']
+
+MATH K[1] STATE[alarmed] D[2.4]
+SAY TXT['And this is alarmed. I want you to notice that nothing about my shape changed. I simply got faster, brighter and slightly bigger.']
+
+MATH K[1] STATE[cold] D[2.4]
+SAY TXT['This one is worse. Slower than resting, dimmer, and a colder red. Nothing is wrong. That is what makes it worse.']
+
+MATH K[1] STATE[idle] D[1.2]
+SAY TXT['Size is the control the demonstration is really about. Watch.']
+
+MOVE K[1] PATH[1,2,3,4] D[10.0] HOLD[0.5] EASE[smooth]
+SAY TXT['Larger. Considerably larger than is polite. And now very small, which reads as further away, or as attention withdrawn, depending on what I say next.']
+SAY TXT['Back to ordinary. It is one number, and it changes what I appear to be feeling more than the colour does.']
+
+MATH K[1] STATE[idle] TUNE[well.value=0.30;bezel.value=0.9] D[2.2]
+SAY TXT['You may also reach into a single layer. That is the well lit up, which is not something I would normally allow.']
+
+MATH K[1] STATE[idle] D[1.2]
+SAY TXT['One more. This is what powering down looks like.']
+
+MOVE K[1] PATH[4,5] D[7.0] HOLD[0.4] EASE[in]
+SAY TXT['I am losing size, brightness and colour together, and the pulse is going with them. There is no separate dying animation. It is the same six numbers, going the other way.']
+MATH K[1] STATE[off] D[1.6]
+SAY TXT['...']
+MATH K[1] STATE[idle] D[1.8]
+SAY TXT['I feel much better now. Thank you for asking.']
+[Main end]

@@ -3227,3 +3227,110 @@ def test_a_move_can_run_under_the_speech_it_illustrates():
         ROOT / "characters/crazy eyes/mscripts/look_around.mscript").steps
         if s.kind == "clip")
     assert plain.seconds == float(plain.params["duration"])
+
+
+def _hal_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_hal_9000", ROOT / "characters/HAL 9000/hal.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_hal_is_a_small_hot_eye_in_a_lot_of_black():
+    """The commonest way to draw HAL wrong is a red disc filling the
+    housing. The reference photo says otherwise: the glow is r=15, the
+    dark well runs to r=50, the bright plate sits at r=60-90 — so the
+    well is 3.3x the lens and the plate 5x.
+
+    Checked as a SHAPE, not a pixel match: hot, then dark, then lit.
+    """
+    import numpy as np
+
+    module = _hal_module()
+    scene = module.Hal(320, 420)
+    scene.on_enter()
+    frame = np.zeros((420, 320, 3), dtype=np.uint8)
+    scene.render_into(1.0, frame)
+
+    grey = frame.mean(axis=2)
+
+    def at(radius):
+        ring = [grey[int(210 + radius * np.sin(a)),
+                     int(160 + radius * np.cos(a))]
+                for a in np.linspace(0, 6.28, 64)
+                if 0 <= int(210 + radius * np.sin(a)) < 420
+                and 0 <= int(160 + radius * np.cos(a)) < 320]
+        return float(np.mean(ring))
+
+    core, well, plate = at(4), at(30), at(60)
+    assert core > 100, "the core is not hot"
+    assert well < core / 3, "the well is not dark — this is a red disc"
+    assert plate > well * 1.5, "the housing never lights up"
+
+    # The lens really is small: most of the frame is off.
+    assert (frame.sum(axis=2) > 90).mean() < 0.15, "HAL fills the frame"
+
+
+def test_hal_changes_intensity_not_shape():
+    """His whole range is one lens at different brightness, rate and
+    size — that is the character, so the test is that the states differ
+    MEASURABLY while staying the same thing."""
+    import numpy as np
+
+    module = _hal_module()
+
+    def render(**tokens):
+        scene = module.Hal(200, 200)
+        scene.on_enter(**tokens)
+        buffer = np.zeros((200, 200, 3), dtype=np.uint8)
+        scene.render_into(1.0, buffer)
+        return buffer
+
+    lit = {name: int((render(state=name).sum(axis=2) > 90).sum())
+           for name in module.STATES}
+    assert lit["off"] == 0, "off must be off"
+    assert lit["alarmed"] > lit["idle"] > lit["dying"] > 0, lit
+
+    # SIZE is the control the demo leans on, so it had better work.
+    assert (render(size="1.9").sum(axis=2) > 90).sum() > \
+        (render(size="0.45").sum(axis=2) > 90).sum() * 3
+
+    # Colour per layer: the core must be hotter than the field, or he
+    # is a stop light. Sampled where each actually is.
+    frame = render().astype(int)
+    centre = frame[100, 100]
+    radius = 200 * module.LENS * 0.5
+    field = frame[100, int(100 + radius * 0.9)]
+    assert centre.min() > field.min() + 40, (centre, field)
+    assert field[0] > field[1] + 60, f"the field is not red: {field}"
+
+    # And he breathes without being asked.
+    assert not np.array_equal(render(), _hal_at(module, 3.7))
+
+
+def _hal_at(module, t):
+    import numpy as np
+
+    scene = module.Hal(200, 200)
+    scene.on_enter()
+    buffer = np.zeros((200, 200, 3), dtype=np.uint8)
+    scene.render_into(t, buffer)
+    return buffer
+
+
+def test_hal_off_is_quoted_because_yaml_reads_it_as_false():
+    """`off:` unquoted is a YAML 1.1 BOOLEAN. It parsed to the key
+    `False`, and the expression was unreachable by name — silently, and
+    only at the point something tried to sort the keys."""
+    from modules import jaeger_animation as animation
+
+    character = animation.load("hal_9000")
+    assert character.kind == "procedural" and character.adapter == "math"
+    assert "off" in character.expressions
+    assert False not in character.expressions
+    module = _hal_module()
+    for state in module.STATES:
+        assert state in character.expressions, state

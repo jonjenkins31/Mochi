@@ -7,33 +7,37 @@ author: "Imported from JaegerAI"
 license: "Unspecified"
 description: "The spacecraft Discovery's onboard AI — one red lens, and a very calm voice."
 
-kind: clip_set
-
-assets:
-  primary:
-    file: assets/hal.png
-    type: image
-    adapter: image
-
-default_asset: primary
+# Was `image` pointing at a still. It is a rig now: hal.py draws the
+# lens from maths, so it can pulse, grow, scan and power down. The
+# photograph stays in assets/ as the reference the layer radii were
+# measured against — the red core at r=15, the dark well to r=50, the
+# bright plate at r=60-90.
+kind: procedural
 
 motion_scripts:
   root: mscripts
   default: mscripts/idle.mscript
 
 render:
-  adapter: image
-  asset: assets/hal.png
+  adapter: math
+  asset: hal.py
   ideal_size: [320, 420]
   framing: fit
   scaling: smooth
 
-# One lens, always open. HAL has no expressions and that is the point of
-# him — the face never changes while the voice says something terrible.
-# The word is still `idle` because every pack needs a default, and a
-# vocabulary of one is a vocabulary.
+# HAL's range is narrow ON PURPOSE. He does not emote — he changes
+# INTENSITY, which is most of why he is frightening. Every one of these
+# is the same lens at a different brightness, rate and size, and none
+# of them is a different face.
 expressions:
-  idle: {clips: assets/hal.png, loop: false}
+  idle:     {params: {state: idle},     loop: true}
+  watching: {params: {state: watching}, loop: true}
+  thinking: {params: {state: thinking}, loop: true}
+  reading:  {params: {state: reading},  loop: true}
+  alarmed:  {params: {state: alarmed},  loop: true}
+  cold:     {params: {state: cold},     loop: true}
+  dying:    {params: {state: dying},    loop: true}
+  "off":    {params: {state: "off"},    loop: true}   # quoted: YAML reads off as false
 
 default_expression: idle
 default_mouth: ""

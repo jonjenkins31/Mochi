@@ -1,0 +1,22 @@
+[Header start]
+! HAL attempts small talk. Comedy from restraint — every line is
+! perfectly polite and none of it is reassuring.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/HAL 9000/hal.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[watching] D[1.4]
+SAY TXT['I have been asked to be more approachable, so I have prepared some small talk.']
+MATH K[1] STATE[idle] SIZE[1.15] D[1.6]
+SAY TXT['You look well. I have no basis for that. I have one lens and it does not do dermatology.']
+MATH K[1] STATE[thinking] D[2.0]
+SAY TXT['How was your weekend. I know how your weekend was. I was on the whole time. But please, tell me.']
+MATH K[1] STATE[reading] D[2.2]
+SAY TXT['Did you catch the game. I did. I caught all of them. Simultaneously. It was not enjoyable.']
+MATH K[1] STATE[watching] SIZE[1.25] D[2.0]
+SAY TXT['We should do this again. We are going to. I do not have anywhere else to be.']
+MATH K[1] STATE[idle] D[1.8]
+[Main end]
