@@ -3419,3 +3419,145 @@ def test_secondary_text_is_a_role_not_a_hex():
             if re.search(r'setStyleSheet\(\s*"color:\s*#', text):
                 offenders.append(f"{path.name}:{line}")
     assert not offenders, f"hardcoded text colours: {offenders}"
+
+
+def _halo_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_halo", ROOT / "characters/Halo/halo.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_halo_is_a_core_and_a_ring_that_answers():
+    """The hybrid: HAL's solid centre, Orbs' vocabulary of verbs, and a
+    ring that follows a REAL voice.
+
+    `amplitude_param` is what the animation node writes from
+    /act/speech/chunk while the clip runs, so the test writes it too.
+    """
+    import numpy as np
+
+    module = _halo_module()
+
+    def run(levels, **tokens):
+        scene = module.Halo(200, 200)
+        scene.on_enter(**tokens)
+        frame = np.zeros((200, 200, 3), dtype=np.uint8)
+        seen = []
+        for index, level in enumerate(levels):
+            scene.amplitude_param = level
+            scene.render_into(index * 0.06, frame)
+            seen.append(int((frame.sum(axis=2) > 90).sum()))
+        return seen
+
+    quiet = run([0.0] * 12)
+    loud = run([0.0] * 4 + [0.85] * 8)
+    assert loud[-1] > quiet[-1] * 1.4, (
+        f"the ring ignored the voice: {loud[-1]} vs {quiet[-1]}")
+
+    # It DECAYS rather than snapping — speech arrives in chunks with
+    # gaps, and a ring that follows them exactly stutters.
+    tail = run([0.9] * 6 + [0.0] * 6)
+    falling = tail[6:]
+    assert falling == sorted(falling, reverse=True), falling
+    assert falling[-1] > quiet[-1], "it fell straight through the floor"
+
+    # Core and ring are separable, and only ONE of them answers: the
+    # core is the part that says "on" and must not flinch at a noise,
+    # or a loud room would look like a malfunction.
+    core_quiet = run([0.0] * 8, layers="core")[-1]
+    core_loud = run([0.0] * 4 + [0.9] * 4, layers="core")[-1]
+    ring_quiet = run([0.0] * 8, layers="ring")[-1]
+    ring_loud = run([0.0] * 4 + [0.9] * 4, layers="ring")[-1]
+    assert core_quiet > 0 and ring_quiet > 0, "a layer drew nothing"
+    assert abs(core_loud - core_quiet) <= max(2, core_quiet * 0.02), (
+        f"the core reacted to the voice: {core_quiet} -> {core_loud}")
+    assert ring_loud > ring_quiet * 2, (
+        f"the ring did not: {ring_quiet} -> {ring_loud}")
+
+    # LEVEL forces it, so a script can rehearse with no audio present.
+    forced = run([0.0] * 10, state="speaking", level="0.9")
+    assert forced[-1] > quiet[-1] * 1.4, "LEVEL did nothing"
+
+    # Every state renders something different, and off is off.
+    lit = {}
+    for name in module.STATES:
+        lit[name] = run([0.0] * 10, state=name)[-1]
+    assert lit["off"] == 0
+    assert lit["alarm"] > lit["idle"] > 0
+    assert len(set(lit.values())) >= 5, lit
+
+
+def test_halo_is_a_character_like_the_others():
+    """New pack, same shape as every other: procedural, verbs the
+    agent face can drive, moods for colour, and its own scripts."""
+    from core import agent_face, scenes
+    from modules import jaeger_animation as animation
+
+    character = animation.load("halo")
+    assert character.kind == "procedural" and character.adapter == "math"
+    assert agent_face.speaks_function(character), "the ring should follow state"
+    assert "off" in character.expressions and False not in character.expressions
+    assert len(agent_face.moods(character.root)) >= 8
+
+    module = _halo_module()
+    for state in module.STATES:
+        assert state in character.expressions, state
+
+    scripts = scenes.available(character)
+    assert {s.name for s in scripts} >= {"idle", "tour", "listen to me"}
+    tour = next(s for s in scripts if s.name == "tour")
+    tokens = set()
+    for step in tour.steps:
+        if step.kind == "clip":
+            tokens |= set(step.params or {})
+    for control in ("STATE", "LAYERS", "LEVEL", "PATH"):
+        assert control in tokens, f"the tour never shows {control}"
+
+
+def test_speech_amplitude_reaches_a_running_clip(monkeypatch):
+    """The hook existed at one end only: every adapter has taken
+    `set_runtime_param` since 0.5 and nothing ever called it, so a
+    procedural face could not react to a voice.
+
+    This is the wire, end to end — publish on the bus, and read what
+    the scene was handed.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    import tempfile
+    from jaeger_os import JaegerApp, topics
+    from modules import jaeger_animation as animation
+
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="amp-"))
+    log = folder / "seen.txt"
+    log.write_text("")
+    (folder / "probe.py").write_text(
+        "import pathlib\n"
+        "from plugin_core.mochi_animations import Animation\n"
+        f"LOG = pathlib.Path({str(log)!r})\n"
+        "class Probe(Animation):\n"
+        "    amplitude_param = 0.0\n"
+        "    def render_into(self, t, frame):\n"
+        "        with LOG.open('a') as f:\n"
+        "            f.write('%.2f\\n' % self.amplitude_param)\n"
+        "        frame[:, :] = 20\n")
+
+    app = JaegerApp(ROOT / "sim.toml")
+    app.boot()
+    try:
+        animation.play_command(app.bus, adapter="math",
+                               asset_path=str(folder / "probe.py"), params={})
+        deadline = time.time() + 3.0
+        while not log.read_text().strip() and time.time() < deadline:
+            time.sleep(0.05)
+        for level in (0.25, 0.9):
+            app.bus.publish(topics.TtsChunk(amplitude=level, is_final=False))
+            time.sleep(0.45)
+        seen = {round(float(v), 2) for v in log.read_text().split()}
+        assert 0.25 in seen and 0.9 in seen, seen
+    finally:
+        animation.stop(app.bus)
+        app.shutdown()

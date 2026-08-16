@@ -1,0 +1,22 @@
+[Header start]
+! The demo that only works because the ring is real: it asks you to
+! talk, and then it is visibly reading you rather than performing.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Halo/halo.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[idle] D[1.2]
+SAY TXT['Say something to me. Anything. I want to show you what the ring does.']
+MATH K[1] STATE[listening] D[0.3]
+LISTEN D[12]
+MATH K[1] STATE[thinking] D[1.6]
+SAY TXT['Did you watch the edge while you were talking? That was not an animation of listening. That was the level.']
+MATH K[1] STATE[idle] D[1.4]
+SAY TXT['Now watch it while I answer, because it is the same ring reading the same kind of number.']
+ASK D[25]
+MATH K[1] STATE[watching] D[2.0]
+SAY TXT['Both directions, one meter. That is the whole character.']
+[Main end]

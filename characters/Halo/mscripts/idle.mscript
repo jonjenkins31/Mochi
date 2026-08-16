@@ -1,0 +1,16 @@
+[Header start]
+! Halo at rest. The ring barely moves — until something makes a sound,
+! at which point it does, because the level is a real signal and not
+! something this script has to remember to ask for.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Halo/halo.py'
+[Resources end]
+
+[Main start]
+LBL[1]
+MATH K[1] STATE[idle] D[9.0]
+MATH K[1] STATE[watching] D[7.0]
+JMP LBL[1]
+[Main end]

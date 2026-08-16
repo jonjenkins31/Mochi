@@ -1,0 +1,59 @@
+[Header start]
+! Halo explains itself. Third math character, first one that answers.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/Halo/halo.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle] SIZE[1.00] REACH[1.00] BARS[44] COLOR[#8B7CFF] HOT[#FF7BC8] GLOW[1.0]
+P[2]: STATE[idle] SIZE[1.60] REACH[0.55] BARS[44] COLOR[#8B7CFF] HOT[#FF7BC8] GLOW[1.3]
+P[3]: STATE[idle] SIZE[0.55] REACH[1.70] BARS[80] COLOR[#4FC3F7] HOT[#7BE3B8] GLOW[1.6]
+P[4]: STATE[idle] SIZE[1.00] REACH[1.00] BARS[44] COLOR[#8B7CFF] HOT[#FF7BC8] GLOW[1.0]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[idle] D[1.4]
+SAY TXT['I am two things. A core, which is always on, and a ring, which is not always doing the same.']
+
+MATH K[1] STATE[idle] LAYERS[core,glow] D[1.8]
+SAY TXT['That is the core on its own. HAL gave me this part — a solid centre that changes intensity rather than shape.']
+
+MATH K[1] STATE[idle] LAYERS[ring] D[1.8]
+SAY TXT['And that is the ring on its own. Orbs gave me this part. Forty four bars, each one standing outward from a fixed inner edge.']
+
+MATH K[1] STATE[idle] D[1.6]
+SAY TXT['Together they are a level meter bent into a circle, with something alive in the middle of it.']
+
+MATH K[1] STATE[thinking] D[2.6]
+SAY TXT['Thinking is a wave travelling around the ring. Nothing is driving it. It is a pattern and it means I am busy.']
+
+MATH K[1] STATE[listening] D[2.8]
+SAY TXT['Listening is a slow bump going round, like attention pointed somewhere. Green, because that is the colour every switch in this app uses for the ears.']
+
+MATH K[1] STATE[speaking] LEVEL[0.85] D[2.4]
+SAY TXT['And this is speaking. Loudest at the front, tapering round the back, so a voice reads as coming FROM me and not surrounding me.']
+
+MATH K[1] STATE[speaking] LEVEL[0.15] D[2.0]
+SAY TXT['Quiet. Same mode, smaller number.']
+
+MATH K[1] STATE[idle] D[2.2]
+SAY TXT['Here is the part I am actually pleased about. That level is not a script. When there is real sound coming out of the speakers, the ring follows it, because the animation node hands the amplitude to whatever clip is running.']
+
+MATH K[1] STATE[idle] D[2.0]
+SAY TXT['That hook had existed for a long time with nothing on the other end of it. Turn the voice on and talk to me, and the ring is reading the audio rather than acting.']
+
+MATH K[1] STATE[idle] D[1.2]
+SAY TXT['The shape is adjustable too. Watch.']
+
+MOVE K[1] PATH[1,2,3,4] D[11.0] HOLD[0.5] EASE[smooth]
+SAY TXT['Big core, short ring — that is almost a button. Now the other way. Small core, long reach, eighty bars instead of forty four, and a colder colour.']
+SAY TXT['Same character. Four numbers.']
+
+MATH K[1] STATE[alarm] D[2.4]
+SAY TXT['Alarm. Fast, red, and the ring is thrashing. I would rather not.']
+
+MATH K[1] STATE[idle] D[1.8]
+SAY TXT['Back to resting. Core, ring, and a number from the microphone. Say something and watch the edge.']
+[Main end]
