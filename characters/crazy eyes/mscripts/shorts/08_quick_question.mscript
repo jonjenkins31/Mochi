@@ -1,0 +1,24 @@
+[Header start]
+! 08 — Someone said 'quick question'.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle] TILT[0] SPIN[1.0] COLOR[#51DAF8]
+P[2]: STATE[alert] TILT[-12] SPIN[2.6] COLOR[#4FC3F7]
+P[3]: STATE[scan] TILT[14] SPIN[3.4] COLOR[#C99A6E]
+P[4]: STATE[dizzy] TILT[0] SPIN[5.0] COLOR[#E06C75]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[idle] D[0.8]
+SAY TXT['They said quick question.']
+MOVE K[1] PATH[1,2,3,4] D[9.0] HOLD[0.6] EASE[in]
+SAY TXT['That was forty minutes ago. We have been through the whiteboard, the second whiteboard, and a story about their cousin.']
+MATH K[1] STATE[idle] LOOK[down] D[1.4]
+SAY TXT['It was not a quick question.']
+[Main end]

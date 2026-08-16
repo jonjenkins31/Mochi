@@ -1,0 +1,22 @@
+[Header start]
+! 06 — Accidental eye contact.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[idle] LOOK[left] D[1.0]
+SAY TXT['Just looking around. Normal.']
+MATH K[1] STATE[alert] GAZE[0,0] D[0.7]
+SAY TXT['Eye contact.']
+MATH K[1] STATE[idle] LOOK[upright] D[0.8]
+SAY TXT['Away.']
+MATH K[1] STATE[alert] GAZE[0,0] D[0.6]
+SAY TXT['Back. Why did I go back?']
+MATH K[1] STATE[idle] LOOK[downleft] D[1.2]
+SAY TXT['I will look at this wall forever now.']
+MATH K[1] STATE[squint] LOOK[downleft] D[1.0]
+[Main end]

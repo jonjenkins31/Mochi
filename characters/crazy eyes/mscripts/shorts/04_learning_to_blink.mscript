@@ -1,0 +1,23 @@
+[Header start]
+! 04 — Learning to blink. Tutorial gone wrong.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[idle] D[0.5]
+SAY TXT['Day one of learning to blink. Close both.']
+MATH K[1] STATE[closed] D[0.6]
+MATH K[1] STATE[idle] WINK[left] D[0.9]
+SAY TXT['That was one.']
+MATH K[1] STATE[idle] WINK[right] D[0.9]
+SAY TXT['That was the other one.']
+MATH K[1] STATE[squint] D[0.8]
+SAY TXT['That was neither.']
+MATH K[1] STATE[dizzy] D[1.0]
+SAY TXT['I am going to stop doing this now.']
+MATH K[1] STATE[idle] D[0.5]
+[Main end]

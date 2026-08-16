@@ -202,7 +202,15 @@ def load(path: Any) -> Scene:
             params["waypoints"] = json.dumps(stops)
             params["ease"] = str(args.get("EASE", "smooth"))
             params["duration"] = hold or 1.0
-            steps.append(Step("clip", str(args.get("K", "")), hold,
+            # D is how long the MOVE takes. HOLD is how long the script
+            # WAITS for it, and defaults to the whole move. `HOLD[0]`
+            # starts the motion and carries straight on to the next
+            # step — which is how a line gets spoken OVER a move
+            # instead of after it, and is the same split a motion
+            # statement makes between its speed and the program's flow.
+            wait = args.get("HOLD")
+            steps.append(Step("clip", str(args.get("K", "")),
+                              hold if wait is None else float(wait),
                               command="MATH", params=params))
         elif command in CLIP_COMMANDS:
             # The ENGINE's own vocabulary — MATH, IMAGE, SPRITE, BITMAP,
@@ -247,7 +255,9 @@ def available(character: Any) -> tuple[Scene, ...]:
     """
     root = pathlib.Path(getattr(character, "root", "") or "")
     found = []
-    for path in sorted((root / "mscripts").glob("*.mscript")):
+    # Recursive: a pack with a dozen scripts wants folders, and
+    # `mscripts/shorts/` reads better than a naming convention.
+    for path in sorted((root / "mscripts").rglob("*.mscript")):
         try:
             scene = load(path)
         except Exception:  # noqa: BLE001 — a broken script is not a broken tab

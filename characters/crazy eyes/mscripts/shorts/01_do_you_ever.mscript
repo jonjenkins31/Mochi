@@ -1,0 +1,23 @@
+[Header start]
+! 01 — Do you ever just. The drift.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle] GAZE[0,0] LEFT[0,0] RIGHT[0,0]
+P[2]: STATE[idle] GAZE[0,0] LEFT[-0.5,0.2] RIGHT[0.5,-0.2]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[idle] D[0.6]
+SAY TXT['Do you ever just...']
+MOVE K[1] PATH[1,2] D[3.4] HOLD[1.4] EASE[smooth]
+SAY TXT['...stop tracking?']
+MATH K[1] STATE[idle] D[1.2]
+SAY TXT['Sorry! I am back. Both of them are pointing at you again, which is the normal amount of them.']
+MATH K[1] STATE[alert] D[1.6]
+[Main end]

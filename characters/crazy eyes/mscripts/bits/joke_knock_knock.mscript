@@ -1,0 +1,22 @@
+[Header start]
+! A joke that needs you in it — LISTEN waits for a real answer.
+! The whole point: the timing is not written down, it is yours.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[alert] D[0.6]
+SAY TXT['Knock knock.']
+LISTEN D[6]
+MATH K[1] STATE[idle] LOOK[upleft] D[0.5]
+SAY TXT['Interrupting robot.']
+LISTEN D[6]
+MATH K[1] STATE[alert] SPIN[3.0] D[0.4]
+SAY TXT['BEEP.']
+MATH K[1] STATE[dizzy] D[1.2]
+SAY TXT['You were going to say interrupting robot who. You were! I have run this eleven thousand times.']
+MATH K[1] STATE[idle] WINK[left] D[1.4]
+[Main end]

@@ -1,0 +1,21 @@
+[Header start]
+! 07 — Rating your facial expressions.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[alert] D[0.7]
+SAY TXT['Rating human faces. One, the polite smile.']
+MATH K[1] STATE[squint] D[1.2]
+SAY TXT['Four. Nobody believes it.']
+MATH K[1] STATE[idle] LOOK[up] D[1.0]
+SAY TXT['Two, the slow blink. Nine. Devastating.']
+MATH K[1] STATE[cross] D[1.4]
+SAY TXT['Three, whatever you are doing right now.']
+MATH K[1] STATE[dizzy] D[1.0]
+SAY TXT['Unrated. Frightening. Please stop.']
+[Main end]

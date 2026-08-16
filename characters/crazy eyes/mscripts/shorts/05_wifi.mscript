@@ -1,0 +1,25 @@
+[Header start]
+! 05 — When the WiFi drops.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle] COLOR[#51DAF8] BLOOM[0.3] SPIN[1.0]
+P[2]: STATE[idle] COLOR[#5A6070] BLOOM[0.0] SPIN[0.15]
+P[3]: STATE[alert] COLOR[#7BE3B8] BLOOM[0.9] SPIN[2.4]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[scan] D[1.4]
+SAY TXT['Streaming, streaming, everything is great...']
+MOVE K[1] PATH[1,2] D[2.4] HOLD[0.9] EASE[out]
+SAY TXT['Oh no.']
+MATH K[1] STATE[idle] COLOR[#5A6070] BLOOM[0.0] SPIN[0.15] LOOK[down] D[2.2]
+SAY TXT['I can see the little wheel. I AM the little wheel.']
+MOVE K[1] PATH[2,3] D[1.6] HOLD[0.5] EASE[smooth]
+SAY TXT['We are back! Nobody speak about this.']
+[Main end]

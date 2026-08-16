@@ -3145,10 +3145,13 @@ def test_the_script_list_is_this_characters_scripts():
         character = animation.load(name)
         own = catalogue(character, ROOT)
         assert own, f"{name} has no scripts of its own"
+        mscripts = pathlib.Path(character.root) / "mscripts"
         for scene, where in own:
             assert where == "character"
-            assert scene.path.parent == pathlib.Path(character.root) / "mscripts", (
-                f"{scene.path} is not {name}'s")
+            # UNDER the tree, not directly in it — a pack with ten
+            # shorts wants folders, and `shorts/` reads better than a
+            # naming convention.
+            assert mscripts in scene.path.parents, f"{scene.path} is not {name}'s"
 
         with_demos = catalogue(character, ROOT, demos=True)
         assert len(with_demos) > len(own), "the flag did nothing"
@@ -3156,3 +3159,71 @@ def test_the_script_list_is_this_characters_scripts():
         # first because they are what someone came here for.
         assert [s.name for s, _ in with_demos[:len(own)]] == \
             [s.name for s, _ in own]
+
+
+def test_the_shorts_are_short_and_the_bits_are_not_broken():
+    """Fifteen seconds is a format constraint, not a preference: a
+    short that runs 22 is a short nobody watches to the end.
+
+    Estimated the way the conductor estimates — a SAY holds for its own
+    word count — so the number here is the number the runner will use.
+    """
+    from core import scenes
+
+    words_per_second, floor = 2.6, 0.8
+
+    def seconds(scene):
+        total = 0.0
+        for step in scene.steps:
+            if step.kind == "say":
+                total += max(floor, len(step.value.split()) / words_per_second)
+            else:
+                total += step.seconds
+        return total
+
+    shorts = sorted((ROOT / "characters/crazy eyes/mscripts/shorts")
+                    .glob("*.mscript"))
+    assert len(shorts) == 10, "ten shorts"
+    for path in shorts:
+        scene = scenes.load(path)
+        length = seconds(scene)
+        assert 13 <= length <= 17, f"{path.name} runs {length:.1f}s"
+        assert any(s.kind == "say" for s in scene.steps), f"{path.name} is mute"
+        assert any(s.kind == "clip" for s in scene.steps), f"{path.name} is still"
+
+    bits = sorted((ROOT / "characters/crazy eyes/mscripts/bits")
+                  .glob("*.mscript"))
+    assert len(bits) >= 5
+    for path in bits:
+        scene = scenes.load(path)
+        assert scenes.performable(scene), path.name
+        assert seconds(scene) > 15, f"{path.name} is a short, not a bit"
+
+    # All of it is the character's own, and the list shows the folder.
+    from interfaces.scripts import catalogue
+    from modules import jaeger_animation as animation
+
+    listed = catalogue(animation.load("crazy_eyes"), ROOT)
+    names = {scene.path.parent.name for scene, _ in listed}
+    assert {"shorts", "bits", "mscripts"} <= names, names
+
+
+def test_a_move_can_run_under_the_speech_it_illustrates():
+    """`D` is how long the MOVE takes; `HOLD` is how long the script
+    waits for it. `HOLD[0.4]` starts a sixteen-second build and carries
+    straight on talking over it — which is the difference between a pep
+    talk and a slideshow."""
+    from core import scenes
+
+    scene = scenes.load(
+        ROOT / "characters/crazy eyes/mscripts/bits/pep_talk.mscript")
+    move = next(s for s in scene.steps
+                if s.kind == "clip" and "waypoints" in (s.params or {}))
+    assert float(move.params["duration"]) > 10, "the build is the whole bit"
+    assert move.seconds < 1, "it must not block for the whole build"
+
+    # And with no HOLD, a MOVE still waits for itself.
+    plain = next(s for s in scenes.load(
+        ROOT / "characters/crazy eyes/mscripts/look_around.mscript").steps
+        if s.kind == "clip")
+    assert plain.seconds == float(plain.params["duration"])

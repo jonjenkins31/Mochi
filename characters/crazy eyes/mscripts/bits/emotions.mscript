@@ -1,0 +1,35 @@
+[Header start]
+! The emotional range, and how it is actually made: SHAPE is what the
+! eye does, COLOUR is how it feels, and they are separate controls so
+! the same shape can mean two things.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle]  DILATE[1.0] COLOR[#51DAF8] BLOOM[0.30] TILT[0]   SPIN[1.0]
+P[2]: STATE[idle]  DILATE[1.5] COLOR[#7BE3B8] BLOOM[0.75] TILT[6]   SPIN[1.6]
+P[3]: STATE[squint] DILATE[0.6] COLOR[#C99A6E] BLOOM[0.10] TILT[-8] SPIN[0.5]
+P[4]: STATE[alert] DILATE[0.5] COLOR[#E06C75] BLOOM[0.55] TILT[0]   SPIN[3.2]
+P[5]: STATE[idle]  DILATE[1.0] COLOR[#51DAF8] BLOOM[0.30] TILT[0]   SPIN[1.0]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[idle] D[1.0]
+SAY TXT['I have no face. No mouth, no eyebrows, nothing to arrange. So here is how I do feelings anyway.']
+
+MOVE K[1] PATH[1,2] D[2.5] HOLD[0.6] EASE[smooth]
+SAY TXT['Happy is wide open and warm. The pupil dilates, the glow comes up, and I lean.']
+
+MOVE K[1] PATH[2,3] D[3.0] HOLD[0.6] EASE[smooth]
+SAY TXT['Sad is the opposite of all of that. Narrow, dim, tilted away, and slower. Nothing about the shape changed. I just went quiet.']
+
+MOVE K[1] PATH[3,4] D[2.0] HOLD[0.6] EASE[in]
+SAY TXT['Angry is fast and tight and red. Same rings. Same eye. Twelve degrees and a colour is the entire difference.']
+
+MOVE K[1] PATH[4,5] D[3.0] HOLD[0.6] EASE[out]
+SAY TXT['And back to nothing in particular, which is its own feeling if you hold it long enough.']
+MATH K[1] STATE[idle] D[1.6]
+[Main end]

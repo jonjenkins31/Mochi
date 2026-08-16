@@ -1,0 +1,30 @@
+[Header start]
+! Three jokes, each with a setup, a beat, and a reaction.
+! The BEAT is the animation — a joke told without a pause is a
+! sentence, and the pause is a D on a clip.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[idle] D[0.6]
+SAY TXT['I told my friend I was building a rig with two identical eyes.']
+MATH K[1] STATE[idle] LOOK[left] D[0.9]
+SAY TXT['He said, so you are seeing someone.']
+MATH K[1] STATE[squint] D[1.2]
+SAY TXT['I have not spoken to him since.']
+
+MATH K[1] STATE[alert] D[0.8]
+SAY TXT['Why do I never win at hide and seek?']
+MATH K[1] STATE[scan] D[1.6]
+SAY TXT['I glow.']
+MATH K[1] STATE[idle] LOOK[down] D[1.0]
+
+MATH K[1] STATE[idle] D[0.6]
+SAY TXT['My optometrist said I have a lazy eye.']
+MATH K[1] STATE[idle] WINK[right] D[1.0]
+SAY TXT['I said that one is doing all the work, the other one is management.']
+MATH K[1] STATE[cross] D[1.4]
+[Main end]

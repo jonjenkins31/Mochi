@@ -1,0 +1,21 @@
+[Header start]
+! 03 — The stare. No dialogue until the end.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle] SIZE[0.55] SPACING[1.5] DILATE[1.4] COLOR[#51DAF8]
+P[2]: STATE[idle] SIZE[1.35] SPACING[0.75] DILATE[0.55] COLOR[#FF6B4A]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[idle] SIZE[0.55] SPACING[1.5] D[2.4]
+MOVE K[1] PATH[1,2] D[11.0] HOLD[3.6] EASE[in]
+SAY TXT['I have been awake for eleven thousand hours and I have never once blinked on purpose.']
+MATH K[1] STATE[closed] D[0.6]
+SAY TXT['There. Did it. Never again.']
+[Main end]

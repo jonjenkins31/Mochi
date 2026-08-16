@@ -142,9 +142,16 @@ class ScriptsTab:
         self.entries = catalogue(
             character, pathlib.Path(getattr(self.app, "root", ".")),
             demos=self.demos.isChecked()) if character else []
+        root = pathlib.Path(getattr(self.app, "root", "."))
         for scene, where in self.entries:
-            self.list.addItem(scene.name if where == "character"
-                              else f"{scene.name}  ·  {where}")
+            if where != "character":
+                self.list.addItem(f"{scene.name}  ·  {where}")
+                continue
+            # A script in a sub-folder shows which one. Ten shorts and
+            # three demos in one flat list is a list you have to read.
+            folder = scene.path.parent.name
+            self.list.addItem(f"{folder} / {scene.name}"
+                              if folder != "mscripts" else scene.name)
         if self.entries:
             self.list.setCurrentRow(0)
         else:

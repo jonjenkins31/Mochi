@@ -1,0 +1,27 @@
+[Header start]
+! The opposite of the pep talk: delivering something gently.
+! Restraint is a rig control too — everything slows, nothing spins,
+! and the eyes look away before they look back.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle] SPIN[1.0] COLOR[#51DAF8] BLOOM[0.30] DILATE[1.0]
+P[2]: STATE[idle] SPIN[0.25] COLOR[#8A85A6] BLOOM[0.12] DILATE[0.8]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[idle] D[0.8]
+MOVE K[1] PATH[1,2] D[4.0] HOLD[0.5] EASE[out]
+SAY TXT['So. I have something to tell you and I am going to do it slowly.']
+MATH K[1] STATE[idle] SPIN[0.25] COLOR[#8A85A6] BLOOM[0.12] LOOK[downleft] D[1.8]
+SAY TXT['It did not work.']
+MATH K[1] STATE[idle] SPIN[0.25] COLOR[#8A85A6] BLOOM[0.12] GAZE[0,0] D[1.4]
+SAY TXT['I ran it four times to be sure, because I did not want to come and tell you this after only one.']
+MATH K[1] STATE[squint] SPIN[0.25] COLOR[#8A85A6] D[1.4]
+SAY TXT['That is all. I am not going to dress it up. Take a minute.']
+MATH K[1] STATE[idle] SPIN[0.5] COLOR[#51DAF8] BLOOM[0.30] D[2.0]
+[Main end]

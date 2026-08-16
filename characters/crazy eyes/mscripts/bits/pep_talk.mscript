@@ -1,0 +1,28 @@
+[Header start]
+! Motivational. Builds with a MOVE that runs UNDER the whole speech —
+! dim and small at the start, wide and bright by the end, so the
+! delivery gets more certain while the words do.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle] SIZE[0.7] DILATE[0.7] COLOR[#5A6070] BLOOM[0.05] SPIN[0.4] TILT[-5]
+P[2]: STATE[idle] SIZE[1.0] DILATE[1.0] COLOR[#4FC3F7] BLOOM[0.35] SPIN[1.2] TILT[0]
+P[3]: STATE[alert] SIZE[1.2] DILATE[1.3] COLOR[#7BE3B8] BLOOM[0.85] SPIN[2.2] TILT[0]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[idle] SIZE[0.7] COLOR[#5A6070] BLOOM[0.05] LOOK[down] D[1.2]
+MOVE K[1] PATH[1,2,3] D[16.0] HOLD[0.4] EASE[smooth]
+SAY TXT['Right. Look at me. I know it is not going well.']
+SAY TXT['You have been staring at the same thing for an hour and it has not moved and neither have you.']
+SAY TXT['Here is the thing. I am a stack of circles that somebody decided should be able to look around.']
+SAY TXT['I was a picture. I could only look at one thing, forever, and somebody sat down and made me able to look at anything.']
+SAY TXT['That took an afternoon. Whatever you are stuck on took less than an afternoon to break and it will take less than an afternoon to fix.']
+MATH K[1] STATE[alert] SIZE[1.2] COLOR[#7BE3B8] BLOOM[0.85] D[1.0]
+SAY TXT['Go on. I will be here. I have literally nothing else to look at.']
+MATH K[1] STATE[idle] WINK[left] SIZE[1.2] COLOR[#7BE3B8] D[1.6]
+[Main end]

@@ -1,0 +1,22 @@
+[Header start]
+! 09 — Confidence, decreasing.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle] SIZE[1.2] BLOOM[0.7] COLOR[#7BE3B8] DILATE[1.3] TILT[0]
+P[2]: STATE[idle] SIZE[0.62] BLOOM[0.1] COLOR[#5A6070] DILATE[0.6] TILT[-6]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[alert] SIZE[1.2] COLOR[#7BE3B8] D[0.9]
+SAY TXT['I have got this. I have absolutely got this.']
+MOVE K[1] PATH[1,2] D[7.5] HOLD[0.5] EASE[smooth]
+SAY TXT['I have got some of this. I have got a bit of this. I have got the general shape of this.']
+MATH K[1] STATE[squint] SIZE[0.62] COLOR[#5A6070] LOOK[down] D[1.6]
+SAY TXT['I have got nothing.']
+[Main end]

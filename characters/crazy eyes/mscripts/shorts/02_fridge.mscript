@@ -1,0 +1,20 @@
+[Header start]
+! 02 — POV: you left the fridge open.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[idle] D[0.5]
+SAY TXT['Everything is fine.']
+MATH K[1] STATE[scan] D[1.7]
+SAY TXT['Everything is fine and I am not looking at anything.']
+MATH K[1] STATE[alert] D[1.0]
+SAY TXT['THE FRIDGE.']
+MATH K[1] STATE[idle] LOOK[downleft] D[1.6]
+SAY TXT['It has been open an hour. I watched the whole thing and said nothing.']
+MATH K[1] STATE[squint] D[1.0]
+[Main end]

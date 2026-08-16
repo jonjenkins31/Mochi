@@ -1,0 +1,22 @@
+[Header start]
+! 10 — The wink that went wrong.
+! ~15s vertical short. Hook in the first two seconds, payoff last.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/crazy eyes/eyes.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[idle] D[0.6]
+SAY TXT['Watch this. Smoothest thing all day.']
+MATH K[1] STATE[idle] WINK[left] D[1.0]
+SAY TXT['Ah.']
+MATH K[1] STATE[closed] D[0.8]
+SAY TXT['Both went. That was supposed to be one.']
+MATH K[1] STATE[idle] WINK[right] D[0.9]
+SAY TXT['Now it is the wrong one.']
+MATH K[1] STATE[cross] D[1.2]
+SAY TXT['I am a precision optical instrument.']
+MATH K[1] STATE[dizzy] D[1.0]
+[Main end]
