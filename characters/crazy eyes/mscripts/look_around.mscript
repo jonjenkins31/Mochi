@@ -1,22 +1,30 @@
 [Header start]
-! The rig, exercised — gaze only. No shape changes, no colour, just an
-! eye aiming, which is the thing a still image could never do.
+! The eyes tracking something around the room — ONE move, not nine cuts.
+!
+! Before waypoints this was nine MATH commands and the gaze teleported
+! between them. A MOVE names the poses and the scene walks between
+! them at frame rate, which is the same thing a motion statement does
+! with positions: name the ones that matter, say how to get there.
 [Header end]
 
 [Resources start]
 K[1]: 'characters/crazy eyes/eyes.py'
 [Resources end]
 
+[Keyframes start]
+P[1]: STATE[idle] GAZE[0,0]
+P[2]: STATE[idle] GAZE[-0.85,0]
+P[3]: STATE[idle] GAZE[-0.6,-0.55]
+P[4]: STATE[idle] GAZE[0,-0.8]
+P[5]: STATE[idle] GAZE[0.6,-0.55]
+P[6]: STATE[idle] GAZE[0.85,0]
+P[7]: STATE[idle] GAZE[0.6,0.5]
+P[8]: STATE[idle] GAZE[0,0.75]
+P[9]: STATE[idle] GAZE[-0.6,0.5]
+[Keyframes end]
+
 [Main start]
 LBL[1]
-MATH K[1] STATE[idle] GAZE[0,0] D[0.8]
-MATH K[1] STATE[idle] GAZE[-0.85,0] D[0.7]
-MATH K[1] STATE[idle] GAZE[-0.6,-0.55] D[0.7]
-MATH K[1] STATE[idle] GAZE[0,-0.8] D[0.7]
-MATH K[1] STATE[idle] GAZE[0.6,-0.55] D[0.7]
-MATH K[1] STATE[idle] GAZE[0.85,0] D[0.7]
-MATH K[1] STATE[idle] GAZE[0.6,0.5] D[0.7]
-MATH K[1] STATE[idle] GAZE[0,0.75] D[0.7]
-MATH K[1] STATE[idle] GAZE[-0.6,0.5] D[0.7]
+MOVE K[1] PATH[1,2,3,4,5,6,7,8,9,1] D[9.0] EASE[smooth]
 JMP LBL[1]
 [Main end]

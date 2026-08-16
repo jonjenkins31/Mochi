@@ -150,6 +150,20 @@ AIM = {"left": (-0.85, 0.0), "right": (0.85, 0.0), "up": (0.0, -0.8),
        "downleft": (-0.6, 0.5), "downright": (0.6, 0.5)}
 
 
+def _path_from(params: dict) -> Any:
+    """The app's waypoint interpolator, when the app is running it.
+
+    A pack is CONTENT and does not get to depend on the application —
+    but waypoints only ever arrive from the conductor, so if that import
+    fails there is no path to walk and nothing is lost.
+    """
+    try:
+        from core.tween import path_from
+    except ImportError:
+        return None
+    return path_from(params)
+
+
 def _blur(field: np.ndarray, radius: int) -> np.ndarray:
     """Separable box blur, twice — a cheap gaussian.
 
@@ -398,6 +412,9 @@ class Eyes(Animation):
     def __init__(self, width: int, height: int) -> None:
         super().__init__(int(width), int(height))
         self.left, self.right = Eye(), Eye()
+        #: A MOVE in progress: waypoints, and how long to take.
+        self._path = None
+        self._move_s = 1.0
         self.state = "idle"
         # ── the head: the frame the eyes are mounted in ──
         self.pan = (0.0, 0.0)      # fractions of the frame, not pixels
@@ -423,8 +440,19 @@ class Eyes(Animation):
 
     def on_enter(self, **kwargs: Any) -> None:
         """Preset first, explicit tokens over it — so `STATE[alert]
-        GAZE[-0.5,0]` is an alert eye looking left."""
+        GAZE[-0.5,0]` is an alert eye looking left.
+
+        Called once by the adapter, and then once per frame by
+        `render_into` while a MOVE is running: every field is recomputed
+        from its argument each time, so re-entering with the blended
+        tokens is exactly "set the rig to this pose".
+        """
         params = {str(k).lower(): v for k, v in kwargs.items()}
+        # A path arrives once and must survive the per-frame re-entry
+        # that walks it, so it is only touched when actually supplied.
+        if "waypoints" in params or "path" in params:
+            self._path = _path_from(params)
+            self._move_s = _number(params.get("duration"), 1.0)
 
         def pick(*names, default=None):
             for name in names:
@@ -487,6 +515,11 @@ class Eyes(Animation):
             self.on_enter(state=self.state, **kwargs)
 
     def render_into(self, t: float, frame_rgb: np.ndarray) -> None:
+        if self._path is not None:
+            # Walk the waypoints against the CLIP's own clock. Nothing
+            # can update a running clip from outside, so the whole move
+            # is in here and runs at frame rate.
+            self.on_enter(**self._path.at(t / max(1e-6, self._move_s)))
         height, width = frame_rgb.shape[0], frame_rgb.shape[1]
         frame_rgb[:, :] = self.background
         clock = t * self.speed

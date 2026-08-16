@@ -11,6 +11,16 @@
 K[1]: 'characters/crazy eyes/eyes.py'
 [Resources end]
 
+[Keyframes start]
+! Poses, for the MOVE at the end. Same idea as a robot's position
+! register: name the ones that matter, let the move fill the rest.
+P[1]: STATE[idle] GAZE[0,0]      TILT[0]   COLOR[#51DAF8] DILATE[1.0]
+P[2]: STATE[idle] GAZE[-0.85,0]  TILT[-14] COLOR[#4FC3F7] DILATE[1.1]
+P[3]: STATE[idle] GAZE[0,-0.8]   TILT[0]   COLOR[#7BE3B8] DILATE[0.8]
+P[4]: STATE[idle] GAZE[0.85,0]   TILT[14]  COLOR[#FF6B4A] DILATE[1.3]
+P[5]: STATE[idle] GAZE[0,0]      TILT[0]   COLOR[#51DAF8] DILATE[1.0]
+[Keyframes end]
+
 [Main start]
 MATH K[1] STATE[idle] D[1.2]
 SAY TXT['Right! Eyes! Two of them! I used to be a picture, which was fine, except I could only ever look at exactly one thing forever.']
@@ -89,6 +99,12 @@ SAY TXT['Turn it off and you can see the bare geometry. That is what I actually 
 MATH K[1] STATE[idle] TUNE[iris.rate=0.9;bezel.at=0.55;teeth.count=48] D[2.2]
 SAY TXT['And if none of that is enough, you can reach in and change one ring. Iris spinning nine times faster, bezel pulled in, forty eight teeth instead of twenty four.']
 
+MATH K[1] STATE[idle] BLOOM[0.3] D[1.2]
+SAY TXT['One more thing, and it is the good one. Everything so far was me cutting from pose to pose. Watch what happens when you name the poses instead and let it fill in between.']
+
+MOVE K[1] PATH[1,2,3,4,5] D[7.0] EASE[smooth]
+SAY TXT['That is one command. Five poses, seven seconds, and it is moving the gaze, the tilt, the colour and the pupil all at once, all the way through. Exactly the way a robot moves between position registers — you name the points, it does the path.']
+
 MATH K[1] STATE[idle] BLOOM[0.3] D[1.4]
-SAY TXT['Back to normal. Gaze, blink, dilate, spin, roll, tilt, pan, spacing, size, colour, bloom, and every ring individually — all of it is a token, so anything I can do, you can write down.']
+SAY TXT['Gaze, blink, dilate, spin, roll, tilt, pan, spacing, size, colour, bloom, every ring individually, and now smooth moves between any set of them. All of it is a token, so anything I can do, you can write down.']
 [Main end]

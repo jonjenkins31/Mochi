@@ -2977,14 +2977,29 @@ def test_the_eyes_pack_and_its_tour_agree_with_the_rig():
 
     scene = scenes.load(ROOT / "characters/crazy eyes/mscripts/tour.mscript")
     clips = [step for step in scene.steps if step.kind == "clip"]
-    assert clips and all(step.params.get("STATE") for step in clips), (
-        "a clip line without STATE would reset the rig")
+    assert clips
+
+    # A plain clip line must be COMPLETE — each opens a new clip, so a
+    # line without STATE silently loses the pose. A MOVE is the
+    # exception and not a loophole: its state lives in the waypoints,
+    # so every waypoint has to carry one instead.
+    import json
 
     tokens = set()
     for step in clips:
         tokens |= set(step.params)
+        if "waypoints" in step.params:
+            stops = json.loads(step.params["waypoints"])
+            assert stops, "a MOVE with no waypoints goes nowhere"
+            for stop in stops:
+                assert stop.get("STATE"), f"waypoint {stop} has no STATE"
+            tokens |= {key for stop in stops for key in stop}
+        else:
+            assert step.params.get("STATE"), (
+                f"{step.params} has no STATE — it would reset the rig")
     for control in ("LOOK", "GAZE", "TILT", "PAN", "SPACING", "SIZE",
-                    "ROLL", "COLOR", "BLOOM", "LAYERS", "TUNE", "WINK"):
+                    "ROLL", "COLOR", "BLOOM", "LAYERS", "TUNE", "WINK",
+                    "PATH"):
         assert control in tokens, f"the tour never demonstrates {control}"
 
 
@@ -3028,3 +3043,87 @@ def test_the_panel_can_run_scripts_beside_the_character(monkeypatch):
         assert not face.held, "the script did not give the face back"
     finally:
         window.shutdown(); face.close(); app.shutdown()
+
+
+def test_move_interpolates_between_waypoints():
+    """`MOVE` is a motion statement: name the poses, and the path
+    between them is filled in — which is the difference between a
+    character that looks around and one that teleports its eyes."""
+    import json
+    from core import scenes, tween
+
+    scene = scenes.load(ROOT / "characters/crazy eyes/mscripts/look_around.mscript")
+    moves = [s for s in scene.steps if s.kind == "clip" and "waypoints" in (s.params or {})]
+    assert moves, "the script has no MOVE"
+    stops = json.loads(moves[0].params["waypoints"])
+    assert len(stops) > 2, "a path of two is a fade, not a tour"
+
+    path = tween.Path(stops, moves[0].params["ease"])
+    seen = [path.at(i / 24)["GAZE"] for i in range(25)]
+    # Consecutive samples must be CLOSE — that is the whole claim.
+    def gap(a, b):
+        ax, ay = (float(v) for v in a.split(","))
+        bx, by = (float(v) for v in b.split(","))
+        return ((ax - bx) ** 2 + (ay - by) ** 2) ** 0.5
+    steps = [gap(a, b) for a, b in zip(seen, seen[1:])]
+    assert max(steps) < 0.5, f"the gaze jumps: {max(steps):.2f}"
+    assert len(set(seen)) > 15, "it barely moved"
+
+
+def test_what_blends_and_what_snaps():
+    """Half of a word is nothing. Numbers, colours and pairs are on a
+    line between two values; `STATE[alert]` is not, so it changes at the
+    midpoint rather than smearing."""
+    from core import tween
+
+    assert tween.blend("0", "10", 0.25) == 2.5
+    assert tween.blend("#000000", "#FFFFFF", 0.5) == "#808080"
+    assert tween.blend("0,0", "1,-1", 0.5) == "0.5000,-0.5000"
+    assert tween.blend("idle", "alert", 0.49) == "idle"
+    assert tween.blend("idle", "alert", 0.51) == "alert"
+
+    # A token only one end mentions still survives the move.
+    path = tween.Path([{"A": "0"}, {"A": "10", "B": "hello"}], "linear")
+    assert path.at(0.5) == {"A": 5.0, "B": "hello"}
+
+    # One waypoint is a constant, not a crash.
+    assert tween.Path([{"A": "3"}]).at(0.9) == {"A": "3"}
+    assert tween.Path([]).at(0.5) == {}
+
+    # `fine` stops dead, `smooth` rounds — they must differ mid-segment.
+    stops = [{"A": "0"}, {"A": "1"}]
+    assert tween.Path(stops, "fine").at(0.25)["A"] != \
+        tween.Path(stops, "smooth").at(0.25)["A"]
+
+
+def test_a_math_scene_walks_its_own_path():
+    """The scene tweens, not the conductor — nothing can update a
+    running clip, so a conductor doing it would restart the clip on
+    every frame and reset its clock."""
+    import importlib.util
+    import json
+    import numpy as np
+    from core import scenes
+
+    module = _eyes_module()
+    move = [s for s in scenes.load(
+        ROOT / "characters/crazy eyes/mscripts/look_around.mscript").steps
+        if s.kind == "clip"][0]
+
+    scene = module.Eyes(200, 140)
+    scene.on_enter(**{k.lower(): v for k, v in move.params.items()})
+    assert scene._path is not None and len(scene._path) > 2
+
+    aimed = []
+    for i in range(9):
+        buffer = np.zeros((140, 200, 3), dtype=np.uint8)
+        scene.render_into(i * 9.0 / 8, buffer)
+        aimed.append(scene.left.gaze)
+    # It really swept: the gaze visited both sides and both ends.
+    assert min(g[0] for g in aimed) < -0.4 and max(g[0] for g in aimed) > 0.4
+    assert min(g[1] for g in aimed) < -0.4 and max(g[1] for g in aimed) > 0.4
+
+    # And a clip with no path is untouched by any of this.
+    plain = module.Eyes(200, 140)
+    plain.on_enter(state="idle")
+    assert plain._path is None

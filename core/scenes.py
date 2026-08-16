@@ -52,6 +52,8 @@ long as a person takes to think.
 
 from __future__ import annotations
 
+import json
+
 import threading
 import time
 import pathlib
@@ -62,6 +64,7 @@ from jaeger_os import topics
 
 from core import expressive
 from modules import jaeger_agent as mind
+from core import tween
 from modules import jaeger_animation as animation
 from modules import jaeger_kokoro_tts as tts
 from modules import jaeger_whisper_stt as stt
@@ -171,6 +174,7 @@ def load(path: Any) -> Scene:
         if line.strip().startswith("!"))
 
     resources = _resources(sections.get("resources", []))
+    keyframes = tween.parse_waypoints(sections.get("keyframes", []))
     steps: list[Step] = []
     for parsed in parse_steps(sections.get("main", [])):
         command, args = parsed.command, parsed.args
@@ -186,6 +190,20 @@ def load(path: Any) -> Scene:
         elif command == "ASK":
             steps.append(Step("ask", _quoted(args.get("TXT", "")),
                               hold or 25.0))
+        elif command == "MOVE":
+            # A motion statement: go along these waypoints, over this
+            # long, with this corner rounding. The path is resolved HERE
+            # and carried in the clip, because nothing can update a clip
+            # once it is running — see core/tween.py.
+            names = [n.strip() for n in
+                     str(args.get("PATH", "")).split(",") if n.strip()]
+            stops = [keyframes[n] for n in names if n in keyframes]
+            params = dict(args)
+            params["waypoints"] = json.dumps(stops)
+            params["ease"] = str(args.get("EASE", "smooth"))
+            params["duration"] = hold or 1.0
+            steps.append(Step("clip", str(args.get("K", "")), hold,
+                              command="MATH", params=params))
         elif command in CLIP_COMMANDS:
             # The ENGINE's own vocabulary — MATH, IMAGE, SPRITE, BITMAP,
             # MEDIA — kept rather than replaced. A face IS a sprite or an

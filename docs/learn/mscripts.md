@@ -26,6 +26,10 @@ SAY TXT['This is what I look like while I am thinking.']
 
 `Header` · `Resources` · `Main` · `Keyframes` · `Track_<name>`
 
+`Keyframes` holds named poses — `P[1]: TOKEN[value] …` — for `MOVE` to
+walk between. Same shape as `Resources`, because a keyframe is another
+named thing referred to by number.
+
 The list is **closed**. An unknown section is an error in both readers,
 and always was — this is not a format where you can invent a heading.
 
@@ -73,6 +77,41 @@ commands: `FIT`, `LOOP`, `SPD`, `BG`, `FG`, `SRC`.
 **A clip command is a complete instruction.** Each one opens a new
 clip, so a line carrying only `COLOR` loses the state — repeat the
 tokens you want kept.
+
+### Motion — waypoints between poses
+
+A robot program does not list every position it passes through. It
+names the ones that matter and says how to get between them, and
+`MOVE` is that for a math scene's parameters.
+
+```
+[Keyframes start]
+P[1]: STATE[idle] GAZE[0,0]     TILT[0]
+P[2]: STATE[idle] GAZE[-0.85,0] TILT[-14]
+P[3]: STATE[idle] GAZE[0.85,0]  TILT[14]
+[Keyframes end]
+
+[Main start]
+MOVE K[1] PATH[1,2,3] D[6.0] EASE[smooth]
+[Main end]
+```
+
+| Token | Means |
+|---|---|
+| `PATH[1,2,3]` | the waypoints, in order. Repeat one to return to it |
+| `D[s]` | how long the whole move takes |
+| `EASE[…]` | `fine` / `linear` stop dead on each point; `smooth` / `cnt` round the corner; also `in`, `out` |
+
+Numbers, `#RRGGBB` colours and `x,y` pairs **interpolate**. Anything
+else is a word — `STATE[alert]`, `LAYERS[bezel,pupil]` — and half of a
+word is nothing, so it changes at the midpoint.
+
+**The scene walks the path, not the conductor.** No topic can update a
+clip once it is running, so the whole path rides in the clip's params
+and is stepped against the clip's own clock — at frame rate, rather
+than at whatever rate a script could republish. A scene opts in by
+calling `core.tween.path_from()` in `on_enter`; one that does not just
+sits on the first waypoint.
 
 ### Character commands
 
@@ -122,6 +161,7 @@ cannot hang the display.
 | Interpreter (`[Main]`, asset commands) | JaegerAnimation `procedural/mscript_engine.py` |
 | Command → adapter binding | JaegerAnimation `adapters/mscript_adapter.py` |
 | Conductor (`SAY`/`LISTEN`/`ASK` + clips) | Mochi [`core/scenes.py`](../../core/scenes.py) |
+| Waypoint interpolation (`MOVE`) | Mochi [`core/tween.py`](../../core/tween.py) |
 | Track compiler (`[Track_*]` → Timeline) | Mochi [`core/staging.py`](../../core/staging.py) |
 | Editor (text + nodes) | Mochi [`interfaces/mscript_editor.py`](../../interfaces/mscript_editor.py) |
 | Runner | Mochi [`interfaces/scripts.py`](../../interfaces/scripts.py) — the **Scripts** tab |
@@ -145,6 +185,8 @@ which is the point of it: anything you can see, you can write down.
 - Mochi-specific, inspired by Fanuc robotics motion programs.
 - `LBL` / `JMP` were specified in v2.0 and implemented in the engine on
   2026-08-09. Scripts written before then still run identically.
+- `[Keyframes]` was declared from the start and unimplemented until
+  2026-08-15, when `MOVE` gave it something to hold.
 - The conductor learned the **asset commands** on 2026-08-15. Before
   that it only understood `FACE`, so a script that was pure animation
   could not be run as a performance — and "face" was the wrong word for
