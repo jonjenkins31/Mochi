@@ -1,0 +1,19 @@
+[Header start]
+! The mouth demo that only works because the level is real.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/eve/eve.py'
+[Resources end]
+
+[Main start]
+MATH K[1] STATE[curious] D[1.2]
+SAY TXT['Watch my mouth while I say this, and then watch it while you say something back.']
+MATH K[1] STATE[happy] D[1.6]
+SAY TXT['It is not on a timer. It is reading how loud the audio is, right now, and the middle segments move most because that is where a mouth opens.']
+MATH K[1] STATE[scanning] D[0.3]
+LISTEN D[12]
+MATH K[1] STATE[curious] D[1.6]
+SAY TXT['Yours went through the ears rather than the speakers, so I heard it instead of drawing it. Two different signals, one face.']
+MATH K[1] STATE[happy] D[2.0]
+[Main end]

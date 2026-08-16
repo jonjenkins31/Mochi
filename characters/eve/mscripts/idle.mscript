@@ -1,11 +1,22 @@
 [Header start]
-! Eve idle
+! EVE, awake. Eyes level, mouth resting, an occasional blink and a
+! glance. The mouth still moves if anything is being said, because it
+! is reading the voice and not this script.
 [Header end]
 
 [Resources start]
-K[1]: 'characters/eve/assets/eve.png'
+K[1]: 'characters/eve/eve.py'
 [Resources end]
 
 [Main start]
-IMAGE K[1] D[5.0]
+LBL[1]
+MATH K[1] STATE[idle] D[3.4]
+MATH K[1] STATE[idle] LOOK[left] D[1.6]
+MATH K[1] STATE[idle] BLINK[1.0] D[0.12]
+MATH K[1] STATE[idle] D[2.2]
+MATH K[1] STATE[curious] D[2.0]
+MATH K[1] STATE[idle] LOOK[right] D[1.6]
+MATH K[1] STATE[idle] BLINK[1.0] D[0.12]
+MATH K[1] STATE[idle] D[3.0]
+JMP LBL[1]
 [Main end]

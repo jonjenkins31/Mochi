@@ -7,31 +7,33 @@ author: "Unknown"
 license: "Unspecified"
 description: "A still Eve character image."
 
-kind: clip_set
+kind: procedural
 
-assets:
-  primary:
-    file: assets/eve.png
-    type: image
-    adapter: image
-
-default_asset: primary
 
 motion_scripts:
   root: mscripts
   default: mscripts/idle.mscript
 
 render:
-  adapter: image
-  asset: assets/eve.png
+  adapter: math
+  asset: eve.py
   ideal_size: [768, 480]
   framing: fit
   scaling: smooth
 
 expressions:
-  idle: {clips: assets/eve.png, loop: false}
+  idle:     {params: {state: idle},     loop: true}
+  happy:    {params: {state: happy},    loop: true}
+  sad:      {params: {state: sad},      loop: true}
+  angry:    {params: {state: angry},    loop: true}
+  curious:  {params: {state: curious},  loop: true}
+  scanning: {params: {state: scanning}, loop: true}
+  speaking: {params: {state: speaking}, loop: true}
+  sleeping: {params: {state: sleeping}, loop: true}
 
 default_expression: idle
+card: card.png
+
 default_mouth: ""
 
 # ── the speaking half ─────────────────────────────────────────

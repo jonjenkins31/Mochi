@@ -3561,3 +3561,122 @@ def test_speech_amplitude_reaches_a_running_clip(monkeypatch):
     finally:
         animation.stop(app.bus)
         app.shutdown()
+
+
+def _eve_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_eve_face", ROOT / "characters/eve/eve.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_eve_has_two_rigs_and_the_mouth_is_the_new_one():
+    """Fourth math character, first with a mouth. Two rigs: the eyes,
+    whose range is almost entirely TILT, and the mouth, which is a row
+    of light segments reading the live voice."""
+    import numpy as np
+
+    module = _eve_module()
+    W, H = 384, 240
+
+    def run(levels, **tokens):
+        scene = module.Eve(W, H)
+        scene.on_enter(**tokens)
+        buffer = np.zeros((H, W, 3), dtype=np.uint8)
+        for index, level in enumerate(levels):
+            scene.amplitude_param = level
+            scene.render_into(index * 0.06, buffer)
+        return scene, buffer
+
+    radius = min(W, H) * module.EYE_R * 1.6
+    band = int(H * module.EYE_Y + radius * 2.3)
+
+    def mouth_px(buffer):
+        return int((buffer[max(0, band - 24):band + 24].sum(axis=2) > 150).sum())
+
+    # THE MOUTH READS THE VOICE, and decays instead of snapping.
+    quiet = mouth_px(run([0.0] * 12)[1])
+    loud = mouth_px(run([0.0] * 4 + [0.85] * 8)[1])
+    assert loud > quiet * 1.25, f"the mouth ignored the voice: {quiet}->{loud}"
+    scene, _ = run([0.9] * 6)
+    falling = []
+    frame = np.zeros((H, W, 3), dtype=np.uint8)
+    for step in range(6):
+        scene.amplitude_param = 0.0
+        scene.render_into(1.0 + step * 0.06, frame)
+        falling.append(float(scene.mouth.values.mean()))
+    assert falling == sorted(falling, reverse=True), falling
+
+    # A SHAPE is the resting profile; the voice modulates it. So a
+    # smile that talks is still a smile.
+    smile, _ = run([0.0] * 10, mouth="smile", open="0.6")
+    profile = smile.mouth.values
+    middle = len(profile) // 2
+    assert profile[middle] > profile[0] * 1.5, f"smile is flat: {profile}"
+    talking, _ = run([0.0] * 4 + [0.8] * 8, mouth="smile", open="0.6")
+    live = talking.mouth.values
+    assert live[middle] > live[0] * 1.5, "it stopped being a smile to speak"
+    assert live.mean() > profile.mean(), "it did not open"
+    # Every shape is distinct.
+    seen = {name: tuple(round(float(v), 2) for v in
+                        run([0.0] * 10, mouth=name, open="0.6")[0].mouth.values)
+            for name in module.SHAPES}
+    assert len(set(seen.values())) == len(module.SHAPES), seen
+
+    # THE EYE RIG: tilt is the control, and it must MIRROR — two eyes
+    # leaning the same way is a head tilt, not an expression.
+    def slope(tilt):
+        _, buffer = run([0.0] * 4, tilt=tilt, layers="eyes")
+        rows, cols = np.nonzero(buffer.sum(axis=2) > 150)
+        left = cols < W / 2
+        mid = cols[left].mean()
+        inner = rows[left & (cols > mid)].mean()
+        outer = rows[left & (cols < mid)].mean()
+        return inner - outer
+
+    assert slope("-26") < -3, "a glare does not angle inward"
+    assert slope("16") > 3, "worry does not angle outward"
+    assert abs(slope("0")) < 1, "level eyes are not level"
+
+    # Layers are separable — except `texture`, which MULTIPLIES what
+    # is already there rather than adding to it. Alone it has nothing
+    # to modulate and is correctly black, so it is checked as the
+    # modifier it is.
+    for layer in ("halo", "eyes", "mouth"):
+        _, buffer = run([0.0] * 4, layers=layer)
+        assert buffer.sum() > 0, f"{layer} drew nothing"
+    plain = run([0.0] * 4, texture="0")[1].astype(int)
+    striped = run([0.0] * 4, texture="1")[1].astype(int)
+    assert np.abs(plain - striped).mean() > 1.0, "the texture does nothing"
+    # It DARKENS alternate rows rather than adding light.
+    assert striped.sum() < plain.sum(), "the texture brightened the panel"
+    lit = {name: int((run([0.0] * 8, state=name)[1].sum(axis=2) > 150).sum())
+           for name in module.STATES}
+    assert lit["sleeping"] < lit["idle"] / 3, lit
+    assert len(set(lit.values())) >= 6, lit
+
+
+def test_eve_is_a_pack_like_the_rest():
+    from core import scenes
+    from modules import jaeger_animation as animation
+
+    character = animation.load("eve")
+    assert character.kind == "procedural" and character.adapter == "math"
+    module = _eve_module()
+    for state in module.STATES:
+        assert state in character.expressions, state
+    # The art it was measured against stays in the pack.
+    assert (pathlib.Path(character.root) / "assets/eve.png").is_file()
+
+    names = {s.name for s in scenes.available(character)}
+    assert {"idle", "tour", "say something"} <= names, names
+    tour = next(s for s in scenes.available(character) if s.name == "tour")
+    tokens = set()
+    for step in tour.steps:
+        if step.kind == "clip":
+            tokens |= set(step.params or {})
+    for control in ("TILT", "MOUTH", "OPEN", "LEVEL", "LAYERS", "PATH"):
+        assert control in tokens, f"the tour never shows {control}"

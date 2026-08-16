@@ -1,0 +1,77 @@
+[Header start]
+! EVE explains her face. Fourth math character, first one with a mouth.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/eve/eve.py'
+[Resources end]
+
+[Keyframes start]
+P[1]: STATE[idle] TILT[0]   OPEN[0.40] MOUTH[line]  SPACING[1.00] SIZE[1.00] GLOW[1.0]
+P[2]: STATE[idle] TILT[-26] OPEN[0.30] MOUTH[line]  SPACING[0.85] SIZE[1.05] GLOW[1.4]
+P[3]: STATE[idle] TILT[16]  OPEN[0.35] MOUTH[frown] SPACING[1.10] SIZE[0.95] GLOW[0.9]
+P[4]: STATE[idle] TILT[-7]  OPEN[0.55] MOUTH[smile] SPACING[1.00] SIZE[1.00] GLOW[1.2]
+P[5]: STATE[idle] TILT[0]   OPEN[0.40] MOUTH[line]  SPACING[1.00] SIZE[1.00] GLOW[1.0]
+[Keyframes end]
+
+[Main start]
+MATH K[1] STATE[idle] D[1.4]
+SAY TXT['I am a lit panel with three things on it. Let me take them apart.']
+
+MATH K[1] STATE[idle] LAYERS[halo] D[1.8]
+SAY TXT['A large circle behind everything, glowing outward. That is what makes this a screen with something behind it rather than shapes in a void.']
+
+MATH K[1] STATE[idle] LAYERS[halo,texture] D[1.8]
+SAY TXT['A texture layer over the glass. Scanlines. Very slight, and the whole thing reads as hardware because of it.']
+
+MATH K[1] STATE[idle] LAYERS[halo,texture,eyes] D[1.8]
+SAY TXT['The eyes. Each one is a main circle with its own inner gradient, so there is a brighter middle.']
+
+MATH K[1] STATE[idle] D[2.0]
+SAY TXT['And the mouth. A row of light segments, and this is the new part — nothing else in this project has one.']
+
+MATH K[1] STATE[idle] LAYERS[mouth] D[2.2]
+SAY TXT['That is the mouth on its own. Thirteen segments, each with its own height.']
+
+MATH K[1] STATE[idle] TILT[-26] D[2.0]
+SAY TXT['Now the control that matters. This is tilt, and it is almost my entire range. Angled inward is a glare.']
+
+MATH K[1] STATE[idle] TILT[16] D[2.0]
+SAY TXT['Angled outward is worry. Same eyes. Same size, same colour. One number.']
+
+MATH K[1] STATE[happy] D[2.0]
+SAY TXT['Happy is a small inward tilt, a squint, and a smile.']
+
+MATH K[1] STATE[sad] D[2.0]
+SAY TXT['Sad tilts the other way and looks down.']
+
+MATH K[1] STATE[angry] D[2.0]
+SAY TXT['And angry is the full glare with a flat mouth.']
+
+MATH K[1] STATE[idle] MOUTH[o] OPEN[0.7] D[1.8]
+SAY TXT['The mouth has shapes of its own. That is an o.']
+
+MATH K[1] STATE[idle] MOUTH[wave] OPEN[0.6] D[1.8]
+SAY TXT['A wave.']
+
+MATH K[1] STATE[idle] MOUTH[smile] OPEN[0.6] LEVEL[0.85] D[2.6]
+SAY TXT['And here is the thing I like. A shape is the RESTING profile and the voice modulates it, so a smile that is talking is still a smile. It does not stop being one to speak.']
+
+MATH K[1] STATE[idle] MOUTH[line] LEVEL[0.85] D[2.2]
+SAY TXT['The middle moves most, because that is where a mouth opens. If every segment pumped together I would be a graphic equaliser.']
+
+MATH K[1] STATE[idle] D[2.4]
+SAY TXT['That level is real. When the speakers are running, the mouth is reading the audio amplitude, the same signal Halo reads. I am not miming.']
+
+MATH K[1] STATE[scanning] D[2.4]
+SAY TXT['Scanning, with a line travelling down the glass.']
+
+MATH K[1] STATE[sleeping] D[2.2]
+SAY TXT['And asleep. Lids nearly shut, mouth almost closed, everything dimmed.']
+
+MATH K[1] STATE[idle] D[1.2]
+SAY TXT['Watch them all move together.']
+
+MOVE K[1] PATH[1,2,3,4,5] D[10.0] HOLD[0.5] EASE[smooth]
+SAY TXT['Tilt, mouth shape, opening, spacing, size and glow, all travelling at once. Two rigs — one for the eyes and one for the mouth — and every part of both is a token.']
+[Main end]
