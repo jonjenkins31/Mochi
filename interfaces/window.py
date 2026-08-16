@@ -109,6 +109,7 @@ class MochiWindow:
         # keep working with this window shut, which is the normal case.
         from core.agent_face import AgentFace
         self.agent_face = AgentFace(app, lambda: self.face.character)
+        self.window_manager.face = self.agent_face
         manager = self.window_manager
         self.window_manager.menu = (
             ("Operator window", "Ctrl+1", self.open_operator),

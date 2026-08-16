@@ -46,6 +46,10 @@ from .character_view import CharacterView
 #: wraps and below this lies about which switches are available.
 PANEL_W = 660
 
+#: Panes that PERFORM, and so have to be able to take the face from the
+#: agent while they do. Everything else is a view.
+NEEDS_FACE = frozenset({"scripts"})
+
 #: Icon colours: lit when the switch is on, dim when it is off.
 ON, OFF = "#43E08A", "#7C8A81"
 
@@ -86,16 +90,18 @@ def _icon(kind: str, colour: str, *, crossed: bool) -> QtGui.QIcon:
 def _panes() -> dict[str, Any]:
     """name -> factory(app, qt, character_of).
 
-    Both take the same three arguments, which is what a registry is
-    for. Imported here and not at module scope: a pane that fails to
-    import should break that pane, not the window.
+    All three take the same arguments, which is what a registry is for.
+    Imported here and not at module scope: a pane that fails to import
+    should break that pane, not the window.
     """
     from .chat import ChatTab
     from .game_pane import GamePane
+    from .scripts import ScriptsTab
 
     return {
         "chat": ChatTab,
         "game": GamePane,
+        "scripts": ScriptsTab,
     }
 
 
@@ -103,7 +109,7 @@ class AvatarWindow(QtWidgets.QWidget):
     """The character, with an interactive panel that slides out beside it."""
 
     def __init__(self, app: Any, *, character_of: Any = None,
-                 windows: Any = ()) -> None:
+                 windows: Any = (), face: Any = None) -> None:
         """`windows` is (label, shortcut, callback) per File-menu entry.
 
         Passed in rather than looked up: this window is the front door
@@ -113,6 +119,10 @@ class AvatarWindow(QtWidgets.QWidget):
         super().__init__()
         self.app = app
         self.character_of = character_of
+        #: The agent's own face driver. A pane that performs — running a
+        #: script does — has to be able to take it, or the mind repaints
+        #: over the performance.
+        self.face = face
         self._built: dict[str, Any] = {}
         #: Width with the panel shut, so closing it gives that back.
         self._narrow = 0
@@ -356,8 +366,11 @@ class AvatarWindow(QtWidgets.QWidget):
         """Select a pane, building it the first time it is asked for."""
         pane = self._built.get(name)
         if pane is None:
-            pane = self._classes[name](
-                self.app, (QtCore, QtGui, QtWidgets), self.character_of)
+            factory = self._classes[name]
+            args = [self.app, (QtCore, QtGui, QtWidgets), self.character_of]
+            if name in NEEDS_FACE:
+                args.append(self.face)
+            pane = factory(*args)
             self._built[name] = pane
             self.stack.addWidget(pane.widget)
             if name == "chat":

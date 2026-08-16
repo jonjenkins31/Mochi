@@ -2986,3 +2986,45 @@ def test_the_eyes_pack_and_its_tour_agree_with_the_rig():
     for control in ("LOOK", "GAZE", "TILT", "PAN", "SPACING", "SIZE",
                     "ROLL", "COLOR", "BLOOM", "LAYERS", "TUNE", "WINK"):
         assert control in tokens, f"the tour never demonstrates {control}"
+
+
+def test_the_panel_can_run_scripts_beside_the_character(monkeypatch):
+    """A script is something the character DOES with you, so it belongs
+    in the interactive panel next to chat and the game — not only on a
+    tab in the operator window, which is shut by default.
+
+    The pane has to take the face while it performs, or the mind
+    repaints over a line about what searching looks like.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from jaeger_os import JaegerApp
+    from interfaces.avatar_window import AvatarWindow, NEEDS_FACE
+    from interfaces.scripts import ScriptsTab
+    from core.agent_face import AgentFace
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = JaegerApp(ROOT / "sim.toml")
+    app.boot()
+    from modules import jaeger_animation as animation
+    character = animation.load("orbs")
+    face = AgentFace(app, lambda: character)
+    window = AvatarWindow(app, character_of=lambda: character, face=face)
+    try:
+        assert list(window._classes) == ["chat", "game", "scripts"]
+        assert "scripts" in NEEDS_FACE
+
+        pane = window.show_pane("scripts")
+        assert isinstance(pane, ScriptsTab)
+        assert pane.face is face, "the pane cannot hold a face it was not given"
+
+        names = [pane.list.item(i).text() for i in range(pane.list.count())]
+        assert "tour" in names, names
+
+        pane.list.setCurrentRow(names.index("tour"))
+        pane.run()
+        assert face.held, "the script did not take the face"
+        pane.stop()
+        assert not face.held, "the script did not give the face back"
+    finally:
+        window.shutdown(); face.close(); app.shutdown()
