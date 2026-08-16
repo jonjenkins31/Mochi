@@ -87,7 +87,7 @@ class VoiceTab:
         self.voice.currentTextChanged.connect(self._voice_chosen)
         picker.addWidget(self.voice)
         self.voice_note = QtWidgets.QLabel()
-        self.voice_note.setStyleSheet("color:#6a6a78;")
+        self.voice_note.setObjectName("Dim")
         self.voice_note.setWordWrap(True)
         picker.addWidget(self.voice_note, 1)
         layout.addLayout(picker)
@@ -122,7 +122,7 @@ class VoiceTab:
         layout.addWidget(self.log, 1)
 
         self.status = QtWidgets.QLabel("speaker: idle")
-        self.status.setStyleSheet("color:#6a6a78;")
+        self.status.setObjectName("Dim")
         layout.addWidget(self.status)
 
         # Say so up front rather than leaving an empty log to interpret.

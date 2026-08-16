@@ -265,7 +265,7 @@ class LegacyWindowsTab:
             if specs else
             "No archived generation is present. Every window they held has a "
             "tab above — the editors live in Characters and MScript Editor.")
-        note.setWordWrap(True); note.setStyleSheet("color:#8a8a98;")
+        note.setWordWrap(True); note.setObjectName("Dim")
         outer.addWidget(note)
 
         self.table = QtWidgets_.QTableWidget()

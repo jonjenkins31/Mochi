@@ -154,7 +154,7 @@ class StageTab:
         middle.addWidget(self.screen, 1)
 
         self.status = QtWidgets.QLabel("idle")
-        self.status.setStyleSheet("color:#8aaad0;")
+        self.status.setObjectName("Dim")
         middle.addWidget(self.status)
 
         row = QtWidgets.QHBoxLayout()
@@ -207,7 +207,7 @@ class StageTab:
             self.trigger_layout.addWidget(button)
         if not self.scenes:
             note = QtWidgets.QLabel("no scenes.py in this pack")
-            note.setStyleSheet("color:#6a6a78;")
+            note.setObjectName("Dim")
             self.trigger_layout.addWidget(note)
 
         while self.scene_layout.count():

@@ -164,7 +164,7 @@ class FaceTab:
         back_btn.clicked.connect(self.back_to_character)
 
         self.status = QtWidgets.QLabel("")
-        self.status.setStyleSheet("color:#6a6a78;")
+        self.status.setObjectName("Dim")
 
         row = QtWidgets.QHBoxLayout()
         for w in (QtWidgets.QLabel("pack:"), self.pack_box,

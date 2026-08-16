@@ -3334,3 +3334,88 @@ def test_hal_off_is_quoted_because_yaml_reads_it_as_false():
     module = _hal_module()
     for state in module.STATES:
         assert state in character.expressions, state
+
+
+def test_every_theme_colour_pair_is_readable():
+    """The readability bug was thirty greys picked by eye. Every pair
+    is measured now, against WCAG AA — 4.5:1 for text you read, 3:1 for
+    secondary and large.
+
+    Includes text ON THE ACCENT, which is what a selected list row and
+    a checked button are, and which failed at 3.3:1 before the dark
+    accent took dark ink instead of white.
+    """
+    from interfaces.theme import PALETTES, contrast
+
+    checks = (("ink", "canvas", 4.5), ("ink", "panel", 4.5),
+              ("ink", "sunken", 4.5), ("dim", "canvas", 4.5),
+              ("dim", "panel", 4.5), ("hint", "canvas", 3.0),
+              ("hint", "panel", 3.0), ("accent_ink", "accent", 4.5),
+              ("ok", "canvas", 3.0), ("warn", "canvas", 3.0),
+              ("bad", "canvas", 3.0))
+    for mode, colours in PALETTES.items():
+        for ink, background, need in checks:
+            ratio = contrast(colours[ink], colours[background])
+            assert ratio >= need, (
+                f"{mode} {ink} on {background} is {ratio:.2f}:1, needs {need}")
+
+    # Both modes name the same roles, or a call site works in one only.
+    assert set(PALETTES["dark"]) == set(PALETTES["light"])
+
+    # The grey that started this: it was under AA on the old canvas.
+    assert contrast("#777784", "#101014") < 4.5
+
+
+def test_the_theme_dresses_the_application_not_one_widget(monkeypatch):
+    """A dialog or a popup has no parent widget to inherit from, so a
+    stylesheet on the tab widget left every other window on Qt's
+    defaults — which is where dark-on-dark came from."""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from jaeger_os import JaegerApp
+    from interfaces import theme
+    from interfaces.window import MochiWindow
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = JaegerApp(ROOT / "sim.toml")
+    app.boot()
+    window = MochiWindow(app)
+    try:
+        assert window.theme == "dark"
+        assert len(qt_app.styleSheet()) > 500, "the app itself is undressed"
+        assert theme.palette("dark")["canvas"] in qt_app.styleSheet()
+
+        # Switching repaints everything, because everything inherits.
+        assert window.set_theme("light") == "light"
+        assert theme.palette("light")["canvas"] in qt_app.styleSheet()
+        assert theme.palette("dark")["canvas"] not in qt_app.styleSheet()
+        # And it is remembered.
+        assert app.config["player"]["theme"] == "light"
+        assert window.toggle_theme() == "dark"
+
+        # Nonsense falls back rather than blanking the app.
+        assert window.set_theme("chartreuse") == theme.DEFAULT
+    finally:
+        window.close(); app.shutdown()
+        theme.apply(qt_app, theme.DEFAULT)
+
+
+def test_secondary_text_is_a_role_not_a_hex():
+    """`setStyleSheet("color:#777784")` cannot follow a theme — it is
+    the same grey in light mode, where it is invisible. Secondary text
+    is `setObjectName("Dim")` and styled once."""
+    import re
+
+    # The tabs that paint their own surface on purpose are exempt: the
+    # avatar window, the character view, the cards and the TUI chat are
+    # deliberate designs, not app chrome.
+    painted = {"theme.py", "cast.py", "chat.py", "avatar_window.py",
+               "character_view.py", "character_cards.py"}
+    offenders = []
+    for path in sorted((ROOT / "interfaces").glob("*.py")):
+        if path.name in painted:
+            continue
+        for line, text in enumerate(path.read_text().splitlines(), 1):
+            if re.search(r'setStyleSheet\(\s*"color:\s*#', text):
+                offenders.append(f"{path.name}:{line}")
+    assert not offenders, f"hardcoded text colours: {offenders}"

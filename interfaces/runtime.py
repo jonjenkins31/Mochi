@@ -126,7 +126,7 @@ class RuntimeTab:
 
         self.status = QtWidgets.QLabel(
             "Commands use the same /act/display/play path as character preview.")
-        self.status.setStyleSheet("color:#777784;")
+        self.status.setObjectName("Dim")
         root.addWidget(self.status)
 
         self.bus.subscribe(topics.ACT_DISPLAY_STATS, self._on_stats)
@@ -147,7 +147,7 @@ class RuntimeTab:
 
         for column, title in enumerate(("Node", "Backend", "State", "Uptime", "Restarts")):
             head = QtWidgets.QLabel(title)
-            head.setStyleSheet("color:#777784;")
+            head.setObjectName("Dim")
             grid.addWidget(head, 0, column)
 
         for row, entry in enumerate(self._ls(), start=1):
@@ -173,7 +173,7 @@ class RuntimeTab:
             "Starting a node opens its device or loads its model, so a switch "
             "can take seconds. A node stopped here stays stopped."
             if self._rows else "No supervisor: nothing to switch.")
-        self.node_status.setStyleSheet("color:#777784;")
+        self.node_status.setObjectName("Dim")
         grid.addWidget(self.node_status, len(self._rows) + 1, 0, 1, 7)
         return box
 

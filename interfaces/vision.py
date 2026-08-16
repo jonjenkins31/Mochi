@@ -94,14 +94,14 @@ class VisionTab:
         bar.addWidget(self.capture_button)
         bar.addStretch(1)
         self.status = QtWidgets.QLabel()
-        self.status.setStyleSheet("color:#6a6a78;")
+        self.status.setObjectName("Dim")
         bar.addWidget(self.status)
         layout.addLayout(bar)
 
         self.preview = QtWidgets.QLabel()
         self.preview.setAlignment(QtCore.Qt.AlignCenter)
         self.preview.setMinimumSize(320, 240)
-        self.preview.setStyleSheet("background:#000; border:1px solid #33333f;")
+        self.preview.setObjectName("Screen")
         self.preview.setText("eyes off")
         layout.addWidget(self.preview, 1)
 

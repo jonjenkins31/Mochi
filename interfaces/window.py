@@ -22,31 +22,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
-_STYLE = """
-QWidget { background:#101014; color:#c8c8d0; font-size:12px; }
-QPushButton { background:#1e1e26; border:1px solid #33333f;
-              border-radius:4px; padding:5px 10px; }
-QPushButton:hover { background:#2a2a34; }
-QPushButton:checked { background:#3a5a8a; border-color:#4a7ab0; }
-QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox {
-                       background:#1e1e26; border:1px solid #33333f;
-                       border-radius:4px; padding:4px 8px; }
-QPlainTextEdit { background:#0b0b0e; border:1px solid #22222c;
-                 border-radius:4px; font-family:ui-monospace,Menlo,monospace; }
-QListWidget, QTreeWidget, QTableWidget, QGraphicsView {
-                       background:#0b0b0e; border:1px solid #22222c; }
-QHeaderView::section { background:#1e1e26; color:#c8c8d0;
-                       border:1px solid #33333f; padding:4px; }
-QGroupBox { border:1px solid #2a2a34; border-radius:4px;
-            margin-top:8px; padding-top:8px; }
-QGroupBox::title { subcontrol-origin:margin; left:8px; padding:0 4px; }
-QTabBar::tab { background:#16161c; padding:6px 14px; border:1px solid #22222c;
-               border-bottom:none; }
-QTabBar::tab:selected { background:#1e1e26; color:#e0e0e8; }
-QTabWidget::pane { border:1px solid #22222c; }
-QProgressBar { background:#0b0b0e; border:1px solid #22222c; border-radius:3px; }
-QProgressBar::chunk { background:#4a7ab0; }
-"""
+from core.module_support import config_of
+
 
 
 def _qt():
@@ -66,6 +43,8 @@ class MochiWindow:
     def __init__(self, app: Any) -> None:
         qt = _qt()
         QtCore, QtGui, QtWidgets = qt
+        self.app = app
+        self._QtWidgets = QtWidgets
 
         from .assets import AssetsTab
         from .character_editor import CharacterEditorTab
@@ -74,6 +53,7 @@ class MochiWindow:
         from .mscript_editor import MscriptEditorTab
         from .modules import ModulesTab
         from .cast import CastTab
+        from . import theme
         from .legacy_windows import LegacyWindowsTab, WindowManager
         from .player import FaceTab, _roster
         from .runtime import RuntimeTab
@@ -87,8 +67,13 @@ class MochiWindow:
         except Exception:  # noqa: BLE001
             config = {}
 
+        # Dress the APPLICATION, not this widget: a dialog or a popup
+        # has no parent to inherit from, and that is exactly where the
+        # unreadable defaults were coming from.
+        self.theme = theme.apply(
+            QtWidgets.QApplication.instance(),
+            str(config.get("theme", theme.DEFAULT)))
         self.widget = QtWidgets.QTabWidget()
-        self.widget.setStyleSheet(_STYLE)
 
         self.face = FaceTab(app, qt, config.get("player", {}) or {})
         self.window_manager = WindowManager(
@@ -113,6 +98,7 @@ class MochiWindow:
         manager = self.window_manager
         self.window_manager.menu = (
             ("Operator window", "Ctrl+1", self.open_operator),
+            ("Light / dark theme", "Ctrl+D", self.toggle_theme),
             ("-", "", None),
             ("Skinnable popup player", "", manager.popup.show),
             ("Virtual LED display", "", manager.virtual_display.show_window),
@@ -190,6 +176,19 @@ class MochiWindow:
     def open_avatar(self) -> None:
         """The primary window — what launching Mochi opens."""
         self.window_manager.show_avatar()
+
+    def set_theme(self, mode: str) -> None:
+        """Light or dark, everywhere at once. Nothing is rebuilt — the
+        sheet is on the QApplication, so every open window repaints."""
+        from . import theme
+
+        self.theme = theme.apply(
+            self._QtWidgets.QApplication.instance(), mode)
+        config_of(self.app).setdefault("player", {})["theme"] = self.theme
+        return self.theme
+
+    def toggle_theme(self) -> str:
+        return self.set_theme("light" if self.theme == "dark" else "dark")
 
     def open_operator(self) -> None:
         """This tabbed window: settings, editors, switches, everything

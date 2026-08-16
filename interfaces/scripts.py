@@ -105,7 +105,7 @@ class ScriptsTab:
         side = QtWidgets.QVBoxLayout()
         self.detail = QtWidgets.QLabel("pick a script.")
         self.detail.setWordWrap(True)
-        self.detail.setStyleSheet("color:#777784;")
+        self.detail.setObjectName("Dim")
         self.detail.setAlignment(QtCore.Qt.AlignTop)
         side.addWidget(self.detail)
         self.run_btn = QtWidgets.QPushButton("▶  Run")
@@ -120,7 +120,7 @@ class ScriptsTab:
         root.addLayout(split, 1)
 
         self.status = QtWidgets.QLabel("")
-        self.status.setStyleSheet("color:#777784;")
+        self.status.setObjectName("Dim")
         root.addWidget(self.status)
 
         self.entries: list = []

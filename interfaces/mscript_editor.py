@@ -311,11 +311,11 @@ class MscriptEditorTab:
         self.preview = QtWidgets.QLabel("Play a motion to preview it")
         self.preview.setAlignment(QtCore.Qt.AlignCenter)
         self.preview.setMinimumSize(220, 220)
-        self.preview.setStyleSheet("background:#000; border:1px solid #33333f;")
+        self.preview.setObjectName("Screen")
         layout.addWidget(self.preview, 1)
         self.preview_state = QtWidgets.QLabel()
         self.preview_state.setWordWrap(True)
-        self.preview_state.setStyleSheet("color:#777784;")
+        self.preview_state.setObjectName("Dim")
         layout.addWidget(self.preview_state)
         return group
 

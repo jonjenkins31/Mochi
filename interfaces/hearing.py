@@ -79,7 +79,7 @@ class HearingTab:
         self.engine.currentTextChanged.connect(self._swap)
         engine.addWidget(self.engine)
         self.engine_note = QtWidgets.QLabel()
-        self.engine_note.setStyleSheet("color:#6a6a78;")
+        self.engine_note.setObjectName("Dim")
         self.engine_note.setWordWrap(True)
         engine.addWidget(self.engine_note, 1)
         layout.addLayout(engine)
@@ -90,7 +90,7 @@ class HearingTab:
         self.meter.setTextVisible(False)
         self.meter.setFixedHeight(14)
         self.mic_status = QtWidgets.QLabel("mic: waiting for /sense/mic/pcm")
-        self.mic_status.setStyleSheet("color:#6a6a78;")
+        self.mic_status.setObjectName("Dim")
 
         layout.addWidget(QtWidgets.QLabel("microphone"))
         layout.addWidget(self.meter)

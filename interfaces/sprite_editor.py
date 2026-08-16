@@ -214,7 +214,7 @@ class SpriteEditorTab:
         self.preview = QtWidgets.QLabel()
         self.preview.setFixedSize(160, 160)
         self.preview.setAlignment(self._QtCore.Qt.AlignCenter)
-        self.preview.setStyleSheet("background:#000; border:1px solid #33333f;")
+        self.preview.setObjectName("Screen")
         preview_layout.addWidget(self.preview, 0, self._QtCore.Qt.AlignCenter)
         self.play_button = QtWidgets.QPushButton("Play")
         self.play_button.clicked.connect(self.toggle_preview)

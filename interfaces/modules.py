@@ -145,7 +145,7 @@ class ModulesTab:
         layout.addWidget(splitter, 1)
 
         self.status = QtWidgets.QLabel()
-        self.status.setStyleSheet("color:#777784;")
+        self.status.setObjectName("Dim")
         layout.addWidget(self.status)
 
         self._timer = QtCore.QTimer(self.widget)

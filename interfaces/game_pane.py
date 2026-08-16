@@ -82,7 +82,7 @@ class GamePane:
         column.addLayout(holder)
 
         self.status = QtWidgets.QLabel("press New game.")
-        self.status.setStyleSheet("color:#777784;")
+        self.status.setObjectName("Dim")
         self.status.setWordWrap(True)
         column.addWidget(self.status)
         column.addStretch(1)

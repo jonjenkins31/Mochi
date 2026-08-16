@@ -101,7 +101,7 @@ class BitmapEditorTab:
 
         self.status = QtWidgets.QLabel(
             "Select a Bitmap Man face; click cells to toggle its packed bits.")
-        self.status.setStyleSheet("color:#777784;")
+        self.status.setObjectName("Dim")
         root.addWidget(self.status)
         self._refresh_color_buttons()
 

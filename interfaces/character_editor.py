@@ -85,14 +85,14 @@ class AssetMappingPane:
         layout.setContentsMargins(8, 8, 8, 8)
 
         self.heading = QtWidgets.QLabel()
-        self.heading.setStyleSheet("font-size:15px; color:#e0e0e8;")
+        self.heading.setObjectName("Heading")
         layout.addWidget(self.heading)
         help_text = QtWidgets.QLabel(
             "Double-click a row to render it through the animation engine. "
             "Edit paths, adapters, states, and expressions in Config."
         )
         help_text.setWordWrap(True)
-        help_text.setStyleSheet("color:#777784;")
+        help_text.setObjectName("Dim")
         layout.addWidget(help_text)
 
         self.table = QtWidgets.QTreeWidget()
@@ -158,7 +158,7 @@ class CharacterPreviewPane:
         self.screen = QtWidgets.QLabel("Choose an expression and press Play")
         self.screen.setAlignment(QtCore.Qt.AlignCenter)
         self.screen.setMinimumSize(320, 300)
-        self.screen.setStyleSheet("background:#000; border:1px solid #33333f;")
+        self.screen.setObjectName("Screen")
         layout.addWidget(self.screen, 1)
 
         controls = QtWidgets.QHBoxLayout()
@@ -178,7 +178,7 @@ class CharacterPreviewPane:
         layout.addLayout(controls)
 
         self.details = QtWidgets.QLabel()
-        self.details.setStyleSheet("color:#777784;")
+        self.details.setObjectName("Dim")
         self.details.setWordWrap(True)
         layout.addWidget(self.details)
 
@@ -319,7 +319,7 @@ class CharacterEditorTab:
         self.pack_box.setMinimumWidth(260)
         header.addWidget(self.pack_box)
         self.kind_label = QtWidgets.QLabel()
-        self.kind_label.setStyleSheet("color:#8aaad0;")
+        self.kind_label.setObjectName("Dim")
         header.addWidget(self.kind_label)
         header.addStretch(1)
         # Selecting a pack picks the editor that fits it, but every editor
@@ -356,7 +356,7 @@ class CharacterEditorTab:
         layout.setContentsMargins(0, 8, 0, 0)
         self.path_label = QtWidgets.QLabel()
         self.path_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.path_label.setStyleSheet("color:#777784;")
+        self.path_label.setObjectName("Dim")
         layout.addWidget(self.path_label)
         self.config_editor = QtWidgets.QPlainTextEdit()
         self.config_editor.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
@@ -364,7 +364,7 @@ class CharacterEditorTab:
         layout.addWidget(self.config_editor, 1)
         footer = QtWidgets.QHBoxLayout()
         self.config_status = QtWidgets.QLabel()
-        self.config_status.setStyleSheet("color:#777784;")
+        self.config_status.setObjectName("Dim")
         footer.addWidget(self.config_status, 1)
         save = QtWidgets.QPushButton("Save and validate")
         save.clicked.connect(self.save)
