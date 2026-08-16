@@ -26,9 +26,25 @@ from typing import Any
 from core import scenes
 
 
-def catalogue(character: Any, root: pathlib.Path) -> list:
-    """(scene, where) for everything runnable, the character's first."""
+def catalogue(character: Any, root: pathlib.Path,
+              demos: bool = False) -> list:
+    """(scene, where) — this character's scripts, and optionally the
+    engine's demos.
+
+    THE DEMOS ARE OFF BY DEFAULT and that is the whole point of the
+    flag. `assets/mscripts/` is a set of ENGINE demonstrations: they
+    play test bitmaps, timers, and in four cases another pack's sprite
+    sheet outright. Listing `demo sprite Patric Sprite` under Crazy Eyes
+    is offering to play a different character, which is what it looked
+    like — a list of things that had nothing to do with the one on
+    screen.
+
+    They are still reachable, because they are the best examples of the
+    asset commands that exist. They are just not this character's.
+    """
     found = [(scene, "character") for scene in scenes.available(character)]
+    if not demos:
+        return found
     seen = {scene.path for scene, _ in found}
     for path in sorted((root / "assets" / "mscripts").glob("*.mscript")):
         if path in seen:
@@ -38,7 +54,7 @@ def catalogue(character: Any, root: pathlib.Path) -> list:
         except Exception:  # noqa: BLE001 — a broken file is not a broken tab
             continue
         if scenes.performable(scene):
-            found.append((scene, "shared"))
+            found.append((scene, "engine demo"))
     return found
 
 
@@ -63,6 +79,13 @@ class ScriptsTab:
         self.title = QtWidgets.QLabel()
         head.addWidget(self.title)
         head.addStretch(1)
+        self.demos = QtWidgets.QCheckBox("engine demos")
+        self.demos.setToolTip(
+            "also list assets/mscripts/ — demonstrations of the asset "
+            "commands, which play test assets and other characters' "
+            "artwork rather than this one's")
+        self.demos.toggled.connect(lambda _on: self.reload())
+        head.addWidget(self.demos)
         refresh = QtWidgets.QPushButton("Refresh")
         refresh.clicked.connect(self.reload)
         self.stop_btn = QtWidgets.QPushButton("■ Stop")
@@ -117,15 +140,18 @@ class ScriptsTab:
             if character else "Scripts")
         self.list.clear()
         self.entries = catalogue(
-            character, pathlib.Path(getattr(self.app, "root", "."))) \
-            if character else []
+            character, pathlib.Path(getattr(self.app, "root", ".")),
+            demos=self.demos.isChecked()) if character else []
         for scene, where in self.entries:
-            label = scene.name if where == "character" else f"{scene.name}  ·  shared"
-            self.list.addItem(label)
+            self.list.addItem(scene.name if where == "character"
+                              else f"{scene.name}  ·  {where}")
         if self.entries:
             self.list.setCurrentRow(0)
         else:
-            self.detail.setText("this character has no runnable scripts.")
+            self.detail.setText(
+                "this character has no scripts of its own.\n\n"
+                "Tick 'engine demos' for the shared examples, or write one "
+                "into its mscripts/ folder.")
 
     def _character(self) -> Any:
         try:

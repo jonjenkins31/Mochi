@@ -3127,3 +3127,32 @@ def test_a_math_scene_walks_its_own_path():
     plain = module.Eyes(200, 140)
     plain.on_enter(state="idle")
     assert plain._path is None
+
+
+def test_the_script_list_is_this_characters_scripts():
+    """Every pack was showing all seventeen engine demos, four of which
+    play ANOTHER character's artwork — so Crazy Eyes offered to run
+    Patric's sprite sheet. A list of things that have nothing to do with
+    the character on screen is worse than a short list.
+
+    They stay reachable behind a flag: they are the best examples of the
+    asset commands that exist. They are just not this character's.
+    """
+    from interfaces.scripts import catalogue
+    from modules import jaeger_animation as animation
+
+    for name in ("crazy_eyes", "orbs", "bitmap_man"):
+        character = animation.load(name)
+        own = catalogue(character, ROOT)
+        assert own, f"{name} has no scripts of its own"
+        for scene, where in own:
+            assert where == "character"
+            assert scene.path.parent == pathlib.Path(character.root) / "mscripts", (
+                f"{scene.path} is not {name}'s")
+
+        with_demos = catalogue(character, ROOT, demos=True)
+        assert len(with_demos) > len(own), "the flag did nothing"
+        # And the demos never displace the character's own, which stay
+        # first because they are what someone came here for.
+        assert [s.name for s, _ in with_demos[:len(own)]] == \
+            [s.name for s, _ in own]
