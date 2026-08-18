@@ -49,6 +49,9 @@ class OutputView:
 
         self.bus = app.bus
         self.aspect = ASPECTS["9:16 vertical"]
+        #: Where the stage light comes from. A callable, so the panel
+        #: never has to be told when a cue changes it.
+        self.light_of: Any = lambda: (None, 0.0)
         self.widget = QtWidgets.QLabel("no output yet")
         self.widget.setObjectName("Screen")
         self.widget.setAlignment(QtCore.Qt.AlignCenter)
@@ -89,9 +92,21 @@ class OutputView:
         scaled = QtGui.QPixmap.fromImage(frame).scaled(
             target.size(), QtCore.Qt.KeepAspectRatio,
             QtCore.Qt.SmoothTransformation)
-        painter.drawPixmap(
+        shot = QtCore.QRect(
             target.x() + (target.width() - scaled.width()) // 2,
-            target.y() + (target.height() - scaled.height()) // 2, scaled)
+            target.y() + (target.height() - scaled.height()) // 2,
+            scaled.width(), scaled.height())
+        painter.drawPixmap(shot, scaled)
+        rgb, level = self.light_of()
+        if rgb and level > 0:
+            # Screen, matching the export: a lamp ADDS light, and
+            # multiplying would leave a black display black — which is
+            # exactly the characters this project has.
+            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Plus)
+            painter.fillRect(shot, QtGui.QColor(
+                int(rgb[0] * level), int(rgb[1] * level), int(rgb[2] * level)))
+            painter.setCompositionMode(
+                QtGui.QPainter.CompositionMode_SourceOver)
         painter.setPen(QtGui.QColor("#2A2A38"))
         painter.drawRect(target.adjusted(0, 0, -1, -1))
         painter.end()
@@ -161,6 +176,8 @@ class ShowTab:
         head.addWidget(self.aspect_box)
         left.addLayout(head)
         self.output = OutputView(app, qt)
+        self.output.light_of = lambda: (self.stage.light,
+                                        self.stage.light_level)
         left.addWidget(self.output.widget, 1)
         layout.addLayout(left, 3)
 

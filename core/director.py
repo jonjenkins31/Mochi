@@ -42,9 +42,17 @@ from jaeger_os import topics
 from jaeger_os.timeline import Timeline
 
 try:                                    # the scheduler's own list
-    from jaeger_os.timeline.runner import DISPATCHED
+    from jaeger_os.timeline.runner import DISPATCHED as _SCHEDULER_KINDS
 except ImportError:                     # older JaegerOS
-    DISPATCHED = frozenset({"animation", "speech"})
+    _SCHEDULER_KINDS = frozenset({"animation", "speech"})
+
+#: What THIS transport can play, which is more than the fire-and-forget
+#: scheduler. `light` and `sound` need no hardware on a machine with
+#: none: a light is a virtual stage lamp that tints the picture, and a
+#: sound is a file down the same speaker path speech already uses.
+#: `motion` and `script` stay out — one wants a servo bus and the other
+#: is a reactive program the Conductor owns.
+DISPATCHED = _SCHEDULER_KINDS | {"light", "sound"}
 
 #: How often the transport reports where it is. 20/s is smooth enough
 #: for a playhead and cheap enough to leave on.
@@ -123,6 +131,12 @@ class Director:
         #: re-synthesised from the top, which is the talking-over-itself
         #: problem, so they are held instead.
         self.scrubbing = False
+        #: The virtual stage light: (r, g, b) and how strongly it tints.
+        #: There is no lamp on this machine, so the light IS the wash
+        #: over the picture — which is what a lighting cue was always
+        #: for, and is now visible in the preview and in the export.
+        self.light: tuple[int, int, int] | None = None
+        self.light_level = 0.35
 
         self._origin = 0.0          # wall clock at position 0
         self._held_ms = 0           # position while paused
@@ -269,6 +283,9 @@ class Director:
         self._next = 0
         while self._next < len(self.cues) and self.cues[self._next].at_ms < target:
             self._next += 1
+        found = self.light_at(target)
+        if found is not None:
+            self.light, self.light_level = found
         if self.state in (COMPLETE, IDLE):
             self.state = PAUSED if self.state == COMPLETE else IDLE
 
@@ -373,6 +390,52 @@ class Director:
             voice=str(payload.get("voice", "")),
             node_id=cue.target))
 
+    def _sound(self, cue: Cue, payload: dict, into_ms: int = 0) -> None:
+        """A sound effect: a file, down the speaker path speech uses.
+
+        No new node and no hardware — `/act/speaker/pcm` already has a
+        consumer, and a wav is a wav. Plays from an offset for the same
+        reason a rendered line does, so scrubbing works on effects too.
+        """
+        from core import dialogue
+
+        path = pathlib.Path(str(payload.get("file", "")))
+        if not path.is_absolute():
+            path = pathlib.Path.cwd() / path
+        if not path.is_file():
+            self._on_event(f"! {cue.track}: no such sound {path.name}")
+            return
+        try:
+            pcm, rate = dialogue.read(path)
+            pcm = dialogue.slice_ms(pcm, rate, into_ms)
+            if pcm:
+                self.bus.publish(topics.AudioOutFrame(
+                    samples=pcm, sample_rate=rate, channels=1,
+                    node_id=cue.target))
+        except Exception as exc:  # noqa: BLE001
+            self._on_event(f"! {cue.track}: {exc}")
+
+    def light_at(self, at_ms: int) -> tuple | None:
+        """The stage light at a given time, without playing anything.
+
+        Wanted by the export, which walks frames rather than firing
+        cues, and by a preview that has been scrubbed to a new place.
+        """
+        if self.timeline is None:
+            return None
+        found = None
+        for track in self.timeline.tracks:
+            if track.kind != "light":
+                continue
+            for clip in track.clips:
+                end = clip.t_offset_ms + (clip.duration_ms or 10 ** 9)
+                if clip.t_offset_ms <= at_ms < end:
+                    rgb = (clip.payload or {}).get("rgb") or []
+                    if len(rgb) == 3:
+                        found = (tuple(int(v) for v in rgb),
+                                 float((clip.payload or {}).get("level", 0.35)))
+        return found
+
     def _report(self) -> None:
         try:
             self._on_tick(self.state, self.position_ms, self.duration_ms)
@@ -394,6 +457,13 @@ class Director:
                     node_id=cue.target))
             elif cue.kind == "speech":
                 self._speak(cue, payload, into_ms=0)
+            elif cue.kind == "light":
+                rgb = payload.get("rgb") or []
+                if len(rgb) == 3:
+                    self.light = tuple(int(v) for v in rgb)
+                    self.light_level = float(payload.get("level", 0.35))
+            elif cue.kind == "sound":
+                self._sound(cue, payload, into_ms=0)
         except Exception as exc:  # noqa: BLE001
             self._on_event(f"! {cue.track}: {type(exc).__name__}: {exc}")
 

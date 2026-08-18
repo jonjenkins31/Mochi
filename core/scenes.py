@@ -631,6 +631,12 @@ def compile_timeline(path: Any, target: str = "") -> Any:
             elif parsed.command == "LIGHT":
                 payload["rgb"] = [int(v) for v in
                                   str(args.get("CLR", "0,0,0")).split(",")]
+                if args.get("LVL"):
+                    payload["level"] = float(args["LVL"])
+            elif parsed.command == "SOUND":
+                payload["file"] = _quoted(args.get("SRC", ""))
+                if args.get("LVL"):
+                    payload["level"] = float(args["LVL"])
             else:
                 payload = {k.lower(): v for k, v in args.items()
                            if k not in ("T", "D")}

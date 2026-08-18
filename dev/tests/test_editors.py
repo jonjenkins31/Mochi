@@ -4505,3 +4505,96 @@ def test_mixed_audio_lands_on_the_beat(tmp_path):
     into = int((first + 400) * rate / 1000)
     window = samples[into:into + rate // 4]
     assert max(abs(v) for v in window) > 500, "the first line is missing"
+
+
+def test_light_and_sound_need_no_hardware():
+    """There is no lamp on this machine, so the light IS the wash over
+    the picture — which is what a lighting cue was always for. And a
+    sound is a file down the speaker path speech already uses.
+
+    Both were hatched as "dispatched nowhere" purely because nothing
+    had claimed them, not because they needed anything to exist.
+    """
+    from types import SimpleNamespace as NS
+    from jaeger_os import InProcBus
+    from core import director, staging
+
+    show = staging.load(ROOT / "scenes/hello_fellow_humans.mscript")
+    assert {"light", "sound"} <= director.DISPATCHED
+
+    bus = InProcBus()
+    app = NS(bus=bus, supervisor=None, config={})
+    stage = director.Director(app, show)
+    try:
+        assert not stage.unsupported(), stage.unsupported()
+
+        # The scored cues: amber, blue, amber, blue, amber.
+        expected = [(0, "amber"), (7000, "blue"), (11000, "amber"),
+                    (15000, "blue"), (20000, "amber")]
+        for at_ms, tone in expected:
+            found = stage.light_at(at_ms)
+            assert found is not None, at_ms
+            (red, _green, blue), level = found
+            assert 0 < level <= 1
+            assert (red > blue) == (tone == "amber"), (at_ms, found)
+
+        # A seek moves the light with the playhead, or the wash lags.
+        stage.seek(7500)
+        assert stage.light is not None and stage.light[2] > stage.light[0]
+        stage.seek(20500)
+        assert stage.light[0] > stage.light[2]
+    finally:
+        stage.stop(); bus.close()
+
+
+def test_the_stage_light_reaches_the_exported_picture(tmp_path):
+    """A cue that changes nothing you can see is a cue that does not
+    work. Screen, not multiply: a lamp ADDS light, and multiplying
+    would leave a black display black — which is exactly what the
+    characters in this show are.
+    """
+    from core import dialogue, export, staging
+
+    if not export.available():
+        import pytest
+
+        pytest.skip("ffmpeg is not installed")
+
+    show = staging.load(ROOT / "scenes/hello_fellow_humans.mscript")
+    report = dialogue.render(show, root=ROOT)
+    if report["rendered"] == 0 and report["cached"] == 0:
+        import pytest
+
+        pytest.skip("no speech module installed to render with")
+
+    # The wash itself, on a known frame.
+    black = bytes(4 * 100)
+    amber = export.wash(black, (255, 180, 120), 0.5)
+    assert amber[0] > amber[2] > 0, "amber did not land"
+    blue = export.wash(black, (40, 90, 255), 0.5)
+    assert blue[2] > blue[0], "blue did not land"
+    assert export.wash(black, (255, 255, 255), 0.0) == black
+    # It ADDS: a lit pixel gets brighter, never darker.
+    grey = bytes([90, 90, 90, 255] * 100)
+    assert export.wash(grey, (255, 180, 120), 0.4)[0] > 90
+
+    out = tmp_path / "lit.mp4"
+    result = export.export(show, out, size=(120, 214), fps=6,
+                           workdir=tmp_path / "w")
+    assert not result["errors"], result["errors"]
+    assert out.is_file()
+
+    # And it is in the file, cue by cue.
+    import subprocess
+
+    import numpy as np
+    from PIL import Image
+
+    for at_s, tone in ((2, "amber"), (7, "blue"), (15, "blue"), (20, "amber")):
+        shot = tmp_path / f"f{at_s}.png"
+        subprocess.run(["ffmpeg", "-v", "error", "-ss", str(at_s), "-i",
+                        str(out), "-frames:v", "1", "-y", str(shot)],
+                       check=True)
+        pixels = np.asarray(Image.open(shot).convert("RGB")).astype(float)
+        red, blue_mean = pixels[:, :, 0].mean(), pixels[:, :, 2].mean()
+        assert (red > blue_mean) == (tone == "amber"), (at_s, red, blue_mean)

@@ -98,6 +98,46 @@ class Frames:
         self._renderer.close()
 
 
+def light_at(timeline: Timeline, at_ms: int) -> tuple | None:
+    """The stage light covering `at_ms`, or None. Last cue wins."""
+    found = None
+    for track in timeline.tracks:
+        if track.kind != "light":
+            continue
+        for clip in track.clips:
+            end = clip.t_offset_ms + (clip.duration_ms or 10 ** 9)
+            if clip.t_offset_ms <= at_ms < end:
+                rgb = (clip.payload or {}).get("rgb") or []
+                if len(rgb) == 3:
+                    found = (tuple(int(v) for v in rgb),
+                             float((clip.payload or {}).get("level", 0.35)))
+    return found
+
+
+def wash(frame: bytes, rgb: tuple, level: float) -> bytes:
+    """Tint a frame by the stage light.
+
+    SCREEN, not multiply. A lamp ADDS light to a scene; multiplying
+    would darken a black display to black and the cue would do nothing
+    visible on exactly the characters this project has.
+
+    `bytearray` and a stride rather than an array library, for the same
+    reason everything else here does without one.
+    """
+    if not rgb or level <= 0:
+        return frame
+    out = bytearray(frame)
+    amount = max(0.0, min(1.0, level))
+    for channel in range(3):
+        add = int(rgb[channel] * amount)
+        if not add:
+            continue
+        for index in range(channel, len(out), 4):
+            value = out[index] + add
+            out[index] = 255 if value > 255 else value
+    return bytes(out)
+
+
 def render_frames(timeline: Timeline, out: pathlib.Path, *,
                   size: tuple[int, int] = VERTICAL, fps: int = FPS,
                   on_progress: Callable[[int, int], None] | None = None) -> int:
@@ -122,8 +162,12 @@ def render_frames(timeline: Timeline, out: pathlib.Path, *,
                 data = None
                 if clip is not None:
                     data = frames.at(clip, at_ms - clip.t_offset_ms)
-                handle.write(data if data and len(data) == len(blank)
-                             else blank)
+                if not data or len(data) != len(blank):
+                    data = blank
+                lamp = light_at(timeline, at_ms)
+                if lamp is not None:
+                    data = wash(data, *lamp)
+                handle.write(data)
                 written += 1
                 if index % fps == 0:
                     tick(index, count)
@@ -143,35 +187,46 @@ def mix_audio(timeline: Timeline, out: pathlib.Path, *,
     """
     total_ms = director.duration_of(timeline)
     length = max(1, int(total_ms * rate / 1000))
-    track = array.array("i", bytes(4 * length))      # 32-bit headroom
+    # `mix`, not `track` — a timeline HAS tracks, and the loop below
+    # iterating them over a buffer of the same name is a bug that reads
+    # like correct code.
+    mix = array.array("i", bytes(4 * length))        # 32-bit headroom
     report = {"mixed": 0, "missing": []}
 
-    for clip, text, _voice in dialogue.lines(timeline):
-        payload = clip.payload or {}
-        path = payload.get("audio")
+    sources = [(clip, text, (clip.payload or {}).get("audio"))
+               for clip, text, _voice in dialogue.lines(timeline)]
+    for channel in timeline.tracks:
+        if channel.kind != "sound":
+            continue
+        for clip in channel.clips:
+            named = str((clip.payload or {}).get("file", ""))
+            if not named:
+                continue
+            where = pathlib.Path(named)
+            sources.append((clip, where.name, str(
+                where if where.is_absolute() else pathlib.Path.cwd() / where)))
+
+    for clip, label, path in sources:
         if not path or not pathlib.Path(path).is_file():
-            report["missing"].append(text[:40])
+            report["missing"].append(str(label)[:40])
             continue
         pcm, clip_rate = dialogue.read(pathlib.Path(path))
         samples = array.array("h")
         samples.frombytes(pcm)
-        start = int(clip.t_offset_ms * rate / 1000)
-        # Naive resample only if the file disagrees with the mix rate;
-        # normally it does not, and this costs nothing.
+        start_at = int(clip.t_offset_ms * rate / 1000)
         step = clip_rate / rate
-        for index in range(len(samples) if step == 1
-                           else int(len(samples) / step)):
-            position = start + index
+        count = len(samples) if step == 1 else int(len(samples) / step)
+        for index in range(count):
+            position = start_at + index
             if position >= length:
                 break
-            track[position] += samples[index if step == 1
-                                       else int(index * step)]
+            mix[position] += samples[index if step == 1 else int(index * step)]
         report["mixed"] += 1
 
-    # Clip to int16 once, at the end, so overlapping lines add properly
+    # Clip to int16 ONCE, at the end, so overlapping lines add properly
     # before anything is lost.
     out_pcm = array.array("h", (max(-32768, min(32767, value))
-                                for value in track))
+                                for value in mix))
     with wave.open(str(out), "wb") as handle:
         handle.setnchannels(1)
         handle.setsampwidth(2)
