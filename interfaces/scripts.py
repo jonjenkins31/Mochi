@@ -23,7 +23,7 @@ from __future__ import annotations
 import pathlib
 from typing import Any
 
-from core import scenes
+from core import scenes, staging
 
 
 def catalogue(character: Any, root: pathlib.Path,
@@ -193,9 +193,13 @@ class ScriptsTab:
         if self.face is not None:
             self.face.hold(True)
         self.log.clear()
-        self.runner = scenes.SceneRunner(
-            self.app, character, on_event=self._lines.append)
-        self.runner.start(scene)
+        # THROUGH THE CONDUCTOR, not a bare SceneRunner. A script with
+        # `[Track_*]` in it is a show — channels on a clock AND a
+        # program — and running only the program is how half a file
+        # plays with no complaint.
+        self.runner = staging.Conductor(self.app, character)
+        if not self.runner.perform(scene.path, on_event=self._lines.append):
+            self._lines.append("! nothing to play in this script")
         self.run_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
         self.status.setText(f"running {scene.name}")

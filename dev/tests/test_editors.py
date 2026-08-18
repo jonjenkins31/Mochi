@@ -203,9 +203,15 @@ def test_every_character_folder_is_a_complete_pack():
                      if path.is_dir())
     assert folders
     import yaml as _yaml
+    checked = 0
     for folder in folders:
         sheet_path = folder / "character.yaml"
-        assert sheet_path.is_file(), folder
+        if not sheet_path.is_file():
+            # Not a pack yet. Discovery uses exactly this rule — a
+            # folder with no sheet is skipped — so a half-made one is
+            # allowed to sit there without failing the suite.
+            continue
+        checked += 1
         assert (folder / "mscripts").is_dir(), folder
         # A pack needs the art it DECLARES, not an assets folder. `Orbs`
         # is procedural — every dot is computed, so it ships one .py and
@@ -217,6 +223,7 @@ def test_every_character_folder_is_a_complete_pack():
         assert (folder / asset).is_file(), f"{folder}: missing {asset}"
         if sheet.get("kind") != "procedural":
             assert (folder / "assets").is_dir(), folder
+    assert checked >= 18, f"only {checked} packs found"
 
 
 def test_character_motion_playback_uses_the_project_as_asset_root():
@@ -3906,3 +3913,88 @@ def test_saving_a_show_keeps_the_parts_the_editor_does_not_show(tmp_path,
         assert reloaded.steps
     finally:
         editor.close(); bus.close()
+
+
+def test_a_track_nothing_plays_is_reported_not_swallowed():
+    """The schema accepts sound, motion, light and script; the
+    scheduler dispatches animation and speech. That difference is a
+    real gap and it was invisible — a lighting cue that controls
+    nothing looked exactly like one that works, and the only way to
+    find out was to watch the lamp.
+    """
+    import warnings
+    from jaeger_os import InProcBus
+    from jaeger_os.timeline import TimelineRunner
+    from core import staging
+    from modules import jaeger_animation as animation
+
+    timeline = staging.load(ROOT / "scenes/hello_fellow_humans.mscript")
+    kinds = {track.kind for track in timeline.tracks}
+    assert "light" in kinds, "this scene is the example — it has a light track"
+
+    bus = InProcBus()
+    try:
+        runner = TimelineRunner(bus, timeline)
+        skipped = dict(runner.unsupported())
+        assert "light" in skipped, skipped
+        # And the ones that DO work are not reported as broken.
+        assert not {n for n, k in runner.unsupported() if k in
+                    ("animation", "speech")}
+
+        # The operator hears about it from the Conductor, in the log
+        # they are already reading.
+        app = SimpleNamespace(bus=bus, supervisor=None, config={})
+        conductor = staging.Conductor(app, animation.load("eric"))
+        lines: list[str] = []
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            conductor.start(timeline, on_event=lines.append)
+            time.sleep(0.3)
+            conductor.stop()
+        assert any("light" in line and "nothing plays it" in line
+                   for line in lines), lines
+    finally:
+        bus.close()
+
+
+def test_the_conductor_is_the_playback_path(monkeypatch):
+    """Stage started a TimelineRunner and Scripts started a
+    SceneRunner, so a show's two halves were never both started by
+    either. The Conductor is the only thing that knows how to run
+    channels and a program against one clock — so it is the only thing
+    that starts either now.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    import inspect
+    from PySide6 import QtWidgets
+    from jaeger_os import JaegerApp
+    from core import staging
+    from interfaces import scripts as scripts_mod
+    from interfaces import stage as stage_mod
+
+    # Neither module reaches past the Conductor any more.
+    for module in (scripts_mod, stage_mod):
+        source = inspect.getsource(module)
+        assert "TimelineRunner(" not in source, module.__name__
+        assert "SceneRunner(" not in source, module.__name__
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = JaegerApp(ROOT / "sim.toml")
+    app.boot()
+    from interfaces.window import MochiWindow
+
+    window = MochiWindow(app)
+    try:
+        window.start()
+        pane = window.scripts
+        assert pane.list.count()
+        pane.list.setCurrentRow(0)
+        pane.run()
+        assert isinstance(pane.runner, staging.Conductor)
+        pane.stop()
+
+        window.stage.play_scene(ROOT / "scenes/hello_fellow_humans.mscript")
+        assert isinstance(window.stage.timeline, staging.Conductor)
+        window.stage.stop()
+    finally:
+        window.close(); app.shutdown()

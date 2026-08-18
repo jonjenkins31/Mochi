@@ -217,7 +217,36 @@ class Conductor:
 
     @property
     def running(self) -> bool:
-        return bool(self._timeline and not self._timeline.finished)
+        if self._timeline and not self._timeline.finished:
+            return True
+        return any(getattr(r, "running", False) for r in self._runners)
+
+    def _start_timeline(self, timeline: Timeline, on_event: Any = None) -> None:
+        """One place that starts a scheduler, so one place reports what
+        it cannot play.
+
+        A track kind the scheduler does not dispatch is scheduled and
+        dropped, which is correct — the format is allowed to be ahead of
+        the hardware — but an operator has to SEE it. Silence made a
+        lighting cue that controls nothing look exactly like one that
+        works.
+        """
+        from jaeger_os.timeline import TimelineRunner
+
+        self._timeline = TimelineRunner(self.app.bus, timeline)
+        if on_event is not None:
+            for name, kind in self._unsupported(self._timeline):
+                on_event(f"! track {name!r} ({kind}) is scheduled but "
+                         f"nothing plays it — no {kind} node is wired")
+        self._timeline.start()
+
+    @staticmethod
+    def _unsupported(runner: Any) -> list:
+        """Ask the runner, if this version of it knows how to answer."""
+        try:
+            return list(runner.unsupported())
+        except AttributeError:
+            return []
 
     def perform(self, path: Any, target: str = "",
                 on_event: Any = None) -> bool:
@@ -247,11 +276,8 @@ class Conductor:
 
         timeline = scene_lib.compile_timeline(path, target=target)
         if timeline is not None:
-            from jaeger_os.timeline import TimelineRunner
-
             resolve(timeline, pathlib.Path(__file__).resolve().parent.parent)
-            self._timeline = TimelineRunner(self.app.bus, timeline)
-            self._timeline.start()
+            self._start_timeline(timeline, on_event)
             started = True
 
         program = scene_lib.load(path)
@@ -278,8 +304,7 @@ class Conductor:
             name=timeline.name, description=timeline.description,
             duration_ms=timeline.duration_ms, loop=timeline.loop,
             tracks=[t for t in timeline.tracks if t.kind != TRACK_SCRIPT])
-        self._timeline = TimelineRunner(self.app.bus, events)
-        self._timeline.start()
+        self._start_timeline(events, on_event)
 
         for track in timeline.tracks:
             if track.kind != TRACK_SCRIPT:
@@ -308,6 +333,34 @@ class Conductor:
 
     def wait(self, timeout: float | None = None) -> bool:
         return bool(self._timeline and self._timeline.wait(timeout=timeout))
+
+    @property
+    def scene(self) -> Any:
+        """Whatever program is playing, for a surface that shows its
+        name. The first running one — a show has at most one `[Main]`,
+        and cue tracks are channels rather than the thing on the marquee.
+        """
+        for runner in self._runners:
+            if getattr(runner, "running", False):
+                return getattr(runner, "scene", None)
+        return None
+
+    def heard(self, text: str) -> bool:
+        """Hand a person's answer to whichever program is waiting.
+
+        Forwarded rather than exposed, because a LISTEN belongs to a
+        cue and a surface should not have to know which of several
+        runners is the one blocked on it.
+        """
+        delivered = False
+        for runner in self._runners:
+            if getattr(runner, "running", False):
+                try:
+                    runner.heard(text)
+                    delivered = True
+                except AttributeError:
+                    pass
+        return delivered
 
     def stop(self) -> None:
         for timer in self._timers:

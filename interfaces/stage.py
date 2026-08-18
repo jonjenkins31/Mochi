@@ -68,8 +68,10 @@ class StageTab:
         self.game = None
         self._match = None
         self.character = animation.load("bitmap_man")
-        self.runner = scene_lib.SceneRunner(
-            app, self.character, on_event=self._pending.append)
+        # A Conductor, not a bare SceneRunner: a performance file may
+        # carry `[Track_*]` channels as well as its `[Main]` program,
+        # and running only the program plays half a show in silence.
+        self.runner = staging.Conductor(app, self.character)
 
         self.widget = QtWidgets.QWidget()
         root = QtWidgets.QHBoxLayout(self.widget)
@@ -235,8 +237,7 @@ class StageTab:
         except Exception as exc:  # noqa: BLE001
             self._pending.append(f"! {exc}")
             return
-        self.runner = scene_lib.SceneRunner(
-            self.app, self.character, on_event=self._pending.append)
+        self.runner = staging.Conductor(self.app, self.character)
         self._rebuild_for_character()
         self._teach_faces()
 
@@ -257,7 +258,9 @@ class StageTab:
 
     def play(self, scene: Any) -> None:
         self._pending.append(f"▶ {scene.name}")
-        self.runner.start(scene)
+        if not self.runner.perform(scene.path,
+                                   on_event=self._pending.append):
+            self._pending.append("! nothing to play in this script")
 
     # ── a game: no script, and the character still performs ──────
 
@@ -345,10 +348,14 @@ class StageTab:
             self._pending.append(f"— {self.game.result} —")
 
     def play_scene(self, path: Any) -> None:
-        """Play a timeline. Simultaneity is the whole difference: a
-        performance says one thing at a time, a scene says several."""
-        from jaeger_os.timeline import TimelineRunner
+        """Play a timeline THROUGH THE CONDUCTOR.
 
+        It used to start a `TimelineRunner` here, which meant a scene
+        with script tracks on it ran its events and dropped its cues —
+        and nothing said so. The Conductor is the only thing that knows
+        how to start both halves against one clock, so it is the only
+        thing that should be starting either.
+        """
         self.stop()
         try:
             timeline = staging.load(path)
@@ -356,8 +363,8 @@ class StageTab:
             self._pending.append(f"! {exc}")
             return
         self._pending.append(f"▶ {timeline.name}  ({len(timeline.tracks)} tracks)")
-        self.timeline = TimelineRunner(self.bus, timeline)
-        self.timeline.start()
+        self.timeline = staging.Conductor(self.app, self.character)
+        self.timeline.start(timeline, on_event=self._pending.append)
 
     def stop(self) -> None:
         if getattr(self, "_match", None) is not None:
