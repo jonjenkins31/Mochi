@@ -4034,8 +4034,22 @@ def test_the_director_is_a_transport_not_a_start_button():
         assert stage.duration_ms == 22000
         assert len(stage.cues) == 27
         assert [c.at_ms for c in stage.cues] == sorted(c.at_ms for c in stage.cues)
-        # Dead tracks are reported at LOAD, before anything plays.
-        assert any("light" in line for line in lines), lines
+        # Nothing in this show is dead any more: light and sound both
+        # dispatch without hardware. The reporting still has to work,
+        # so it is checked against `motion`, which genuinely has no
+        # consumer — there is no servo bus.
+        assert not stage.unsupported(), stage.unsupported()
+        from jaeger_os.timeline import (
+            Timeline as _T, TimelineClip as _C, TimelineTrack as _K)
+
+        lame = director.Director(app, _T(name="lame", tracks=[_K(
+            kind="motion", name="arm",
+            clips=[_C(t_offset_ms=0, duration_ms=100, payload={})])]),
+            on_event=lines.append)
+        assert dict(lame.unsupported()) == {"arm": "motion"}
+        assert any("arm" in line and "nothing plays it" in line
+                   for line in lines), lines
+        lame.stop()
 
         # ── play, pause, resume ──
         stage.play()
@@ -4212,9 +4226,11 @@ def test_the_show_tab_is_an_operator_surface_for_one_short(monkeypatch):
         assert panel.stage.duration_ms == 22000
         assert len(panel.stage.cues) == 27
         assert len(panel.timeline.tracks()) == 5
-        # A dead track is named in the status line, not buried.
-        assert "play nowhere" in panel.status.text(), panel.status.text()
-        assert dict(panel.stage.unsupported()) == {"light": "light"}
+        # Light and sound dispatch without hardware now, so this show
+        # has nothing dead in it — and the status line says so by NOT
+        # carrying a warning.
+        assert "play nowhere" not in panel.status.text(), panel.status.text()
+        assert not panel.stage.unsupported(), panel.stage.unsupported()
 
         # Vertical by default: this is for Shorts, and an operator has
         # to compose against the frame they ship.
