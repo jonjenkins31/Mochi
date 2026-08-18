@@ -1,0 +1,13 @@
+[Header start]
+! TARS — a still, until it gets a rig.
+[Header end]
+
+[Resources start]
+K[1]: 'characters/tars/assets/tars.png'
+[Resources end]
+
+[Main start]
+LBL[1]
+IMAGE K[1] D[6.0]
+JMP LBL[1]
+[Main end]
