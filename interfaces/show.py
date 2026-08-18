@@ -231,6 +231,13 @@ class ShowTab:
         self.render_btn.clicked.connect(self.render_dialogue)
         row.addWidget(self.render_btn)
 
+        self.export_btn = QtWidgets.QPushButton("export")
+        self.export_btn.setToolTip(
+            "render this show to an MP4 at the delivery aspect — "
+            "deterministic, not a screen recording")
+        self.export_btn.clicked.connect(self.export_show)
+        row.addWidget(self.export_btn)
+
         fit = QtWidgets.QPushButton("fit")
         fit.clicked.connect(lambda: self.timeline.fit())
         row.addWidget(fit)
@@ -291,6 +298,40 @@ class ShowTab:
             + f" — timing corrected by {report['moved_ms'] / 1000:.1f}s")
         for line in report["failed"][:5]:
             self._lines.append(f"! {line}")
+
+    def export_show(self) -> None:
+        """Write the MP4. Refuses a show whose dialogue is unrendered
+        rather than shipping a silent video."""
+        from core import export
+
+        if self.stage.timeline is None:
+            return
+        name = (self.stage.timeline.name or "show").replace(" ", "_")
+        chosen, _ = self._QtWidgets.QFileDialog.getSaveFileName(
+            self.widget, "Export show", f"{name}.mp4", "MP4 (*.mp4)")
+        if not chosen:
+            return
+        width, height = self.output.aspect
+        # The delivery frame at 1080 on the SHORT side, whichever that
+        # is — a vertical short and a landscape cut should both come
+        # out at a sane resolution without a second control.
+        size = ((1080, int(1080 * height / width)) if width <= height
+                else (int(1080 * width / height), 1080))
+        self.export_btn.setEnabled(False)
+        self.status.setText("exporting…")
+        self._QtWidgets.QApplication.processEvents()
+        report = export.export(
+            self.stage.timeline, chosen, size=size,
+            on_progress=self._lines.append)
+        self.export_btn.setEnabled(True)
+        if report["errors"]:
+            self.status.setText(f"export failed: {report['errors'][0][:90]}")
+            for line in report["errors"]:
+                self._lines.append(f"! {line}")
+        else:
+            self.status.setText(
+                f"exported {report['frames']} frames to {chosen} "
+                f"({report.get('bytes', 0) / 1e6:.1f} MB)")
 
     def _open_chosen(self, index: int) -> None:
         path = self.open_box.itemData(index)

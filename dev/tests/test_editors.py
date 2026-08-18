@@ -4390,3 +4390,118 @@ def test_a_rendered_line_scrubs_like_any_other_media(tmp_path):
         assert not live, "live TTS fired mid-scrub"
     finally:
         stage.stop(); bus.close()
+
+
+def test_a_show_exports_to_an_mp4_deterministically(tmp_path):
+    """The last step: a show that plays becomes a file you can upload.
+
+    DETERMINISTIC, not a screen recording — every frame is asked for by
+    time, so a frame that took 300ms to compute still lands on its own
+    slot. A capture of live playback drops frames exactly when the show
+    gets busy, which is when it matters.
+    """
+    from core import dialogue, export, staging
+    from jaeger_os.timeline import Timeline, TimelineClip, TimelineTrack
+
+    if not export.available():
+        import pytest
+
+        pytest.skip("ffmpeg is not installed")
+
+    # A bright, fully deterministic show: two math characters back to
+    # back, so a blank export cannot pass by accident.
+    orbs = str((ROOT / "characters/Orbs/orbs.py").resolve())
+    halo = str((ROOT / "characters/Halo/halo.py").resolve())
+    show = Timeline(name="probe", tracks=[TimelineTrack(
+        kind="animation", name="face", clips=[
+            TimelineClip(t_offset_ms=0, duration_ms=2000, payload={
+                "adapter": "math", "asset": orbs,
+                "params": {"state": "connecting"}}),
+            TimelineClip(t_offset_ms=2000, duration_ms=2000, payload={
+                "adapter": "math", "asset": halo,
+                "params": {"state": "alarm"}})])])
+
+    out = tmp_path / "probe.mp4"
+    report = export.export(show, out, size=(180, 320), fps=10,
+                           workdir=tmp_path / "work")
+    assert not report["errors"], report["errors"]
+    assert report["frames"] == 40, report["frames"]
+    assert out.is_file() and out.stat().st_size > 5000
+
+    # Every frame has picture, and the two clips look different — a
+    # renderer that wrote the first frame and then blanks would pass a
+    # size check and fail this.
+    import numpy as np
+
+    frames = export.Frames((180, 320))
+    try:
+        seen = []
+        for at_ms in (200, 1500, 2500, 3800):
+            clip = export.active_clip(show, "animation", at_ms)
+            assert clip is not None, at_ms
+            data = frames.at(clip, at_ms - clip.t_offset_ms)
+            assert data is not None, at_ms
+            pixels = np.frombuffer(data, dtype=np.uint8).reshape(320, 180, 4)
+            lit = int((pixels[:, :, :3].sum(axis=2) > 90).sum())
+            assert lit > 100, f"t={at_ms} drew almost nothing ({lit})"
+            seen.append(lit)
+        assert len(set(seen)) > 1, "every frame is identical"
+    finally:
+        frames.close()
+
+
+def test_export_refuses_a_show_whose_dialogue_is_not_rendered(tmp_path):
+    """A silent video that looks fine until upload is the worst
+    outcome, so it is the one thing this refuses outright."""
+    from core import export, staging
+
+    show = staging.load(ROOT / "scenes/hello_fellow_humans.mscript")
+    # Freshly loaded: written lines, no audio behind them.
+    for clip, _t, _v in __import__(
+            "core.dialogue", fromlist=["x"]).lines(show):
+        clip.payload = {k: v for k, v in (clip.payload or {}).items()
+                        if k != "audio"}
+
+    report = export.export(show, tmp_path / "no.mp4",
+                           size=(120, 214), fps=5,
+                           workdir=tmp_path / "w")
+    assert report["errors"], "it exported a silent show"
+    assert "not rendered" in report["errors"][0]
+    assert not (tmp_path / "no.mp4").exists()
+
+
+def test_mixed_audio_lands_on_the_beat(tmp_path):
+    """Dialogue is summed at its OFFSET, so the speech in the export is
+    the speech that scrubs in the editor. A show cannot sound different
+    on the day."""
+    import array
+    import wave
+    from core import dialogue, export, staging
+
+    show = staging.load(ROOT / "scenes/hello_fellow_humans.mscript")
+    report = dialogue.render(show, root=ROOT)
+    if report["rendered"] == 0 and report["cached"] == 0:
+        import pytest
+
+        pytest.skip("no speech module installed to render with")
+
+    wav = tmp_path / "mix.wav"
+    mixed = export.mix_audio(show, wav)
+    assert mixed["mixed"] == len(dialogue.lines(show))
+    assert not mixed["missing"]
+
+    with wave.open(str(wav)) as handle:
+        rate = handle.getframerate()
+        samples = array.array("h")
+        samples.frombytes(handle.readframes(handle.getnframes()))
+    assert max(abs(v) for v in samples) > 1000, "the mix is silent"
+
+    # Quiet before the first line, loud during it.
+    first = min(c.t_offset_ms for t in show.tracks if t.kind == "speech"
+                for c in t.clips)
+    if first > 300:
+        before = samples[:int((first - 200) * rate / 1000)]
+        assert max(abs(v) for v in before) < 200, "sound before the first line"
+    into = int((first + 400) * rate / 1000)
+    window = samples[into:into + rate // 4]
+    assert max(abs(v) for v in window) > 500, "the first line is missing"
