@@ -195,6 +195,88 @@ def stop(bus: Any) -> None:
     bus.publish(topics.DisplayStop())
 
 
+class OfflineRenderer:
+    """Frames on demand, by time, with no node and no clock.
+
+    The offline half of this slot. Every tab subscribes to
+    `/act/display/frame` and lets the node do the work, which is right
+    for a display and impossible for an EXPORT: a deterministic render
+    has to ask for frame 431 directly rather than wait 14.4 seconds for
+    it to come round.
+
+    Lives here for the same reason `render()` lives in the TTS binding —
+    `core/` is not allowed to name an engine, and should not have to.
+    Swap the module in the manifest and the exporter follows it.
+    """
+
+    def __init__(self, width: int, height: int) -> None:
+        self.width, self.height = int(width), int(height)
+        self._open: dict[Any, Any] = {}
+        #: The last frame each clip produced. `next_frame()` returns
+        #: None for "nothing new", not for "black" — a still image
+        #: emits once and then stops — and a display HOLDS the last
+        #: frame until something replaces it.
+        self._last: dict[Any, bytes] = {}
+        self._table = self._adapter_classes()
+
+    @staticmethod
+    def _adapter_classes() -> dict:
+        from jaeger_animation.node import AnimationNode
+
+        node = AnimationNode(bus=None, width=1, height=1)
+        node.register_default_adapters()
+        return {name: type(instance)
+                for name, instance in node._adapters.items()}  # noqa: SLF001
+
+    def adapter_for(self, asset: str) -> str:
+        """What `auto` means for this file — the ENGINE's answer, not a
+        second extension table that could disagree with the display."""
+        from jaeger_animation.node import adapter_for_path
+
+        return adapter_for_path(asset)
+
+    def frame(self, asset: str, into_ms: float, *, adapter: str = "auto",
+              params: dict | None = None) -> bytes | None:
+        """One RGBA frame, `into_ms` into `asset`."""
+        if not asset:
+            return None
+        params = dict(params or {})
+        key = (asset, str(sorted(params.items())))
+        handle = self._open.get(key)
+        if handle is None:
+            name = adapter or "auto"
+            if name == "auto":
+                name = self.adapter_for(asset)
+            factory = self._table.get(name)
+            if factory is None:
+                return None
+            handle = factory()
+            try:
+                handle.open(asset, width=self.width, height=self.height,
+                            params=params)
+            except Exception:  # noqa: BLE001 — one bad clip, not a bad export
+                return None
+            self._open[key] = handle
+        try:
+            produced = handle.next_frame(max(0.0, into_ms / 1000.0))
+        except Exception:  # noqa: BLE001
+            return self._last.get(key)
+        if produced is None:
+            return self._last.get(key)
+        data = bytes(produced.data)
+        self._last[key] = data
+        return data
+
+    def close(self) -> None:
+        for handle in self._open.values():
+            try:
+                handle.close()
+            except Exception:  # noqa: BLE001
+                pass
+        self._open.clear()
+        self._last.clear()
+
+
 def scaling(character: Character) -> str:
     """Pixel art needs nearest-neighbour; anything else destroys it."""
     return character.render.get("scaling", "nearest")
@@ -203,5 +285,6 @@ def scaling(character: Character) -> str:
 # roots()/project_root() are deliberately NOT exported: they are how
 # this imported-module integration finds packs, not something a surface calls.
 __all__ = ["SLOT", "PROJECT_CHARACTERS", "Character", "CharacterError",
+           "OfflineRenderer",
            "available", "load", "load_path", "play", "play_file", "stop",
            "play_sprite_region", "play_bitmap", "play_command", "scaling"]

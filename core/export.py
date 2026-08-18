@@ -40,6 +40,7 @@ from typing import Any, Callable
 from jaeger_os.timeline import Timeline
 
 from core import dialogue, director
+from modules import jaeger_animation as animation
 
 #: 9:16 at 1080. What a Short is, and the default for that reason.
 VERTICAL = (1080, 1920)
@@ -73,82 +74,28 @@ def active_clip(timeline: Timeline, kind: str, at_ms: int,
 class Frames:
     """Adapters, kept open between frames.
 
-    Reopening a clip per frame would reload a model or re-decode a
-    video thirty times a second, and the whole point of an offline
-    render is that it can afford to be exact rather than that it can
-    afford to be wasteful.
+    A thin seat on `modules/jaeger_animation.OfflineRenderer` — the
+    animation SLOT's binding, and the one place allowed to name that
+    engine. Reopening a clip per frame would reload a model or
+    re-decode a video thirty times a second, and the point of an
+    offline render is that it can afford to be exact, not wasteful.
     """
 
     def __init__(self, size: tuple[int, int]) -> None:
         self.width, self.height = size
-        self._open: dict[tuple, Any] = {}
-        #: The last frame each clip produced. `next_frame()` returns
-        #: None for "nothing new", not for "black" — a still image
-        #: emits once and then stops — and a display HOLDS the last
-        #: frame until something replaces it. A renderer that wrote
-        #: black instead exported a show that was blank except for one
-        #: frame per cue, which is exactly what it did.
-        self._last: dict[tuple, bytes] = {}
-        self._table = self._adapters()
-
-    @staticmethod
-    def _adapters() -> dict:
-        """name -> adapter CLASS. The node registers instances and this
-        needs one per clip: two clips sharing an adapter would have the
-        second `open()` close the first, which is fine for a display
-        showing one thing and wrong for a renderer holding several."""
-        from jaeger_animation.node import AnimationNode
-
-        node = AnimationNode(bus=None, width=1, height=1)
-        node.register_default_adapters()
-        return {name: type(instance)
-                for name, instance in node._adapters.items()}  # noqa: SLF001
+        self._renderer = animation.OfflineRenderer(*size)
 
     def at(self, clip: Any, into_ms: int) -> bytes | None:
         """One RGBA frame, `into_ms` into `clip`."""
         payload = dict(getattr(clip, "payload", {}) or {})
-        asset = str(payload.get("asset", payload.get("asset_path", "")))
-        if not asset:
-            return None
-        key = (asset, str(sorted((payload.get("params") or {}).items())))
-        adapter = self._open.get(key)
-        if adapter is None:
-            name = str(payload.get("adapter", "") or "auto")
-            if name == "auto":
-                # The ENGINE's own resolver, not a second extension
-                # table — a renderer that disagreed with the display
-                # about what a .json is would export a different show.
-                from jaeger_animation.node import adapter_for_path
-
-                name = adapter_for_path(asset)
-            factory = self._table.get(name)
-            if factory is None:
-                return None
-            adapter = factory()
-            try:
-                adapter.open(asset, width=self.width, height=self.height,
-                             params=dict(payload.get("params", {})))
-            except Exception:  # noqa: BLE001 — one bad clip, not a bad export
-                return None
-            self._open[key] = adapter
-        try:
-            frame = adapter.next_frame(max(0.0, into_ms / 1000.0))
-        except Exception:  # noqa: BLE001
-            return self._last.get(key)
-        if frame is None:
-            return self._last.get(key)
-        data = bytes(frame.data)
-        self._last[key] = data
-        return data
+        return self._renderer.frame(
+            str(payload.get("asset", payload.get("asset_path", ""))),
+            into_ms,
+            adapter=str(payload.get("adapter", "") or "auto"),
+            params=dict(payload.get("params", {})))
 
     def close(self) -> None:
-        for adapter in self._open.values():
-            try:
-                adapter.close()
-            except Exception:  # noqa: BLE001
-                pass
-        self._open.clear()
-        self._last.clear()
+        self._renderer.close()
 
 
 def render_frames(timeline: Timeline, out: pathlib.Path, *,

@@ -30,7 +30,12 @@ def test_mochi_never_calls_the_render_path():
     engine. Forbidding the whole package (as this test did until
     2026-07-27) is what pushed a 209-line duplicate pack reader into
     this app. The rule protects the render boundary, not the package
-    name."""
+    name.
+
+    `modules/<provider>.py` is exempt, as it already is in the sibling
+    test above: the slot binding exists to BE the single point of
+    contact with one engine. That is what let the offline exporter get
+    frames without `core/` ever naming a decoder."""
     forbidden = {
         "jaeger_animation.node": "the animation NODE — subscribe, don't call",
         "jaeger_animation.adapters": "decoders are the engine's business",
@@ -41,6 +46,13 @@ def test_mochi_never_calls_the_render_path():
     }
     for d in ("core", "interfaces", "nodes", "modules"):
         for path in (ROOT / d).rglob("*.py"):
+            # `modules/<provider>.py` IS the slot's binding — the one
+            # file whose job is to be the single point of contact with
+            # one engine, and the sibling test above already says so.
+            # An OFFLINE render belongs there: an export has no bus and
+            # no clock and cannot subscribe its way to frame 431, but
+            # `core/` still must not name an engine to get one.
+            own = path.stem if path.parent.name == "modules" else ""
             tree = ast.parse(path.read_text())
             imported = []
             for node in ast.walk(tree):
@@ -49,6 +61,8 @@ def test_mochi_never_calls_the_render_path():
                 elif isinstance(node, ast.ImportFrom) and node.module:
                     imported.append(node.module)
             for name in imported:
+                if own and name.split(".")[0] == own:
+                    continue
                 for bad, why in forbidden.items():
                     assert not (name == bad or name.startswith(bad + ".")), (
                         f"{path.name} imports {name} — {why}")
