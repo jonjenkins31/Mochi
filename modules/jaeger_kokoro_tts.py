@@ -17,6 +17,8 @@ which module is in use.
 
 from __future__ import annotations
 
+import array
+
 import re
 from typing import Any
 
@@ -125,6 +127,61 @@ def say(bus: Any, text: str, *, voice: str = "") -> None:
 # Kokoro has ONE synthesis path — unlike the ears, there is no pipeline
 # to choose between. What varies is the voice, so that is what the tabs
 # offer.
+
+def render(text: str, voice: str = "") -> tuple[bytes, int] | None:
+    """Synthesise ONE line to int16 mono bytes, opening no device.
+
+    The offline half of this slot. `say()` puts a line on the bus for a
+    running node to speak; this one hands back the audio so a show can
+    be rendered ahead of time and then scrubbed like any other media.
+
+    Returns (pcm, sample_rate), or None when nothing is installed to
+    render with. The int16 conversion happens HERE rather than in the
+    caller, so `core/` never has to know how the engine returns audio.
+
+    Done with `array` rather than numpy on purpose: the app is not
+    allowed to import an array library — see
+    dev/tests/test_v5_composition.py — and it does not need one for a
+    clamp and a multiply. The engine's buffer is only ever ITERATED, so
+    whatever container it uses is its own business.
+    """
+    cleaned = speakable(text)
+    if not cleaned:
+        return None
+    try:
+        from jaeger_kokoro_tts import (
+            KOKORO_SAMPLE_RATE, KokoroTTS, KokoroTTSConfig)
+    except ImportError:
+        return None
+    try:
+        engine = _renderer(KokoroTTS, KokoroTTSConfig, voice)
+        audio = engine.render(cleaned)
+        if audio is None:
+            return None
+        pcm = array.array("h", (
+            int(max(-1.0, min(1.0, float(sample))) * 32767)
+            for sample in audio))
+        return pcm.tobytes(), int(KOKORO_SAMPLE_RATE)
+    except Exception:  # noqa: BLE001 — a failed line is reported, not raised
+        return None
+
+
+#: One engine per voice, kept for the length of a render pass. Loading
+#: a speech model per line turns a nine-line show into a minute of
+#: model loading.
+_RENDERERS: dict[str, Any] = {}
+
+
+def _renderer(cls: Any, config_cls: Any, voice: str) -> Any:
+    engine = _RENDERERS.get(voice)
+    if engine is None:
+        try:
+            engine = cls(config_cls(voice=voice)) if voice else cls()
+        except Exception:  # noqa: BLE001 — an unknown voice falls back
+            engine = cls()
+        _RENDERERS[voice] = engine
+    return engine
+
 
 def voices() -> tuple[tuple[str, str], ...]:
     """(voice id, what it sounds like) — the module's own curated list.

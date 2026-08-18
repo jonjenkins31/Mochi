@@ -18,6 +18,12 @@ operation as scrubbing into the middle of a video.
     render(timeline)  ->  every speech clip carries `audio` and a
                           TRUE duration_ms
 
+THROUGH THE SLOT, NOT THE ENGINE. Synthesis is reached via
+`modules/jaeger_kokoro_tts.py` — the TTS slot's binding — for the same
+reason every tab watches topics instead of importing a provider: swap
+the module in the manifest and rendering follows it. This file has
+never heard of Kokoro.
+
 CACHED BY CONTENT. The key is a hash of the text and the voice, so
 re-rendering a show only synthesises what changed — and changing one
 line does not re-cut the other twenty.
@@ -36,6 +42,8 @@ import wave
 from typing import Any, Callable
 
 from jaeger_os.timeline import Timeline
+
+from modules import jaeger_kokoro_tts as tts
 
 #: Where rendered lines live. Beside the project rather than beside the
 #: show: two shows that use the same line should not synthesise it
@@ -77,16 +85,15 @@ def slice_ms(pcm: bytes, rate: int, start_ms: int) -> bytes:
     return pcm[offset:] if offset < len(pcm) else b""
 
 
-def _write(path: pathlib.Path, audio: Any, rate: int = SAMPLE_RATE) -> None:
-    import numpy as np
-
-    pcm = (np.clip(audio, -1.0, 1.0) * 32767).astype(np.int16)
+def _write(path: pathlib.Path, pcm: bytes, rate: int = SAMPLE_RATE) -> None:
+    """int16 mono bytes to a wav. Stdlib `wave`, no dependency: the
+    module handed over exactly the bytes a wav wants."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(path), "wb") as handle:
         handle.setnchannels(1)
         handle.setsampwidth(2)
         handle.setframerate(rate)
-        handle.writeframes(pcm.tobytes())
+        handle.writeframes(pcm)
 
 
 def lines(timeline: Timeline) -> list[tuple[Any, str, str]]:
@@ -127,16 +134,12 @@ def render(timeline: Timeline, *, root: pathlib.Path | None = None,
     for clip, text, voice in todo:
         path = folder / key_of(text, voice)
         if not path.is_file():
-            if engine is None:
-                engine = _engine(voice)
-            if engine is None:
-                report["failed"].append(text[:40])
-                continue
             try:
-                audio = engine.render(text)
-                if audio is None:
-                    raise ValueError("nothing to render")
-                _write(path, audio)
+                rendered = (engine or tts).render(text, voice)
+                if rendered is None:
+                    raise ValueError(
+                        "nothing rendered — is a speech module installed?")
+                _write(path, *rendered)
                 report["rendered"] += 1
                 say(text[:40], False)
             except Exception as exc:  # noqa: BLE001
@@ -155,27 +158,6 @@ def render(timeline: Timeline, *, root: pathlib.Path | None = None,
             report["moved_ms"] += abs(real - int(clip.duration_ms))
             clip.duration_ms = real
     return report
-
-
-def _engine(voice: str) -> Any:
-    """The synthesiser, or None when the module is not installed.
-
-    Imported here rather than at module scope: rendering is an
-    operator's deliberate action and loading a speech model at import
-    time would make every test that touches a timeline pay for it.
-    """
-    try:
-        from jaeger_kokoro_tts import KokoroTTS, KokoroTTSConfig
-    except ImportError:
-        return None
-    try:
-        config = KokoroTTSConfig(voice=voice) if voice else KokoroTTSConfig()
-        return KokoroTTS(config)
-    except Exception:  # noqa: BLE001
-        try:
-            return KokoroTTS()
-        except Exception:  # noqa: BLE001
-            return None
 
 
 def is_rendered(timeline: Timeline) -> bool:
