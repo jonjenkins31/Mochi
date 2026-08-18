@@ -3998,3 +3998,140 @@ def test_the_conductor_is_the_playback_path(monkeypatch):
         window.stage.stop()
     finally:
         window.close(); app.shutdown()
+
+
+def _trial_show():
+    from core import staging
+
+    return staging.load(ROOT / "scenes/hello_fellow_humans.mscript")
+
+
+def test_the_director_is_a_transport_not_a_start_button():
+    """A TimelineRunner starts, runs and stops — right for "play this
+    cue", wrong for authoring, where the loop is: play a bit, stop,
+    move the playhead back, watch it again.
+
+    The trial show is scenes/hello_fellow_humans.mscript: 22 seconds,
+    five tracks, 27 cues.
+    """
+    from types import SimpleNamespace
+    from jaeger_os import InProcBus, topics
+    from core import director
+
+    show = _trial_show()
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=None, config={})
+    fired: list = []
+    bus.subscribe(topics.ACT_DISPLAY_PLAY, fired.append)
+    bus.subscribe(topics.ACT_SPEECH_SAY, fired.append)
+    lines: list[str] = []
+    stage = director.Director(app, show, on_event=lines.append)
+    try:
+        # It knows how long the show is even though the file never said
+        # — an author writes cues, not a length, and a transport with no
+        # end has no scrub bar.
+        assert show.duration_ms == 0
+        assert stage.duration_ms == 22000
+        assert len(stage.cues) == 27
+        assert [c.at_ms for c in stage.cues] == sorted(c.at_ms for c in stage.cues)
+        # Dead tracks are reported at LOAD, before anything plays.
+        assert any("light" in line for line in lines), lines
+
+        # ── play, pause, resume ──
+        stage.play()
+        time.sleep(1.2)
+        playing_at = stage.position_ms
+        during = len(fired)
+        assert stage.state == director.PLAYING
+        assert playing_at > 800, playing_at
+        stage.pause()
+        assert stage.state == director.PAUSED
+        time.sleep(0.5)
+        assert abs(stage.position_ms - playing_at) < 80, "the playhead moved"
+        assert len(fired) == during, "cues fired while paused"
+        stage.resume()
+        time.sleep(0.4)
+        assert stage.position_ms > playing_at + 200
+
+        # ── seek is exact, and re-fires what it moves back over ──
+        stage.pause()
+        fired.clear()
+        stage.seek(0)
+        assert stage.position_ms == 0
+        stage.resume()
+        time.sleep(2.5)
+        stage.pause()
+        assert len(fired) == during, (
+            f"replaying the same window fired {len(fired)}, not {during}")
+
+        # Seeking past the end clamps rather than running off.
+        stage.seek(99_000)
+        assert stage.position_ms == stage.duration_ms
+        stage.stop()
+    finally:
+        stage.stop(); bus.close()
+
+
+def test_the_director_loops_a_range():
+    """A work area, and the space bar. This is the difference between
+    reviewing a show and watching one."""
+    from types import SimpleNamespace
+    from jaeger_os import InProcBus
+    from core import director
+
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=None, config={})
+    stage = director.Director(app, _trial_show())
+    try:
+        assert (stage.start_ms, stage.end_ms) == (0, 22000)
+        stage.set_region(4000, 7000)
+        assert (stage.start_ms, stage.end_ms) == (4000, 7000)
+        stage.loop = True
+        stage.play()
+        time.sleep(4.0)
+        # Four seconds into a three-second region, still going round.
+        assert stage.state == director.PLAYING
+        assert stage.start_ms <= stage.position_ms <= stage.end_ms
+        stage.stop()
+
+        # Clearing the region is expressible, and different from a
+        # region that happens to span the show.
+        stage.set_region(None)
+        assert stage.region is None
+        assert (stage.start_ms, stage.end_ms) == (0, 22000)
+
+        # The space bar: whatever it is doing, do the other thing.
+        stage.toggle()
+        assert stage.state in (director.PLAYING, director.PREROLL)
+        stage.toggle()
+        assert stage.state == director.PAUSED
+        stage.toggle()
+        assert stage.state == director.PLAYING
+    finally:
+        stage.stop(); bus.close()
+
+
+def test_the_director_prerolls_before_it_plays():
+    """A countdown is a STATE, not a negative position — an operator
+    has to be able to see "about to start" as its own thing."""
+    from types import SimpleNamespace
+    from jaeger_os import InProcBus
+    from core import director
+
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=None, config={})
+    seen: list[str] = []
+    stage = director.Director(app, _trial_show(),
+                              on_tick=lambda s, _p, _d: seen.append(s))
+    try:
+        stage.preroll_ms = 700
+        stage.play()
+        time.sleep(0.3)
+        assert stage.state == director.PREROLL, stage.state
+        time.sleep(0.8)
+        assert stage.state == director.PLAYING
+        assert director.PREROLL in seen and director.PLAYING in seen
+        # The show still starts at t=0, not at t=preroll.
+        assert stage.position_ms < 900, stage.position_ms
+    finally:
+        stage.stop(); bus.close()
