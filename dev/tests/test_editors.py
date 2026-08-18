@@ -432,7 +432,7 @@ def test_window_contains_migrated_editors_and_node_surfaces(monkeypatch):
         tabs = [window.widget.tabText(i) for i in range(window.widget.count())]
         assert tabs == [
             "Face", "Cast", "Characters", "MScript Editor", "Assets", "Modules",
-            "Runtime", "Scripts", "Stage", "Windows", "Chat", "Voice",
+            "Runtime", "Show", "Scripts", "Stage", "Windows", "Chat", "Voice",
             "Hearing", "Vision",
         ]
         assert window.window_manager.popup.player.skins["tv1"].image.is_file()
@@ -4182,3 +4182,118 @@ def test_the_node_view_knows_the_whole_language(monkeypatch):
         for command, _args in before:
             if command:
                 assert command in COMMANDS, f"{name} uses unknown {command}"
+
+
+def test_the_show_tab_is_an_operator_surface_for_one_short(monkeypatch):
+    """Output frame, transport, timeline — the three panels, in the
+    order the work happens. Driven entirely by the Director: nothing
+    here fires except because the playhead reached it.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from jaeger_os import JaegerApp
+    from core import director
+    from interfaces.show import ASPECTS
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = JaegerApp(ROOT / "sim.toml")
+    app.boot()
+    from interfaces.window import MochiWindow
+
+    window = MochiWindow(app)
+    try:
+        window.start()
+        tabs = [window.widget.tabText(i)
+                for i in range(window.widget.count())]
+        assert "Show" in tabs
+        panel = window.show
+
+        panel.open_show(ROOT / "scenes/hello_fellow_humans.mscript")
+        assert panel.stage.duration_ms == 22000
+        assert len(panel.stage.cues) == 27
+        assert len(panel.timeline.tracks()) == 5
+        # A dead track is named in the status line, not buried.
+        assert "play nowhere" in panel.status.text(), panel.status.text()
+        assert dict(panel.stage.unsupported()) == {"light": "light"}
+
+        # Vertical by default: this is for Shorts, and an operator has
+        # to compose against the frame they ship.
+        assert panel.output.aspect == ASPECTS["9:16 vertical"]
+        assert panel.aspect_box.currentText() == "9:16 vertical"
+
+        panel.stage.play()
+        deadline = time.time() + 2.0
+        while panel.stage.position_ms < 500 and time.time() < deadline:
+            qt_app.processEvents(); time.sleep(0.02)
+        panel._drain()
+        assert panel.stage.state == director.PLAYING
+        assert "/" in panel.clock.text()
+        panel.stage.stop()
+    finally:
+        window.close(); app.shutdown()
+
+
+def test_the_timeline_draws_scrubs_and_marks_dead_tracks(monkeypatch):
+    """A clip is a rectangle in a paint event, not a widget — a show
+    has hundreds and the interesting operations are hit-testing and
+    scrubbing. So those are what get asserted.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from types import SimpleNamespace as NS
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from jaeger_os import InProcBus
+    from core import director, staging
+    from interfaces.timeline_panel import (
+        HEADER_W, RULER_H, TRACK_H, TimelinePanel)
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    bus = InProcBus()
+    app = NS(bus=bus, supervisor=None, config={})
+    stage = director.Director(
+        app, staging.load(ROOT / "scenes/hello_fellow_humans.mscript"))
+    panel = TimelinePanel(stage)
+    try:
+        panel.resize(900, RULER_H + TRACK_H * 5)
+        panel.fit(900)
+        # Fit puts the whole show on screen, which is what a timeline
+        # should open at.
+        assert HEADER_W < panel.x_of(stage.duration_ms) <= 900
+
+        # Every track's first clip is clickable where it is drawn.
+        for index, track in enumerate(panel.tracks()):
+            clip = track.clips[0]
+            x = panel.x_of(clip.t_offset_ms + max(clip.duration_ms, 200) / 2)
+            cue = panel.cue_at(x, RULER_H + index * TRACK_H + TRACK_H / 2)
+            assert cue is not None, track.name
+            assert cue.track == (track.name or track.kind)
+
+        def press(ms, y, modifier=QtCore.Qt.NoModifier):
+            panel.mousePressEvent(NS(
+                position=lambda: QtCore.QPointF(panel.x_of(ms), y),
+                modifiers=lambda: modifier))
+
+        # Clicking the ruler seeks, exactly.
+        press(9000, 8)
+        panel.mouseReleaseEvent(None)
+        assert abs(stage.position_ms - 9000) <= 2, stage.position_ms
+
+        # Alt-drag marks the loop region.
+        press(4000, 60, QtCore.Qt.AltModifier)
+        panel.mouseMoveEvent(NS(
+            position=lambda: QtCore.QPointF(panel.x_of(11000), 60)))
+        panel.mouseReleaseEvent(None)
+        assert stage.region is not None
+        assert abs(stage.region[0] - 4000) <= 3
+        assert abs(stage.region[1] - 11000) <= 3
+
+        # And it actually paints something.
+        image = QtGui.QImage(900, RULER_H + TRACK_H * 5,
+                             QtGui.QImage.Format_RGB32)
+        panel.render(image)
+        import numpy as np
+
+        pixels = np.frombuffer(image.constBits(), dtype=np.uint8).reshape(
+            image.height(), image.width(), 4)
+        assert int((pixels[:, :, :3].sum(axis=2) > 60).sum()) > 5000
+    finally:
+        stage.stop(); bus.close()

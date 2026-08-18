@@ -58,6 +58,7 @@ class MochiWindow:
         from .player import FaceTab, _roster
         from .runtime import RuntimeTab
         from .scripts import ScriptsTab
+        from .show import ShowTab
         from .stage import StageTab
         from .vision import VisionTab
         from .voice import VoiceTab
@@ -105,20 +106,38 @@ class MochiWindow:
             ("Performance monitor", "", manager.performance.show_window),
         )
         self.face.popup_btn.clicked.connect(self.window_manager.popup.show)
+        self._syncing_character = False
         self.mscript_editor = MscriptEditorTab(app, qt)
         self.character_editor = CharacterEditorTab(
             app, qt, self.face.character.name,
-            on_character_changed=self.mscript_editor.set_character)
+            on_character_changed=self._character_editor_changed)
+        # Face/Cast is the canonical selection. The editor still owns its
+        # unsaved-change decision, but a successful character change updates
+        # the motion picker instead of leaving it on the startup pack.
+        self.face.pack_box.currentTextChanged.connect(
+            self._face_character_changed)
         self.assets = AssetsTab(app, qt)
         self.modules = ModulesTab(app, qt)
         self.runtime = RuntimeTab(
             app, qt, self.window_manager.performance.show_window)
         self.stage = StageTab(app, qt)
+        # Stage has a picker because it is useful while presenting, but it is
+        # another view of the same selected character, not a private choice.
+        self.face.pack_box.currentTextChanged.connect(
+            self.stage.pack_box.setCurrentText)
+        self.stage.pack_box.currentTextChanged.connect(
+            self.face.pack_box.setCurrentText)
+        self.stage.pack_box.setCurrentText(self.face.character.name)
         # After agent_face, because the tab suspends it while a script
         # runs — a script cannot own the face without something to
         # take it from.
         self.scripts = ScriptsTab(
             app, qt, lambda: self.face.character, self.agent_face)
+        # The operator surface for building ONE short: output frame,
+        # transport, timeline. Distinct from Stage, which drives a
+        # character by hand — nothing fires here except because the
+        # playhead reached it.
+        self.show = ShowTab(app, qt, lambda: self.face.character)
         self.face.pack_box.currentTextChanged.connect(
             lambda _n: self.scripts.reload())
         self.windows = LegacyWindowsTab(app, qt, self.window_manager)
@@ -130,7 +149,8 @@ class MochiWindow:
             self.face, self.cast, self.character_editor, self.mscript_editor,
             self.assets,
             self.modules,
-            self.runtime, self.scripts, self.stage, self.windows, self.chat, self.voice, self.hearing,
+            self.runtime, self.show, self.scripts, self.stage,
+            self.windows, self.chat, self.voice, self.hearing,
             self.vision,
         )
 
@@ -141,6 +161,7 @@ class MochiWindow:
         self.widget.addTab(self.assets.widget, "Assets")
         self.widget.addTab(self.modules.widget, "Modules")
         self.widget.addTab(self.runtime.widget, "Runtime")
+        self.widget.addTab(self.show.widget, "Show")
         self.widget.addTab(self.scripts.widget, "Scripts")
         self.widget.addTab(self.stage.widget, "Stage")
         self.widget.addTab(self.windows.widget, "Windows")
@@ -163,6 +184,32 @@ class MochiWindow:
         scale = int(os.environ.get("MOCHI_SCALE",
                                    (config.get("player") or {}).get("scale", 2)))
         self.widget.resize(max(1100, 256 * scale), max(720, 256 * scale + 130))
+
+    def _character_editor_changed(self, character: Any) -> None:
+        """Route a Characters-tab choice through the canonical Face picker."""
+        if self._syncing_character:
+            return
+        if self.face.character.name != character.name:
+            self.face.pack_box.setCurrentText(character.name)
+        else:
+            # Construction starts with the same character, so no combo-box
+            # signal fires. The motion editor still needs its initial pack.
+            self.mscript_editor.set_character(character)
+
+    def _face_character_changed(self, name: str) -> None:
+        """Synchronize editors after Face, Cast, or Stage selects a pack."""
+        from modules import jaeger_animation as animation
+
+        try:
+            character = animation.load(name)
+        except Exception:  # noqa: BLE001 — Face already reports bad packs
+            return
+        self._syncing_character = True
+        try:
+            self.character_editor.follow_character(name)
+        finally:
+            self._syncing_character = False
+        self.mscript_editor.set_character(character)
 
     def _tab_changed(self, index: int) -> None:
         showing_face = self.widget.widget(index) is self.face.widget
