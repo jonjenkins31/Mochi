@@ -135,3 +135,7 @@ quantum-codex*.zip
 # one slipped in via `git add -A` and had to be amended out.
 jaeger.*.toml
 !jaeger.toml
+
+# Rendered dialogue: a content-addressed cache, rebuildable from the
+# scripts. Committing it would put a speech model's output in git.
+render/

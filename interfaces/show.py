@@ -223,6 +223,14 @@ class ShowTab:
             lambda v: setattr(self.stage, "preroll_ms", int(v) * 1000))
         row.addWidget(self.preroll)
 
+        self.render_btn = QtWidgets.QPushButton("render dialogue")
+        self.render_btn.setToolTip(
+            "synthesise every written line to a file, once. The timeline "
+            "then knows how long speech ACTUALLY is, and scrubbing plays "
+            "audio from an offset instead of talking over itself.")
+        self.render_btn.clicked.connect(self.render_dialogue)
+        row.addWidget(self.render_btn)
+
         fit = QtWidgets.QPushButton("fit")
         fit.clicked.connect(lambda: self.timeline.fit())
         row.addWidget(fit)
@@ -250,6 +258,39 @@ class ShowTab:
             f"{len(self.stage.cues)} cues, "
             f"{director.duration_of(timeline) / 1000:.1f}s"
             + (f"   ⚠ {len(dead)} track(s) play nowhere" if dead else ""))
+
+    def render_dialogue(self) -> None:
+        """Render every written line, then retime the show to match.
+
+        Blocks: synthesis is seconds of work and an operator pressed
+        the button. A progress line per line beats a spinner that says
+        nothing about which one is slow.
+        """
+        from core import dialogue
+
+        if self.stage.timeline is None:
+            return
+        self.render_btn.setEnabled(False)
+        self.status.setText("rendering dialogue…")
+        self._QtWidgets.QApplication.processEvents()
+        report = dialogue.render(
+            self.stage.timeline, root=pathlib.Path(
+                getattr(self.app, "root", pathlib.Path.cwd())),
+            on_line=lambda text, hit: self._lines.append(
+                f"{'cached ' if hit else 'rendered'}  {text}"))
+        # Durations changed, so the show is a different length and the
+        # cues have to be rebuilt against it.
+        self.stage.load(self.stage.timeline)
+        self.timeline.fit()
+        self.timeline.update()
+        self.render_btn.setEnabled(True)
+        failed = len(report["failed"])
+        self.status.setText(
+            f"rendered {report['rendered']}, cached {report['cached']}"
+            + (f", {failed} failed" if failed else "")
+            + f" — timing corrected by {report['moved_ms'] / 1000:.1f}s")
+        for line in report["failed"][:5]:
+            self._lines.append(f"! {line}")
 
     def _open_chosen(self, index: int) -> None:
         path = self.open_box.itemData(index)

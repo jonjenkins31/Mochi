@@ -4297,3 +4297,96 @@ def test_the_timeline_draws_scrubs_and_marks_dead_tracks(monkeypatch):
         assert int((pixels[:, :, :3].sum(axis=2) > 60).sum()) > 5000
     finally:
         stage.stop(); bus.close()
+
+
+def test_rendering_dialogue_makes_the_timeline_tell_the_truth(tmp_path):
+    """A SAY clip's length was a word-count guess — and on the trial
+    show it was 0ms, meaning the timeline knew nothing at all about how
+    long anyone speaks. Every cue placed after a line inherited that.
+
+    Rendering turns a line into a FILE, and a file has a real length.
+    """
+    from core import dialogue, director, staging
+
+    show = staging.load(ROOT / "scenes/hello_fellow_humans.mscript")
+    written = dialogue.lines(show)
+    assert len(written) >= 5, "the trial show has spoken lines"
+    assert not dialogue.is_rendered(show)
+
+    report = dialogue.render(show, root=ROOT)
+    if report["rendered"] == 0 and report["cached"] == 0:
+        import pytest
+
+        pytest.skip("no speech module installed to render with")
+
+    assert not report["failed"], report["failed"]
+    assert dialogue.is_rendered(show)
+    # The correction is not cosmetic: guesses were seconds out.
+    assert report["moved_ms"] > 1000, report
+
+    for clip, _text, _voice in dialogue.lines(show):
+        payload = clip.payload or {}
+        path = pathlib.Path(payload["audio"])
+        assert path.is_file()
+        assert clip.duration_ms == dialogue.duration_ms(path) > 0
+
+    # Cached by CONTENT, so moving a line does not re-synthesise it.
+    again = dialogue.render(show, root=ROOT)
+    assert again["rendered"] == 0 and again["cached"] == len(written)
+    first = written[0]
+    assert dialogue.key_of(first[1], first[2]) == \
+        dialogue.key_of(first[1], first[2])
+    assert dialogue.key_of(first[1], first[2]) != \
+        dialogue.key_of(first[1] + " more", first[2])
+
+    # And the show is a different length now, because it is honest.
+    assert director.duration_of(show) != 22000
+
+
+def test_a_rendered_line_scrubs_like_any_other_media(tmp_path):
+    """The whole point. Seeking into the middle of a sentence plays the
+    audio FROM THERE — a byte offset — instead of re-synthesising it
+    from the top, which is what made a backward seek talk over itself.
+    """
+    from types import SimpleNamespace as NS
+    from jaeger_os import InProcBus, topics
+    from core import dialogue, director, staging
+
+    show = staging.load(ROOT / "scenes/hello_fellow_humans.mscript")
+    report = dialogue.render(show, root=ROOT)
+    if report["rendered"] == 0 and report["cached"] == 0:
+        import pytest
+
+        pytest.skip("no speech module installed to render with")
+
+    bus = InProcBus()
+    app = NS(bus=bus, supervisor=None, config={})
+    frames: list = []
+    live: list = []
+    bus.subscribe(topics.ACT_SPEAKER_PCM, frames.append)
+    bus.subscribe(topics.ACT_SPEECH_SAY, live.append)
+    stage = director.Director(app, show)
+    try:
+        line = next(c for c in stage.cues if c.kind == "speech")
+        full_ms = dialogue.duration_ms(pathlib.Path(line.clip.payload["audio"]))
+        assert full_ms > 400, full_ms
+
+        into = 800
+        stage.seek(line.at_ms + into)
+        stage.resume_under_playhead()
+        deadline = time.time() + 2.0
+        while not frames and time.time() < deadline:
+            time.sleep(0.02)
+        assert frames, "nothing played at the playhead"
+        frame = frames[-1]
+        played = len(frame.samples) / 2 / frame.sample_rate * 1000
+        assert abs(played - (full_ms - into)) < 120, (played, full_ms, into)
+        assert not live, "it re-synthesised instead of playing the file"
+
+        # And while actually dragging, an UNRENDERED line stays quiet
+        # rather than being spoken from the top.
+        stage.scrubbing = True
+        stage._speak(line, {"text": "not rendered"}, into_ms=0)
+        assert not live, "live TTS fired mid-scrub"
+    finally:
+        stage.stop(); bus.close()

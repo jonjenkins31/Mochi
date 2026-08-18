@@ -32,6 +32,7 @@ transport lies to an operator.
 
 from __future__ import annotations
 
+import pathlib
 import threading
 import time
 from dataclasses import dataclass, field
@@ -117,6 +118,11 @@ class Director:
         #: different from a region that happens to span it — clearing
         #: the region has to be expressible.
         self.region: tuple[int, int] | None = None
+        #: Set while the playhead is being dragged. Rendered lines play
+        #: from an offset and are fine; UNRENDERED ones would have to be
+        #: re-synthesised from the top, which is the talking-over-itself
+        #: problem, so they are held instead.
+        self.scrubbing = False
 
         self._origin = 0.0          # wall clock at position 0
         self._held_ms = 0           # position while paused
@@ -237,6 +243,25 @@ class Director:
         self._wake.set()
         self._report()
 
+    def resume_under_playhead(self) -> None:
+        """Play the audio the playhead is standing IN THE MIDDLE of.
+
+        Without this, seeking into a sentence gives silence until the
+        next cue — the show looks like it stopped talking. With a
+        rendered file the right answer is obvious: start it partway
+        through, which is what any editor does.
+        """
+        now = self.position_ms
+        for cue in self.cues:
+            if cue.kind != "speech":
+                continue
+            payload = cue.clip.payload or {}
+            end = cue.at_ms + int(payload.get("rendered_ms",
+                                              cue.clip.duration_ms))
+            if cue.at_ms <= now < end and payload.get("audio"):
+                self._speak(cue, payload, into_ms=now - cue.at_ms)
+                return
+
     def _seek_to(self, position_ms: int) -> None:
         target = max(0, min(int(position_ms), max(0, self.duration_ms)))
         self._held_ms = target
@@ -314,6 +339,40 @@ class Director:
                 self.state = COMPLETE
         self._report()
 
+    def _speak(self, cue: Cue, payload: dict, into_ms: int = 0) -> None:
+        """A line: rendered audio if it has any, live TTS if not.
+
+        RENDERED IS THE POINT. A file can start `into_ms` from its
+        beginning, so scrubbing into the middle of a sentence is a byte
+        offset rather than a re-synthesis — and seeking backwards stops
+        making the show talk over itself, because nothing is asked to
+        say anything twice.
+
+        Live TTS stays as the fallback so an unrendered show still
+        plays; it simply cannot be scrubbed cleanly, which is the
+        difference the render pass buys.
+        """
+        from core import dialogue
+
+        audio = str(payload.get("audio", ""))
+        if audio and pathlib.Path(audio).is_file():
+            try:
+                pcm, rate = dialogue.read(pathlib.Path(audio))
+                pcm = dialogue.slice_ms(pcm, rate, into_ms)
+                if pcm:
+                    self.bus.publish(topics.AudioOutFrame(
+                        samples=pcm, sample_rate=rate, channels=1,
+                        node_id=cue.target))
+                return
+            except Exception as exc:  # noqa: BLE001
+                self._on_event(f"! {cue.track}: {exc}")
+        if self.scrubbing:
+            return          # never synthesise live while scrubbing
+        self.bus.publish(topics.SpeechCommand(
+            text=str(payload.get("text", "")),
+            voice=str(payload.get("voice", "")),
+            node_id=cue.target))
+
     def _report(self) -> None:
         try:
             self._on_tick(self.state, self.position_ms, self.duration_ms)
@@ -334,10 +393,7 @@ class Director:
                     params=dict(payload.get("params", {})),
                     node_id=cue.target))
             elif cue.kind == "speech":
-                self.bus.publish(topics.SpeechCommand(
-                    text=str(payload.get("text", "")),
-                    voice=str(payload.get("voice", "")),
-                    node_id=cue.target))
+                self._speak(cue, payload, into_ms=0)
         except Exception as exc:  # noqa: BLE001
             self._on_event(f"! {cue.track}: {type(exc).__name__}: {exc}")
 

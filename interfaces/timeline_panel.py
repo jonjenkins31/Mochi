@@ -217,6 +217,7 @@ class TimelinePanel(QtWidgets.QWidget):
             return
         if y <= RULER_H or x < HEADER_W:
             self._dragging = True
+            self.stage.scrubbing = True
             self.stage.seek(self.ms_at(x))
             self.update()
             return
@@ -226,6 +227,7 @@ class TimelinePanel(QtWidgets.QWidget):
             self._on_pick(cue)
         else:
             self._dragging = True
+            self.stage.scrubbing = True
             self.stage.seek(self.ms_at(x))
         self.update()
 
@@ -239,6 +241,11 @@ class TimelinePanel(QtWidgets.QWidget):
             self.update()
 
     def mouseReleaseEvent(self, event: Any) -> None:  # noqa: N802
+        if self._dragging:
+            # Landing mid-line should keep talking from where the
+            # playhead is, not go silent until the next cue.
+            self.stage.scrubbing = False
+            self.stage.resume_under_playhead()
         self._dragging = False
         self._region_from = None
 
