@@ -30,17 +30,36 @@ NODE_W, NODE_H, GAP, MARGIN = 250, 62, 30, 24
 #: command -> (accent, the arguments worth offering for it).
 #: Straight from the engine's own dispatch table; a command missing here
 #: still works, it just draws as unknown rather than getting a form.
+#: Colour by WHAT A COMMAND TALKS TO, so a graph is readable at a
+#: glance: display blue, motion orange, voice green, ears teal, mind
+#: violet, flow the rest. The category is the thing an operator is
+#: actually scanning for.
+_DISPLAY, _MOTION = "#4a7ab0", "#c9873a"
+_VOICE, _EARS, _MIND = "#3f9d6d", "#3d8f95", "#8b7cff"
+_FLOW, _HOLD = "#4f9d69", "#5a6a80"
+
 COMMANDS: dict[str, tuple[str, tuple[str, ...]]] = {
-    "MATH":    ("#4a7ab0", ("K", "D", "EVENT", "FG", "BG")),
-    "BITMAP":  ("#4a7ab0", ("K", "D", "FG", "BG")),
-    "SPRITE":  ("#4a7ab0", ("K", "D", "SRC", "BG")),
-    "MEDIA":   ("#4a7ab0", ("K", "D", "SPD", "FIT", "LOOP", "BG")),
-    "IMAGE":   ("#4a7ab0", ("K", "D", "FIT", "BG")),
-    "GIF":     ("#4a7ab0", ("K", "D", "SPD", "LOOP", "BG")),
-    "VIDEO":   ("#4a7ab0", ("K", "D", "SPD", "FIT", "LOOP", "BG")),
-    "MSCRIPT": ("#4a7ab0", ("K", "D")),
-    "WAIT":    ("#5a6a80", ("D",)),
-    "LBL":     ("#4f9d69", ("LBL",)),
+    # ── what is on screen ──
+    "MATH":    (_DISPLAY, ("K", "D", "STATE", "COLOR", "SIZE", "SPD",
+                           "LAYERS", "TUNE", "EVENT", "FG", "BG")),
+    "BITMAP":  (_DISPLAY, ("K", "D", "FG", "BG")),
+    "SPRITE":  (_DISPLAY, ("K", "D", "SRC", "BG")),
+    "MEDIA":   (_DISPLAY, ("K", "D", "SPD", "FIT", "LOOP", "BG")),
+    "IMAGE":   (_DISPLAY, ("K", "D", "FIT", "BG")),
+    "GIF":     (_DISPLAY, ("K", "D", "SPD", "LOOP", "BG")),
+    "VIDEO":   (_DISPLAY, ("K", "D", "SPD", "FIT", "LOOP", "BG")),
+    "MSCRIPT": (_DISPLAY, ("K", "D")),
+    # ── by NAME, through character.yaml ──
+    "FACE":    (_DISPLAY, ("EXPR", "D")),
+    # ── motion between poses ──
+    "MOVE":    (_MOTION, ("K", "PATH", "D", "HOLD", "EASE")),
+    # ── the three the conductor owns ──
+    "SAY":     (_VOICE, ("TXT",)),
+    "LISTEN":  (_EARS, ("D",)),
+    "ASK":     (_MIND, ("TXT", "D")),
+    # ── time and flow ──
+    "WAIT":    (_HOLD, ("D",)),
+    "LBL":     (_FLOW, ("LBL",)),
     "JMP":     ("#c08a3e", ("LBL",)),
 }
 
@@ -53,6 +72,11 @@ DEFAULTS = {
     "GIF": {"K": "1", "D": "auto"}, "VIDEO": {"K": "1", "D": "auto"},
     "MSCRIPT": {"K": "1", "D": "1.0"}, "WAIT": {"D": "0.5"},
     "LBL": {"LBL": "1"}, "JMP": {"LBL": "1"},
+    "FACE": {"EXPR": "neutral", "D": "1.0"},
+    "MOVE": {"K": "1", "PATH": "1,2", "D": "2.0", "EASE": "smooth"},
+    "SAY": {"TXT": "'say something'"},
+    "LISTEN": {"D": "10"},
+    "ASK": {"D": "25"},
 }
 
 _UNKNOWN = "#a05050"

@@ -4135,3 +4135,50 @@ def test_the_director_prerolls_before_it_plays():
         assert stage.position_ms < 900, stage.position_ms
     finally:
         stage.stop(); bus.close()
+
+
+def test_the_node_view_knows_the_whole_language(monkeypatch):
+    """The graph is the parallel editor for mscript, so it has to keep
+    pace with mscript. It knew the engine's asset commands and none of
+    the conductor's — SAY, LISTEN, ASK, FACE and MOVE all drew as
+    "unknown" with no form to fill in, which is the node view quietly
+    falling a year behind the text one.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from core import scenes
+    from interfaces.mscript_editor import parse_mscript, parse_steps
+    from interfaces.mscript_graph import COMMANDS, DEFAULTS, MscriptGraph
+
+    # Every command either reader dispatches is offered by the graph.
+    spoken = {"FACE", "SAY", "LISTEN", "ASK", "MOVE", "WAIT", "LBL", "JMP"}
+    assert (scenes.CLIP_COMMANDS | spoken) <= set(COMMANDS), (
+        (scenes.CLIP_COMMANDS | spoken) - set(COMMANDS))
+    # And a new node arrives with arguments, or the engine skips it and
+    # the editor looks broken.
+    assert set(COMMANDS) <= set(DEFAULTS)
+    for command, values in DEFAULTS.items():
+        offered = COMMANDS[command][1]
+        assert set(values) <= set(offered), (command, values, offered)
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    graph = MscriptGraph(lambda: None)
+
+    # Real scripts, through the graph and back out unchanged.
+    for name in ("characters/crazy eyes/mscripts/tour.mscript",
+                 "characters/Halo/mscripts/bits/listen_to_me.mscript",
+                 "characters/bitmap man/mscripts/knock_knock.mscript"):
+        path = ROOT / name
+        if not path.is_file():
+            continue
+        sections = parse_mscript(path.read_text(encoding="utf-8"))
+        main = "\n".join(sections.get("main", []))
+        graph.set_text(main)
+        before = [(s.command, dict(s.args))
+                  for s in parse_steps(main.splitlines())]
+        after = [(s.command, dict(s.args))
+                 for s in parse_steps(graph.text().splitlines())]
+        assert before == after, f"{name} did not survive the graph"
+        for command, _args in before:
+            if command:
+                assert command in COMMANDS, f"{name} uses unknown {command}"
