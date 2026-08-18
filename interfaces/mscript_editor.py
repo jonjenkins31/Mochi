@@ -180,23 +180,89 @@ def build_steps(steps: list[Step]) -> str:
     return "\n".join(step.raw for step in steps)
 
 
+#: How each section name is spelled when written back. `Track_*` keeps
+#: whatever the author wrote — see `section_titles`.
+_TITLES = {name.lower(): name for name in KNOWN_SECTIONS}
+
+
+def section_titles(text: str) -> dict[str, str]:
+    """`{"track_eric_voice": "Track_Eric_Voice"}` — the author's spelling.
+
+    `parse_mscript` lowercases its keys so every consumer can look a
+    section up without guessing, but a save must not rewrite somebody's
+    capitalisation.
+    """
+    titles: dict[str, str] = {}
+    for line in text.splitlines():
+        match = _SECTION.match(line.strip())
+        if match and match.group(2).lower() == "start":
+            titles.setdefault(match.group(1).lower(), match.group(1))
+    return titles
+
+
 def build_mscript(
     main: str,
     resources: list[tuple[str, str]],
     *,
     header: list[str] | None = None,
     footer: list[str] | None = None,
+    sections: dict[str, list[str]] | None = None,
+    titles: dict[str, str] | None = None,
 ) -> str:
-    """Create the canonical two-section document used by Mochi 3.0/5."""
-    output = list(header or [])
-    if output and output[-1] != "":
-        output.append("")
-    output.extend(["[Main start]", *main.rstrip("\n").splitlines(), "[Main end]", ""])
-    output.append("[Resources start]")
-    output.extend(f"{resource_id}: '{path}'" for resource_id, path in resources)
-    output.extend(["[Resources end]"])
-    if footer:
-        output.extend(["", *footer])
+    """Write the document back, WHOLE.
+
+    The editor only shows `[Main]`, so for a long time this wrote only
+    header, Main, Resources and footer — and opening a show with
+    `[Keyframes]` or `[Track_*]` in it and pressing save silently
+    deleted them. A tool that loses the part of a file it does not
+    display is worse than one that refuses to open it.
+
+    So `sections` is the parsed document and everything in it is
+    carried through in its ORIGINAL ORDER; `main` and `resources` are
+    the two the editor owns and they are substituted in place. A file
+    with neither keeps the old layout, which is why the fallback below
+    is Main-then-Resources rather than a new arrangement.
+    """
+    resource_lines = [f"{resource_id}: '{path}'"
+                      for resource_id, path in resources]
+    main_lines = main.rstrip("\n").splitlines()
+    spelling = {**_TITLES, **(titles or {})}
+
+    if not sections:
+        output = list(header or [])
+        if output and output[-1] != "":
+            output.append("")
+        output.extend(["[Main start]", *main_lines, "[Main end]", ""])
+        output.extend(["[Resources start]", *resource_lines,
+                       "[Resources end]"])
+        if footer:
+            output.extend(["", *footer])
+        return "\n".join(output).rstrip() + "\n"
+
+    output: list[str] = list(
+        header if header is not None else sections.get("_header", []))
+    written = {"_header", "_footer"}
+    for name, lines in sections.items():
+        if name in written:
+            continue
+        written.add(name)
+        body = (main_lines if name == "main"
+                else resource_lines if name == "resources" else list(lines))
+        if output and output[-1] != "":
+            output.append("")
+        title = spelling.get(name, name)
+        output.extend([f"[{title} start]", *body, f"[{title} end]"])
+    # A section the editor gained but the file never had — `main` on a
+    # document that somehow lacked one.
+    for name, body in (("main", main_lines), ("resources", resource_lines)):
+        if name not in written and body:
+            if output and output[-1] != "":
+                output.append("")
+            output.extend([f"[{_TITLES[name]} start]", *body,
+                           f"[{_TITLES[name]} end]"])
+    tail = footer if footer is not None else sections.get("_footer")
+    if tail:
+        output.extend(["", *tail])
     return "\n".join(output).rstrip() + "\n"
 
 
@@ -212,6 +278,7 @@ class MscriptEditorTab:
         self.character = None
         self.scripts_dir: pathlib.Path | None = None
         self.sections: dict[str, list[str]] = {}
+        self.titles: dict[str, str] = {}
         self.resources: list[tuple[str, str]] = []
         self._loading = False
         self._script_picker_loading = False
@@ -485,6 +552,9 @@ class MscriptEditorTab:
         self._loading = True
         self.current_path = path
         self.sections = sections
+        # Kept so a save writes `[Track_Eric_Voice]` back the way it was
+        # written, not the lowercased key the parser hands out.
+        self.titles = section_titles(path.read_text(encoding="utf-8"))
         self.resources = parse_resources(sections.get("resources", []))
         self.editor.setPlainText("\n".join(sections.get("main", [])))
         self.editor.document().setModified(False)
@@ -524,6 +594,8 @@ class MscriptEditorTab:
             self.resources,
             header=self.sections.get("_header"),
             footer=self.sections.get("_footer"),
+            sections=self.sections,
+            titles=self.titles,
         )
         try:
             path.write_text(content, encoding="utf-8")
@@ -533,6 +605,7 @@ class MscriptEditorTab:
             return False
         self.current_path = path
         self.sections = parse_mscript(content)
+        self.titles = section_titles(content)
         self.editor.document().setModified(False)
         self.status.setText(f"Saved {path}")
         if self.scripts_dir is not None and path.parent.resolve() == self.scripts_dir.resolve():
@@ -668,4 +741,5 @@ class MscriptEditorTab:
 
 __all__ = [
     "MscriptEditorTab", "build_mscript", "parse_mscript", "parse_resources",
+    "section_titles",
 ]

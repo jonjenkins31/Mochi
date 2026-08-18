@@ -444,10 +444,47 @@ def test_window_contains_migrated_editors_and_node_surfaces(monkeypatch):
         assert window.character_editor.bitmap_editor.grid.columnCount() == 1
         window.character_editor.select_character("bitmap_man")
         qt_app.processEvents()
+        assert window.face.character.name == "bitmap_man"
+        assert window.mscript_editor.character.name == "bitmap_man"
+        assert window.stage.character.name == "bitmap_man"
+        assert (ROOT / "characters/bitmap man/mscripts") in \
+            window.mscript_editor.current_path.parents
         assert window.character_editor.editor_stack.currentWidget() is \
             window.character_editor.bitmap_editor.widget
         assert window.character_editor.bitmap_editor.path.is_file()
         assert window.character_editor.bitmap_editor.grid.isEnabled()
+
+        # Reproduce the reported failure: start on one pack, switch from the
+        # main Face selector, then press Play in MScript Editor. The emitted
+        # asset must belong to the NEW pack, never the startup/Orbs pack.
+        played = []
+        from jaeger_os import topics
+        app.bus.subscribe(topics.ACT_DISPLAY_PLAY, played.append)
+        window.face.pack_box.setCurrentText("eric")
+        qt_app.processEvents()
+        assert window.character_editor.character.name == "eric"
+        assert window.mscript_editor.character.name == "eric"
+        assert window.stage.character.name == "eric"
+        window.mscript_editor.play_script()
+        # Wait for the SCRIPT, not for any command. The bus delivers on
+        # its own thread and the pack switch publishes a face first, so
+        # "played is non-empty" was satisfied before play_script's
+        # command had been delivered at all.
+        deadline = time.time() + 2.0
+        while not any(c.asset_path.endswith(".mscript") for c in played) \
+                and time.time() < deadline:
+            qt_app.processEvents()
+            time.sleep(0.01)
+        assert played
+        # Find the SCRIPT command rather than assuming it is last. The
+        # Face tab's expression cycler keeps publishing after a pack
+        # switch, so `played[-1]` is whatever it did most recently —
+        # which made this assertion a race the moment a pack grew more
+        # expressions to cycle through.
+        scripts = [c for c in played if c.asset_path.endswith(".mscript")]
+        assert scripts, [c.asset_path for c in played]
+        assert "characters/Eric/mscripts/" in scripts[-1].asset_path
+        assert not any("Orbs" in c.asset_path for c in played)
     finally:
         window.close()
         app.bus.close()
@@ -1445,9 +1482,8 @@ def test_every_pack_gets_a_tile():
     authored = card_for(ROOT / "characters/mochi")
     assert authored is not None and authored.name == "card.png"
 
-    # Every installed pack resolves to real art now — the ones whose
-    # faces are JSON data got a rendered card.png from
-    # dev/tools/make_cards.py, which is the point of that tool.
+    # Every installed pack resolves to real art now — packs whose faces
+    # are engine-only data get a rendered card.png from make_cards.py.
     from interfaces.player import _roster
     for identifier, _label, root in _roster():
         found = card_for(root)
@@ -2156,6 +2192,50 @@ def test_the_twins_are_a_matched_pair():
     assert len(voices) == 2, "twins that sound the same are one character"
     for sheet in sheets.values():
         assert sheet["prompt"]["custom_instructions"]
+
+
+def test_the_twins_have_blank_lamp_screens_and_fixed_drawn_faces():
+    """The movie design is two modes, not a pair of animated eye icons:
+    an almost-empty screen with a small RGB status lamp, and one static
+    red doodle for each twin when they put on a face."""
+    import numpy as np
+    import yaml
+    from PIL import Image
+
+    drawings = {}
+    for folder in ("Eric", "Deborahbot 5000"):
+        root = ROOT / "characters" / folder
+        sheet = yaml.safe_load(
+            (root / "character.yaml").read_text(encoding="utf-8"))
+        assert sheet["render"]["adapter"] == "image"
+        assert sheet["default_expression"] == "neutral"
+        assert sheet["expressions"]["happy"]["clips"] == \
+            sheet["expressions"]["drawn"]["clips"]
+
+        neutral = np.asarray(Image.open(
+            root / sheet["expressions"]["neutral"]["clips"]).convert("RGB"))
+        bright = neutral.max(axis=2) > 40
+        ys, xs = np.where(bright)
+        assert bright.mean() < 0.01, "the resting display should be mostly blank"
+        assert xs.mean() < neutral.shape[1] * 0.25
+        assert ys.mean() < neutral.shape[0] * 0.25
+
+        for state, channel in (("red", 0), ("green", 1), ("blue", 2)):
+            pixels = np.asarray(Image.open(
+                root / sheet["expressions"][state]["clips"]
+            ).convert("RGB"))
+            lamp = pixels[40:115, 60:135]
+            totals = lamp.reshape(-1, 3).sum(axis=0)
+            assert int(totals.argmax()) == channel
+
+        drawn = np.asarray(Image.open(
+            root / sheet["expressions"]["drawn"]["clips"]).convert("RGB"))
+        red_ink = (drawn[:, :, 0] > 90) & \
+                  (drawn[:, :, 0] > drawn[:, :, 1] * 2)
+        assert red_ink.mean() > 0.01
+        drawings[folder] = red_ink
+
+    assert not np.array_equal(drawings["Eric"], drawings["Deborahbot 5000"])
 
 
 def test_a_track_name_carries_who_as_well_as_what():
@@ -2873,13 +2953,7 @@ def _render(module, frame=(240, 160), t=1.3, **tokens):
 
 
 def test_the_eyes_rig_still_looks_like_the_artwork_it_replaced():
-    """A rebuild that does not resemble the original is a new character.
-
-    The layer radii were MEASURED off crazy-eyes.webp, so the check is
-    the same measurement: sample the reference and the rig around the
-    left eye and compare the radial profiles. What matters most is that
-    the brightest ring lands in the same place.
-    """
+    """The original is authoritative: nested rings and a cross, not gears."""
     import numpy as np
     from PIL import Image
 
@@ -2888,6 +2962,8 @@ def test_the_eyes_rig_still_looks_like_the_artwork_it_replaced():
     assert art.is_file(), "the reference must stay in the pack"
     reference = np.asarray(Image.open(art).convert("RGB")).astype(float)
     mine = _render(module, frame=(480, 268)).astype(float)
+    assert np.abs(reference - mine).mean() < 2.0, (
+        "the neutral face is no longer the source-faithful artwork")
 
     def profile(image, cx=169, cy=134):
         height, width, _ = image.shape
@@ -2940,19 +3016,21 @@ def test_every_eye_rig_control_actually_moves_something():
     assert lit(_render(module, layers="pupil")) < lit(idle) * 0.1
     assert lit(_render(module, bloom="0.9")) > lit(idle)
 
-    # One eye at a time — the reason an Eye is an object.
+    # One eye at a time — the reason an Eye is an object. Compare halves
+    # because the source-faithful neutral and generated moving pose have
+    # deliberately different photographic bloom.
     winked = _render(module, wink="left")
-    assert lit(winked) < lit(idle) * 0.7
+    assert lit(winked[:, :winked.shape[1] // 2]) == 0
+    assert lit(winked[:, winked.shape[1] // 2:]) > 0
     assert abs(centre(winked)[0] - base_x) > 20, "both eyes shut"
 
     # Reaching a single ring, without a token per ring.
     tuned = module.Eyes(240, 160)
-    tuned.on_enter(tune="iris.rate=0.9;teeth.count=48")
+    tuned.on_enter(tune="iris.rate=0.9;track.width=0.09")
     assert tuned.left.layer({"name": "iris", "rate": 0.14})["rate"] == 0.9
-    assert tuned.left.layer({"name": "teeth", "count": 24})["count"] == 48
+    assert tuned.left.layer({"name": "track", "width": 0.04})["width"] == 0.09
 
-    # Roll and tilt turn things. 45 degrees is exactly three tick
-    # periods and aliases to no change, which is why this uses 7.
+    # Roll and tilt turn the cross/iris overlay.
     assert np.abs(_render(module, roll="7").astype(int)
                   - idle.astype(int)).mean() > 0.5
     assert np.abs(_render(module, tilt="25").astype(int)
@@ -3239,39 +3317,38 @@ def _hal_module():
     return module
 
 
-def test_hal_is_a_small_hot_eye_in_a_lot_of_black():
-    """The commonest way to draw HAL wrong is a red disc filling the
-    housing. The reference photo says otherwise: the glow is r=15, the
-    dark well runs to r=50, the bright plate sits at r=60-90 — so the
-    well is 3.3x the lens and the plate 5x.
-
-    Checked as a SHAPE, not a pixel match: hot, then dark, then lit.
-    """
+def test_hal_is_realistic_glass_with_a_compact_hot_core():
+    """The source is authoritative; rigging affects the internal red light."""
     import numpy as np
 
     module = _hal_module()
     scene = module.Hal(320, 420)
     scene.on_enter()
     frame = np.zeros((420, 320, 3), dtype=np.uint8)
-    scene.render_into(1.0, frame)
+    scene.render_into(0.0, frame)
+
+    reference, _ = module._reference_material(320, 420)
+    assert np.abs(frame.astype(int) - reference.astype(int)).mean() < 0.1
 
     grey = frame.mean(axis=2)
+    cx = 160
+    cy = (420 - 320) * 0.5 + 320 * module.REFERENCE_CENTER[1]
 
     def at(radius):
-        ring = [grey[int(210 + radius * np.sin(a)),
-                     int(160 + radius * np.cos(a))]
+        ring = [grey[int(cy + radius * np.sin(a)),
+                     int(cx + radius * np.cos(a))]
                 for a in np.linspace(0, 6.28, 64)
-                if 0 <= int(210 + radius * np.sin(a)) < 420
-                and 0 <= int(160 + radius * np.cos(a)) < 320]
+                if 0 <= int(cy + radius * np.sin(a)) < 420
+                and 0 <= int(cx + radius * np.cos(a)) < 320]
         return float(np.mean(ring))
 
-    core, well, plate = at(4), at(30), at(60)
-    assert core > 100, "the core is not hot"
-    assert well < core / 3, "the well is not dark — this is a red disc"
-    assert plate > well * 1.5, "the housing never lights up"
+    core, glass, bezel = at(4), at(70), at(125)
+    assert core > 150, "the yellow-white core is not hot"
+    assert glass < core / 5, "the glass is not dark — this is a red disc"
+    assert bezel > glass * 2, "the blue-steel bezel never lights up"
 
-    # The lens really is small: most of the frame is off.
-    assert (frame.sum(axis=2) > 90).mean() < 0.15, "HAL fills the frame"
+    # The lens is large, but most of its area remains dark glass.
+    assert (frame.sum(axis=2) > 150).mean() < 0.18
 
 
 def test_hal_changes_intensity_not_shape():
@@ -3282,9 +3359,10 @@ def test_hal_changes_intensity_not_shape():
 
     module = _hal_module()
 
-    def render(**tokens):
+    def render(amplitude=0.0, **tokens):
         scene = module.Hal(200, 200)
         scene.on_enter(**tokens)
+        scene.amplitude_param = amplitude
         buffer = np.zeros((200, 200, 3), dtype=np.uint8)
         scene.render_into(1.0, buffer)
         return buffer
@@ -3294,21 +3372,36 @@ def test_hal_changes_intensity_not_shape():
     assert lit["off"] == 0, "off must be off"
     assert lit["alarmed"] > lit["idle"] > lit["dying"] > 0, lit
 
-    # SIZE is the control the demo leans on, so it had better work.
-    assert (render(size="1.9").sum(axis=2) > 90).sum() > \
-        (render(size="0.45").sum(axis=2) > 90).sum() * 3
+    def red_pixels(frame):
+        red = frame[:, :, 0].astype(int)
+        other = np.maximum(frame[:, :, 1], frame[:, :, 2]).astype(int)
+        return int(((red > other + 40) & (red > 50)).sum())
+
+    # SIZE and GLOW spread only the red optics; the housing stays fixed.
+    assert red_pixels(render(size="1.9")) > \
+        red_pixels(render(size="0.45")) * 1.25
+    assert red_pixels(render(glow="2.0")) > red_pixels(render()) * 1.15
+
+    # LEVEL is a first-class control, and the live voice raises it too.
+    assert red_pixels(render(level="1.8")) > red_pixels(render(level="0")) * 5
+    assert red_pixels(render(amplitude=0.9)) > red_pixels(render()) * 1.08
 
     # Colour per layer: the core must be hotter than the field, or he
     # is a stop light. Sampled where each actually is.
     frame = render().astype(int)
-    centre = frame[100, 100]
-    radius = 200 * module.LENS * 0.5
-    field = frame[100, int(100 + radius * 0.9)]
-    assert centre.min() > field.min() + 40, (centre, field)
+    cy = int(200 * module.REFERENCE_CENTER[1])
+    centre = frame[cy, 100]
+    field = frame[cy, 120]
+    assert centre[1] > field[1] + 150, (centre, field)
     assert field[0] > field[1] + 60, f"the field is not red: {field}"
 
-    # And he breathes without being asked.
-    assert not np.array_equal(render(), _hal_at(module, 3.7))
+    low, high = render(level="0"), render(level="1.8")
+    blue_metal = (low[:, :, 2].astype(int) > low[:, :, 0].astype(int) + 10) \
+        & (low.sum(axis=2) > 60)
+    assert np.abs(low.astype(int) - high.astype(int))[blue_metal].mean() < 2.0
+
+    # And the red optics breathe without being asked.
+    assert not np.array_equal(_hal_at(module, 0.0), _hal_at(module, 0.5))
 
 
 def _hal_at(module, t):
@@ -3574,9 +3667,7 @@ def _eve_module():
 
 
 def test_eve_has_two_rigs_and_the_mouth_is_the_new_one():
-    """Fourth math character, first with a mouth. Two rigs: the eyes,
-    whose range is almost entirely TILT, and the mouth, which is a row
-    of light segments reading the live voice."""
+    """The real CRT eyes remain the material; only speech lights the mouth."""
     import numpy as np
 
     module = _eve_module()
@@ -3591,16 +3682,18 @@ def test_eve_has_two_rigs_and_the_mouth_is_the_new_one():
             scene.render_into(index * 0.06, buffer)
         return scene, buffer
 
-    radius = min(W, H) * module.EYE_R * 1.6
-    band = int(H * module.EYE_Y + radius * 2.3)
+    band = int(H * module.MOUTH_Y)
 
     def mouth_px(buffer):
-        return int((buffer[max(0, band - 24):band + 24].sum(axis=2) > 150).sum())
+        mouth = buffer[max(0, band - 24):band + 24,
+                       int(W * 0.32):int(W * 0.66)]
+        return int((mouth.sum(axis=2) > 150).sum())
 
     # THE MOUTH READS THE VOICE, and decays instead of snapping.
     quiet = mouth_px(run([0.0] * 12)[1])
     loud = mouth_px(run([0.0] * 4 + [0.85] * 8)[1])
-    assert loud > quiet * 1.25, f"the mouth ignored the voice: {quiet}->{loud}"
+    assert quiet == 0, f"the resting mouth is visible: {quiet} lit pixels"
+    assert loud > 20, f"the mouth ignored the voice: {quiet}->{loud}"
     scene, _ = run([0.9] * 6)
     falling = []
     frame = np.zeros((H, W, 3), dtype=np.uint8)
@@ -3610,9 +3703,11 @@ def test_eve_has_two_rigs_and_the_mouth_is_the_new_one():
         falling.append(float(scene.mouth.values.mean()))
     assert falling == sorted(falling, reverse=True), falling
 
-    # A SHAPE is the resting profile; the voice modulates it. So a
-    # smile that talks is still a smile.
-    smile, _ = run([0.0] * 10, mouth="smile", open="0.6")
+    # A SHAPE describes the illuminated profile, not a resting mouth. A
+    # smile that talks is still a smile, while a quiet smile remains black.
+    quiet_smile, _ = run([0.0] * 10, mouth="smile", open="0.6")
+    assert not quiet_smile.mouth.values.any()
+    smile, _ = run([0.7] * 10, mouth="smile", open="0.6")
     profile = smile.mouth.values
     middle = len(profile) // 2
     assert profile[middle] > profile[0] * 1.5, f"smile is flat: {profile}"
@@ -3622,37 +3717,52 @@ def test_eve_has_two_rigs_and_the_mouth_is_the_new_one():
     assert live.mean() > profile.mean(), "it did not open"
     # Every shape is distinct.
     seen = {name: tuple(round(float(v), 2) for v in
-                        run([0.0] * 10, mouth=name, open="0.6")[0].mouth.values)
+                        run([0.7] * 10, mouth=name, open="0.6")[0].mouth.values)
             for name in module.SHAPES}
     assert len(set(seen.values())) == len(module.SHAPES), seen
 
-    # THE EYE RIG: tilt is the control, and it must MIRROR — two eyes
-    # leaning the same way is a head tilt, not an expression.
-    def slope(tilt):
-        _, buffer = run([0.0] * 4, tilt=tilt, layers="eyes")
-        rows, cols = np.nonzero(buffer.sum(axis=2) > 150)
-        left = cols < W / 2
-        mid = cols[left].mean()
-        inner = rows[left & (cols > mid)].mean()
-        outer = rows[left & (cols < mid)].mean()
-        return inner - outer
+    # THE EYE RIG: tilt must mirror. The authentic eyes are broad enough
+    # that silhouette centroids barely move, so measure the direction of
+    # their phosphor lines instead: opposite cross-gradients mean opposite
+    # rotations, while equal signs would be a whole-head tilt.
+    def slants(tilt):
+        _, buffer = run([0.0] * 4, tilt=tilt, layers="eyes,texture")
+        gray = buffer.mean(axis=2).astype(float)
+        found = []
+        for x0, x1 in ((0, W // 2), (W // 2, W)):
+            eye = gray[:, x0:x1]
+            gx = (eye[:, 2:] - eye[:, :-2])[1:-1]
+            gy = eye[2:, 1:-1] - eye[:-2, 1:-1]
+            mask = eye[1:-1, 1:-1] > 40
+            found.append(float((gx[mask] * gy[mask]).mean()))
+        return found
 
-    assert slope("-26") < -3, "a glare does not angle inward"
-    assert slope("16") > 3, "worry does not angle outward"
-    assert abs(slope("0")) < 1, "level eyes are not level"
+    glare = slants("-26")
+    worry = slants("16")
+    level = slants("0")
+    assert glare[0] < -40 < glare[1], glare
+    assert worry[0] > 20 > worry[1], worry
+    assert abs(level[0] - level[1]) < 5, level
 
-    # Layers are separable — except `texture`, which MULTIPLIES what
-    # is already there rather than adding to it. Alone it has nothing
-    # to modulate and is correctly black, so it is checked as the
-    # modifier it is.
+    # The neutral pose is the original design, not a geometric
+    # approximation. This is deliberately exact at its authored size.
+    _, authored = run([0.0] * 4)
+    from PIL import Image
+    reference = np.asarray(Image.open(
+        ROOT / "characters/eve/assets/eve.png").convert("RGB").resize((W, H)))
+    assert np.abs(authored.astype(int) - reference.astype(int)).mean() < 4.0
+
+    # Body and local bloom are separable. Texture changes the phosphor
+    # material itself; it never lays global stripes across the black bridge.
     for layer in ("halo", "eyes", "mouth"):
-        _, buffer = run([0.0] * 4, layers=layer)
+        levels = [0.8] * 4 if layer == "mouth" else [0.0] * 4
+        _, buffer = run(levels, layers=layer)
         assert buffer.sum() > 0, f"{layer} drew nothing"
     plain = run([0.0] * 4, texture="0")[1].astype(int)
     striped = run([0.0] * 4, texture="1")[1].astype(int)
     assert np.abs(plain - striped).mean() > 1.0, "the texture does nothing"
-    # It DARKENS alternate rows rather than adding light.
-    assert striped.sum() < plain.sum(), "the texture brightened the panel"
+    bridge = striped[:, int(W * 0.43):int(W * 0.54)]
+    assert bridge.max() < 12, "texture or bloom filled EVE's black bridge"
     lit = {name: int((run([0.0] * 8, state=name)[1].sum(axis=2) > 150).sum())
            for name in module.STATES}
     assert lit["sleeping"] < lit["idle"] / 3, lit
@@ -3680,3 +3790,119 @@ def test_eve_is_a_pack_like_the_rest():
             tokens |= set(step.params or {})
     for control in ("TILT", "MOUTH", "OPEN", "LEVEL", "LAYERS", "PATH"):
         assert control in tokens, f"the tour never shows {control}"
+
+
+def test_one_unreadable_pack_does_not_take_the_app_down(tmp_path):
+    """Discovery scans a directory anyone can drop a folder into, and it
+    runs at BOOT — so a half-written character.yaml was a crash before
+    any window opened. Two persona-only packs imported from JaegerAI
+    did exactly that.
+
+    Skipped and REPORTED: a pack that silently fails to appear is the
+    other bad outcome.
+    """
+    import warnings
+    from jaeger_animation.characters import discover_characters
+
+    good = tmp_path / "good"
+    (good / "mscripts").mkdir(parents=True)
+    (good / "art.png").write_bytes(b"")
+    (good / "character.yaml").write_text(
+        "schema: character/v1\ncharacter: good\nname: Good\n"
+        "kind: clip_set\nrender: {adapter: image, asset: art.png}\n"
+        "expressions: {idle: {clips: art.png}}\ndefault_expression: idle\n",
+        encoding="utf-8")
+    broken = tmp_path / "broken"
+    broken.mkdir()
+    (broken / "character.yaml").write_text(
+        "schema: character/v1\nname: Broken\n", encoding="utf-8")
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        found = discover_characters(tmp_path)
+    assert "good" in found, "the good pack was lost with the bad one"
+    assert any("broken" in str(w.message) for w in caught), (
+        "a skipped pack must say so")
+
+
+def test_every_installed_pack_actually_loads():
+    """The regression itself: `available()` must not raise, and every
+    pack it lists must load. Dropping a folder in is how characters
+    arrive, so this is the check that folder is finished."""
+    import warnings
+    from modules import jaeger_animation as animation
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        names = animation.available()
+    assert not caught, [str(w.message) for w in caught]
+    assert len(names) >= 18, names
+    for name in names:
+        character = animation.load(name)
+        assert character.default_expression in character.expressions, name
+        assert (pathlib.Path(character.root) / "mscripts").is_dir(), name
+
+
+def test_saving_a_show_keeps_the_parts_the_editor_does_not_show(tmp_path,
+                                                                monkeypatch):
+    """The editor displays `[Main]` and nothing else, and used to write
+    back only header, Main, Resources and footer.
+
+    So opening a show with `[Keyframes]` or `[Track_*]` in it and
+    pressing save silently deleted the timeline and the motion
+    keyframes. A tool that loses the part of a file it does not display
+    is worse than one that refuses to open it.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtCore, QtGui, QtWidgets
+    from jaeger_os import InProcBus
+    from interfaces.mscript_editor import MscriptEditorTab, parse_mscript
+
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    show = tmp_path / "show.mscript"
+    show.write_text(
+        "[Header start]\n! a show with everything in it\n[Header end]\n\n"
+        "[Resources start]\nK[1]: 'characters/Orbs/orbs.py'\n[Resources end]\n\n"
+        "[Keyframes start]\nP[1]: STATE[idle] GAZE[0,0]\n"
+        "P[2]: STATE[alert] GAZE[-0.8,0]\n[Keyframes end]\n\n"
+        "[Track_Eric_Voice start]\nSAY TXT['a line on a track']\n"
+        "[Track_Eric_Voice end]\n\n"
+        "[Track_lights start]\nLIGHT HUE[200] D[2.0]\n[Track_lights end]\n\n"
+        "[Main start]\nMATH K[1] STATE[idle] D[1.0]\n[Main end]\n",
+        encoding="utf-8")
+
+    bus = InProcBus()
+    app = SimpleNamespace(bus=bus, supervisor=None, config={}, root=ROOT)
+    editor = MscriptEditorTab(app, (QtCore, QtGui, QtWidgets))
+    try:
+        before = parse_mscript(show.read_text(encoding="utf-8"))
+        editor.load_path(show)
+        assert editor.save_script()
+        after = parse_mscript(show.read_text(encoding="utf-8"))
+
+        for name in ("keyframes", "track_eric_voice", "track_lights"):
+            assert name in after, f"{name} was deleted by a save"
+            assert after[name] == before[name], f"{name} changed"
+
+        text = show.read_text(encoding="utf-8")
+        # The author's capitalisation survives — the parser lowercases
+        # its keys so lookups are simple, and a save must not rewrite
+        # somebody's file because of that.
+        assert "[Track_Eric_Voice start]" in text
+        assert "[Track_lights start]" in text
+
+        # Editing Main still works, and still only touches Main.
+        editor.editor.setPlainText("MATH K[1] STATE[alert] D[2.0]")
+        assert editor.save_script()
+        final = parse_mscript(show.read_text(encoding="utf-8"))
+        assert final["main"] == ["MATH K[1] STATE[alert] D[2.0]"]
+        assert final["keyframes"] == before["keyframes"]
+        assert final["track_lights"] == before["track_lights"]
+
+        # And it is still a document both readers accept.
+        from core import scenes
+
+        reloaded = scenes.load(show)
+        assert reloaded.steps
+    finally:
+        editor.close(); bus.close()
