@@ -125,7 +125,7 @@ QComboBox QAbstractItemView {{ background: {c['panel']}; color: {c['ink']};
     selection-color: {c['accent_ink']}; }}
 QComboBox::drop-down {{ border: none; width: 18px; }}
 QPlainTextEdit, QTextEdit {{ background: {c['sunken']};
-    font-family: ui-monospace, "SF Mono", Menlo, monospace; }}
+    font-family: "SF Mono", Menlo, Consolas, monospace; }}
 
 QListWidget, QTreeWidget, QTableWidget, QGraphicsView {{
     background: {c['sunken']}; color: {c['ink']};

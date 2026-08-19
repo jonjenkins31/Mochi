@@ -4220,7 +4220,7 @@ def test_the_show_tab_is_an_operator_surface_for_one_short(monkeypatch):
         tabs = [window.widget.tabText(i)
                 for i in range(window.widget.count())]
         assert "Show" in tabs
-        panel = window.show
+        panel = window.show_tab
 
         panel.open_show(ROOT / "scenes/hello_fellow_humans.mscript")
         assert panel.stage.duration_ms == 22000
@@ -4614,3 +4614,45 @@ def test_the_stage_light_reaches_the_exported_picture(tmp_path):
         pixels = np.asarray(Image.open(shot).convert("RGB")).astype(float)
         red, blue_mean = pixels[:, :, 0].mean(), pixels[:, :, 2].mean()
         assert (red > blue_mean) == (tone == "amber"), (at_s, red, blue_mean)
+
+
+def test_the_surface_contract_is_not_shadowed_by_a_tab(monkeypatch):
+    """`self.show = ShowTab(...)` killed the app at boot.
+
+    The chassis does `if hasattr(main_obj, "show"): main_obj.show()`,
+    so naming a tab after a verb the surface contract already uses
+    turned a method call into calling a QWidget wrapper. It died AFTER
+    the nodes came up, which is the worst place for it — the log said
+    "boot complete" and then the app fell over.
+
+    So: every name the chassis reaches for stays callable, and no tab
+    may take one.
+    """
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from jaeger_os import JaegerApp
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    app = JaegerApp(ROOT / "sim.toml")
+    app.boot()
+    from interfaces.window import MochiWindow
+
+    window = MochiWindow(app)
+    try:
+        window.start()
+        # The exact lines from jaeger_os/app/app.py::_run_qt.
+        assert hasattr(window, "show")
+        assert callable(window.show), "a tab is shadowing the surface contract"
+        window.show()
+        qt_app.processEvents()
+
+        # Anything the chassis or Qt might call must survive a tab
+        # being named after it.
+        for name in ("show", "start", "close"):
+            assert callable(getattr(window, name)), name
+        # And the tab is still reachable, under a name that is not a verb.
+        from interfaces.show import ShowTab
+
+        assert isinstance(window.show_tab, ShowTab)
+    finally:
+        window.close(); app.shutdown()

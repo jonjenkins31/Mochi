@@ -137,7 +137,7 @@ class MochiWindow:
         # transport, timeline. Distinct from Stage, which drives a
         # character by hand — nothing fires here except because the
         # playhead reached it.
-        self.show = ShowTab(app, qt, lambda: self.face.character)
+        self.show_tab = ShowTab(app, qt, lambda: self.face.character)
         self.face.pack_box.currentTextChanged.connect(
             lambda _n: self.scripts.reload())
         self.windows = LegacyWindowsTab(app, qt, self.window_manager)
@@ -149,7 +149,7 @@ class MochiWindow:
             self.face, self.cast, self.character_editor, self.mscript_editor,
             self.assets,
             self.modules,
-            self.runtime, self.show, self.scripts, self.stage,
+            self.runtime, self.show_tab, self.scripts, self.stage,
             self.windows, self.chat, self.voice, self.hearing,
             self.vision,
         )
@@ -161,7 +161,7 @@ class MochiWindow:
         self.widget.addTab(self.assets.widget, "Assets")
         self.widget.addTab(self.modules.widget, "Modules")
         self.widget.addTab(self.runtime.widget, "Runtime")
-        self.widget.addTab(self.show.widget, "Show")
+        self.widget.addTab(self.show_tab.widget, "Show")
         self.widget.addTab(self.scripts.widget, "Scripts")
         self.widget.addTab(self.stage.widget, "Stage")
         self.widget.addTab(self.windows.widget, "Windows")
@@ -219,6 +219,19 @@ class MochiWindow:
         elif showing_face and getattr(self, "_cycle_was_on", False):
             self._cycle_was_on = False
             self.face.cycle_btn.setChecked(True)
+
+    def show(self) -> None:
+        """What the chassis calls on the main surface after boot.
+
+        It must be a METHOD. `self.show = ShowTab(...)` shadowed it and
+        the app died on `main_obj.show()` — a tab named after a verb the
+        surface contract already uses. The tab is `show_tab` now.
+
+        Bringing the agent's window forward is the right thing to do
+        here: it is the primary surface, and `start()` has already
+        opened it, so this is idempotent.
+        """
+        self.window_manager.show_avatar()
 
     def open_avatar(self) -> None:
         """The primary window — what launching Mochi opens."""

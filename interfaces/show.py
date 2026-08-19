@@ -260,7 +260,7 @@ class ShowTab:
         row.addWidget(fit)
         row.addStretch(1)
         self.clock = QtWidgets.QLabel("0:00.000 / 0:00.000")
-        self.clock.setStyleSheet("font-family:ui-monospace,Menlo,monospace;")
+        self.clock.setStyleSheet("font-family:'SF Mono',Menlo,Consolas,monospace;")
         row.addWidget(self.clock)
         return bar
 
